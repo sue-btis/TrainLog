@@ -101,12 +101,14 @@ Load-bearing decisions are recorded in [docs/adr/](./docs/adr/).
   is the only established voice reference.
 - **Pinned aesthetic preference (user, standing):** whitish palette, neumorphic soft mass,
   some glass, rounded forms, colourful, animated. Binding on future visual work.
-- **Committed visual world:** Cloud Quarry — cumulus-white block mass, saturated sky-void
-  blue cut faces, chamfered cut-edge component language, mono measure type and a stencil
-  display face. Chosen by the user over the assigned direction. Reference boards live at
-  `.impeccable/refs/`.
+- **Committed visual world:** Dose Card — a whitish board, a clear film, and convex domes you press
+  one at a time. Soft-UI depth (paired cool/white shadows), frosted glass containers, fully rounded
+  cells, and a five-hue semantic set where colour names a state: blue Planned, green Actual, violet
+  Progression, red Missed, amber Live. Recorded in [DESIGN.md](./DESIGN.md); first built surface is
+  `design/preview.html`. **Supersedes Cloud Quarry** (chamfered cut-edges, blue-only), which the
+  user replaced on 2026-08-18 as incompatible with the rounded, multi-colour brief.
 - **The glossary outranks the world.** CONTEXT.md governs all user-facing language; the
-  quarry supplies material and structure only. The UI says Session, Set, Exercise, RIR.
+  dose card supplies material and structure only. The UI says Session, Set, Exercise, RIR.
 - Code, identifiers and comments in English. PRD prose stays Spanish.
 
 ## Evidence on Hand

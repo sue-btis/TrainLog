@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-18T00:00:00Z",
+  "title": "Design System: TrainLog",
+  "extensions": {
+    "colorMeta": {
+      "board": {
+        "role": "neutral",
+        "displayName": "Board White",
+        "canonical": "#F4F6FB",
+        "tonalRamp": [
+          "#161A22",
+          "#2A313F",
+          "#414A5E",
+          "#5C6579",
+          "#8E97AB",
+          "#BFC7D6",
+          "#E8EEF8",
+          "#F8FAFD"
+        ]
+      },
+      "shade": {
+        "role": "neutral",
+        "displayName": "Cool Shade",
+        "canonical": "#94A3C1",
+        "tonalRamp": [
+          "#1B2130",
+          "#2F394C",
+          "#465269",
+          "#5F6C86",
+          "#7C8AA5",
+          "#96A6C2",
+          "#C3CDDD",
+          "#E6EBF3"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Board Ink",
+        "canonical": "#141A2A",
+        "tonalRamp": [
+          "#090C14",
+          "#141A2A",
+          "#232B3E",
+          "#3C465C",
+          "#4E586E",
+          "#7A8395",
+          "#B4BAC6",
+          "#E3E6EC"
+        ]
+      },
+      "planned": {
+        "role": "primary",
+        "displayName": "Instrument Blue",
+        "canonical": "#2F62F0",
+        "tonalRamp": [
+          "#0A1740",
+          "#122363",
+          "#1A3391",
+          "#1F49C4",
+          "#2F62F0",
+          "#6E92F7",
+          "#AFC4FB",
+          "#E7EDFE"
+        ]
+      },
+      "actual": {
+        "role": "primary",
+        "displayName": "Foil Green",
+        "canonical": "#0F9B67",
+        "tonalRamp": [
+          "#04251A",
+          "#063D2B",
+          "#08603E",
+          "#0A7049",
+          "#0F9B67",
+          "#3FBE8E",
+          "#8CDBBC",
+          "#E2F5EE"
+        ]
+      },
+      "progress": {
+        "role": "secondary",
+        "displayName": "Derived Violet",
+        "canonical": "#6D3FE0",
+        "tonalRamp": [
+          "#1B0C43",
+          "#2C1470",
+          "#43209E",
+          "#5A2FC4",
+          "#6D3FE0",
+          "#9878EC",
+          "#C4B3F5",
+          "#EDE7FD"
+        ]
+      },
+      "missed": {
+        "role": "secondary",
+        "displayName": "Errata Red",
+        "canonical": "#DE3B45",
+        "tonalRamp": [
+          "#3A0A0E",
+          "#5E1219",
+          "#951C26",
+          "#B32530",
+          "#DE3B45",
+          "#EB7A81",
+          "#F5B4B8",
+          "#FCE8E9"
+        ]
+      },
+      "live": {
+        "role": "tertiary",
+        "displayName": "Signal Amber",
+        "canonical": "#F5A524",
+        "tonalRamp": [
+          "#3A2400",
+          "#5C3900",
+          "#8A5200",
+          "#B36B00",
+          "#F5A524",
+          "#F9C36B",
+          "#FCDFA9",
+          "#FEF2DE"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "load": {
+        "displayName": "Load",
+        "purpose": "Working weight — the largest type in the product, read at arm's length."
+      },
+      "clock": {
+        "displayName": "Clock",
+        "purpose": "Rest timer countdown."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "Weight / reps / RIR value inside a recessed field."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Exercise name and screen title."
+      },
+      "measure": {
+        "displayName": "Measure",
+        "purpose": "All measurement data: weight, reps, RIR, dates, durations, units."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field captions and chips, uppercase and tracked."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Bottom nav and dome sub-labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "dome",
+        "value": "4px 4px 10px rgba(148,163,193,.30), -3px -3px 8px rgba(255,255,255,.95)",
+        "purpose": "Resting pressable surface — domes, secondary buttons, steppers, day cells. Low amplitude on purpose."
+      },
+      {
+        "name": "dome-lift",
+        "value": "7px 8px 18px rgba(148,163,193,.30), -4px -4px 10px rgba(255,255,255,1)",
+        "purpose": "Hover, the live dome, and the suggested dome."
+      },
+      {
+        "name": "pressed",
+        "value": "inset 3px 3px 7px rgba(148,163,193,.32), inset -2px -2px 5px rgba(255,255,255,.95)",
+        "purpose": "Recessed WHITE cavities — fields, wells, loading bars, empty states, disabled controls."
+      },
+      {
+        "name": "sunk",
+        "value": "inset 0 2px 5px rgba(20,26,42,.22)",
+        "purpose": "Recessed COLOURED cells — logged and missed domes, active nav item. The white half would read as haze on a saturated fill."
+      },
+      {
+        "name": "lift",
+        "value": "0 1px 2px rgba(148,163,193,.24), 0 8px 20px -12px rgba(148,163,193,.55)",
+        "purpose": "Containers and filled buttons sitting on the board — cards, panels, chart shell, timer shell."
+      },
+      {
+        "name": "glass",
+        "value": "inset 0 1px 0 rgba(255,255,255,.85), 0 10px 30px -14px rgba(148,163,193,.7)",
+        "purpose": "The nav film. Only ever used over the colour bloom, where the blur is visible."
+      },
+      {
+        "name": "overlay",
+        "value": "0 24px 52px -22px rgba(30,42,64,.26)",
+        "purpose": "Modals and device frames only."
+      },
+      {
+        "name": "edge",
+        "value": "0 0 0 1px rgba(148,163,193,.24)",
+        "purpose": "The soft cool hairline."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "220ms cubic-bezier(.22,1,.36,1)",
+        "purpose": "The authored moment: convex to pressed. Every state transition inherits it."
+      },
+      {
+        "name": "snap",
+        "value": "110ms cubic-bezier(.4,0,1,1)",
+        "purpose": "Immediate tactile feedback on :active — scale(.975)."
+      },
+      {
+        "name": "burst",
+        "value": "480ms cubic-bezier(.16,1,.3,1)",
+        "purpose": "The foil ring opening once on a logged set, scale(.72) to scale(1.34), fading out."
+      },
+      {
+        "name": "breathe",
+        "value": "2600ms ease-in-out infinite",
+        "purpose": "The live dome's halo. One of only two loops allowed in the system."
+      },
+      {
+        "name": "settling",
+        "value": "1600ms ease-in-out infinite",
+        "purpose": "Loading bars pulsing 1 to 0.48 opacity. No sweeping shimmer."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "device",
+        "value": "390px"
+      },
+      {
+        "name": "compact",
+        "value": "560px"
+      },
+      {
+        "name": "sheet",
+        "value": "1180px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Dome — planned",
+      "kind": "custom",
+      "refersTo": "dome-planned",
+      "description": "One dome is one Set. Solid white and marked with a ring — planned, not yet performed.",
+      "html": "<button class=\"ds-dome\" aria-label=\"Set 3, planned, 82.5 kilograms\"><span><b>82.5</b><small>kg</small></span></button>",
+      "css": ".ds-dome{position:relative;width:76px;height:76px;border:0;padding:0;cursor:pointer;border-radius:999px;background:#FFFFFF;box-shadow:4px 4px 10px rgba(148,163,193,.30),-3px -3px 8px rgba(255,255,255,.95),inset 0 0 0 2px #E7EDFE;font-family:'Martian Mono',ui-monospace,monospace;font-size:.8125rem;font-weight:600;color:#1F49C4;display:grid;place-items:center;text-align:center;transition:box-shadow 220ms cubic-bezier(.22,1,.36,1),transform 220ms cubic-bezier(.22,1,.36,1)} .ds-dome::after{content:\"\";position:absolute;inset:0;border-radius:inherit;pointer-events:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.9)} .ds-dome b{display:block;font-size:1.0625rem;font-weight:700;letter-spacing:-.02em} .ds-dome small{display:block;font-size:.5625rem;letter-spacing:.09em;opacity:.75;text-transform:uppercase} .ds-dome:hover{transform:translateY(-2px);box-shadow:7px 8px 18px rgba(148,163,193,.30),-4px -4px 10px rgba(255,255,255,1),inset 0 0 0 2px #E7EDFE} .ds-dome:focus-visible{outline:3px solid #2F62F0;outline-offset:3px}"
+    },
+    {
+      "name": "Dome — logged",
+      "kind": "custom",
+      "refersTo": "dome-logged",
+      "description": "A recorded cell: filled solid green and sunk into the board. No longer a control.",
+      "html": "<button class=\"ds-dome-logged\" disabled aria-label=\"Set 2 logged, 80 kilograms for 8 reps at RIR 2\"><span><b>80</b><small>8 · 2</small></span></button>",
+      "css": ".ds-dome-logged{position:relative;width:76px;height:76px;border:0;padding:0;border-radius:999px;background:#0A7049;color:#fff;box-shadow:inset 0 2px 5px rgba(20,26,42,.22);font-family:'Martian Mono',ui-monospace,monospace;font-size:.8125rem;font-weight:600;display:grid;place-items:center;text-align:center;cursor:default} .ds-dome-logged b{display:block;font-size:1.0625rem;font-weight:700;letter-spacing:-.02em} .ds-dome-logged small{display:block;font-size:.5625rem;letter-spacing:.09em;opacity:.8;text-transform:uppercase}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Records what happened. Green, because that is always the primary action here.",
+      "html": "<button class=\"ds-btn-primary\">Log set</button>",
+      "css": ".ds-btn-primary{border:0;cursor:pointer;font-family:Archivo,system-ui,sans-serif;font-weight:700;font-size:.9375rem;letter-spacing:-.005em;padding:14px 22px;min-height:48px;border-radius:14px;background:#0A7049;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 2px rgba(148,163,193,.24),0 8px 20px -12px rgba(148,163,193,.55);transition:transform 110ms cubic-bezier(.4,0,1,1),box-shadow 220ms cubic-bezier(.22,1,.36,1),background 220ms cubic-bezier(.22,1,.36,1)} .ds-btn-primary:hover{background:#08603E;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 12px 26px -12px rgba(10,112,73,.6)} .ds-btn-primary:active{transform:scale(.975)} .ds-btn-primary:focus-visible{outline:3px solid #2F62F0;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A dome in button form — solid white, raised, lifts on hover.",
+      "html": "<button class=\"ds-btn-secondary\">Skip exercise</button>",
+      "css": ".ds-btn-secondary{border:0;cursor:pointer;font-family:Archivo,system-ui,sans-serif;font-weight:700;font-size:.9375rem;padding:14px 22px;min-height:48px;border-radius:14px;background:#FFFFFF;color:#141A2A;box-shadow:4px 4px 10px rgba(148,163,193,.30),-3px -3px 8px rgba(255,255,255,.95);transition:transform 110ms cubic-bezier(.4,0,1,1),box-shadow 220ms cubic-bezier(.22,1,.36,1)} .ds-btn-secondary:hover{box-shadow:7px 8px 18px rgba(148,163,193,.30),-4px -4px 10px rgba(255,255,255,1)} .ds-btn-secondary:active{transform:scale(.975)} .ds-btn-secondary:focus-visible{outline:3px solid #2F62F0;outline-offset:2px}"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A cavity in the board — solid white, sunk, no border.",
+      "html": "<input class=\"ds-input\" value=\"Barbell Bench Press\" aria-label=\"Exercise name\">",
+      "css": ".ds-input{width:100%;font-family:Archivo,system-ui,sans-serif;font-size:1rem;color:#141A2A;background:#FFFFFF;border:0;border-radius:12px;padding:14px 12px;min-height:48px;box-shadow:inset 3px 3px 7px rgba(148,163,193,.32),inset -2px -2px 5px rgba(255,255,255,.95);transition:box-shadow 220ms cubic-bezier(.22,1,.36,1)} .ds-input::placeholder{color:#4E586E} .ds-input:focus{outline:0;box-shadow:inset 3px 3px 7px rgba(148,163,193,.32),inset -2px -2px 5px rgba(255,255,255,.95),0 0 0 3px #E7EDFE,0 0 0 1px #2F62F0} .ds-input[aria-invalid=\"true\"]{box-shadow:inset 3px 3px 7px rgba(148,163,193,.32),inset -2px -2px 5px rgba(255,255,255,.95),0 0 0 1px #DE3B45}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip-actual",
+      "description": "Status only, never an action. Solid saturated fill so it survives gym light.",
+      "html": "<span class=\"ds-chip ds-chip-actual\">Completed</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-family:'Martian Mono',ui-monospace,monospace;font-size:.625rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap} .ds-chip::before{content:\"\";width:7px;height:7px;border-radius:999px;background:currentColor;flex:none} .ds-chip-actual{background:#0A7049;color:#fff}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A solid white container on the board. Never nested inside another card.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-label\">Previous session · 14 days ago</span><div class=\"ds-card-row\"><span>Set 1</span><span>80 kg × 8 · RIR 2</span></div><div class=\"ds-card-row\"><span>Set 2</span><span>80 kg × 8 · RIR 2</span></div></div>",
+      "css": ".ds-card{background:#FFFFFF;border-radius:20px;padding:24px;box-shadow:0 0 0 1px rgba(148,163,193,.24),0 1px 2px rgba(148,163,193,.24),0 8px 20px -12px rgba(148,163,193,.55)} .ds-card-label{display:block;font-family:'Martian Mono',ui-monospace,monospace;font-size:.625rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#4E586E;margin-bottom:12px} .ds-card-row{display:flex;justify-content:space-between;font-family:'Martian Mono',ui-monospace,monospace;font-size:.8125rem;color:#141A2A;padding:3px 0}"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Four items on a glass film over the screen colour bloom. The active tab is sunk and filled.",
+      "html": "<div class=\"ds-bloom\"><div class=\"ds-film\"><nav class=\"ds-nav\" aria-label=\"Primary\"><a href=\"#\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 5h16v14H4z\"/><path d=\"M4 10h16\"/><path d=\"M9 5v14\"/></svg>Today</a><a href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M8 3v4M16 3v4M3 11h18\"/></svg>Calendar</a><a href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 19V9M10 19V5M16 19v-7M22 19H2\"/></svg>Progress</a><a href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 7h16M4 12h16M4 17h16\"/></svg>More</a></nav></div></div>",
+      "css": ".ds-bloom{padding:24px 12px 12px;border-radius:20px;background:radial-gradient(90% 60% at 6% 100%,rgba(47,98,240,.18),transparent 68%),radial-gradient(80% 54% at 96% 100%,rgba(109,63,224,.16),transparent 66%),radial-gradient(70% 44% at 50% 108%,rgba(15,155,103,.14),transparent 64%),#F4F6FB} .ds-film{border-radius:14px;overflow:hidden;background:rgba(255,255,255,.55);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 10px 30px -14px rgba(148,163,193,.7),0 0 0 1px rgba(148,163,193,.24)} .ds-nav{display:grid;grid-template-columns:repeat(4,1fr);padding:8px;gap:4px} .ds-nav a{text-decoration:none;display:grid;place-items:center;gap:3px;padding:8px 4px;border-radius:14px;font-family:'Martian Mono',ui-monospace,monospace;font-size:.5625rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#4E586E;transition:background 220ms cubic-bezier(.22,1,.36,1),color 220ms cubic-bezier(.22,1,.36,1)} .ds-nav a svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round} .ds-nav a:hover{background:rgba(255,255,255,.6);color:#3C465C} .ds-nav a[aria-current=\"page\"]{color:#fff;background:#1F49C4;box-shadow:inset 0 2px 5px rgba(20,26,42,.22)}"
+    },
+    {
+      "name": "Rest Timer",
+      "kind": "custom",
+      "refersTo": "timer-shell",
+      "description": "The one full-bleed coloured surface. The card's own edge drains as the rest runs out.",
+      "html": "<div class=\"ds-timer\"><span class=\"ds-timer-label\">Rest</span><span class=\"ds-timer-t\">1:48</span><span class=\"ds-timer-sub\">of 3:00 · screen stays awake</span><div class=\"ds-timer-rail\"><i></i></div></div>",
+      "css": ".ds-timer{position:relative;border-radius:20px;background:#8A5200;color:#fff;padding:24px;overflow:hidden;text-align:center;box-shadow:0 1px 2px rgba(148,163,193,.24),0 8px 20px -12px rgba(148,163,193,.55)} .ds-timer-label{display:block;font-family:'Martian Mono',ui-monospace,monospace;font-size:.625rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.88)} .ds-timer-t{display:block;font-family:Archivo,system-ui,sans-serif;font-weight:800;font-stretch:118%;font-size:3.5rem;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums;margin:8px 0 4px} .ds-timer-sub{font-family:'Martian Mono',ui-monospace,monospace;font-size:.8125rem;color:rgba(255,255,255,.92)} .ds-timer-rail{position:absolute;left:0;bottom:0;height:8px;width:100%;background:rgba(0,0,0,.22)} .ds-timer-rail i{display:block;height:100%;width:100%;background:#FFD489;transform-origin:left center;transform:scaleX(.6);transition:transform 1s linear}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Dose Card",
+    "overview": "A weekly compliance dose card: a white board, a clear film, and rows of cells you press one at a time. The card carries the plan, printed and permanent. Pressing a dome does not change the card, it changes one cell. A Placement is an unpressed dome, a Session is a pressed cell, and history is the card you can no longer un-press.\n\nThree materials, each with one job. Solid white is the ground and the resting state of everything — flat fills, no gradients on surfaces. Light carves the depth: a restrained pair of soft shadows, cool below-right and white above-left, small enough to give a component a body without becoming the aesthetic. Saturated colour provides the contrast the white would otherwise lack — recorded and active cells are filled solid with their hue, not tinted with a pale wash. Glass appears rarely and only where it can actually be seen, floating over colour.\n\nLight by decision, not by category: the scene is a gym floor at arm's length, one hand occupied, under bright fluorescents or window glare. A solid coloured cell is legible there; a pale wash is not.",
+    "keyCharacteristics": [
+      "Solid white surfaces. No gradient fills on any component face.",
+      "Neumorphic depth at low amplitude — 4 px offsets, ~30% alpha — to give components a body.",
+      "Colour is the contrast device: state cells are filled solid, not washed.",
+      "Glass appears only over colour, where blur is visible and doing work.",
+      "Two depth states carry meaning: raised is pressable, sunk is recorded.",
+      "One authored motion moment — the press — that every other transition inherits.",
+      "Archivo's width axis does the work a second display face would; mono is measurement only."
+    ],
+    "rules": [
+      {
+        "name": "The Solid Surface Rule",
+        "body": "Component faces are flat solid fills. No gradient stands in for depth — if a surface needs to look raised, that is the shadow's job, not a two-stop ramp across its face.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fill-Not-Wash Rule",
+        "body": "State is carried by a solid saturated fill with white (or, for amber, dark) text. Pale washes are decoration and they disappear in gym light.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Concept Per Hue Rule",
+        "body": "A hue names a state and nothing else. Green is not 'success', it is actual. Red is not 'danger', it is missed or deviated.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Floor Rule",
+        "body": "Every text token is verified against the composited surface it actually sits on. Filled cells always use the -ink variant, never the base hue, because white on the base hue fails at 3.5:1.",
+        "section": "colors"
+      },
+      {
+        "name": "The Measurement-Only Mono Rule",
+        "body": "Mono is for data — numbers, units, dates, identifiers. If it is a sentence, it is Archivo.",
+        "section": "typography"
+      },
+      {
+        "name": "The Width-Not-Weight Rule",
+        "body": "Emphasis at large sizes comes from the wdth axis, not from a second family or a colour. 118 for load and clock, 112 for display and headline, 100 everywhere else.",
+        "section": "typography"
+      },
+      {
+        "name": "The Low-Amplitude Rule",
+        "body": "Soft shadows stay at 4 px offset and ~30% alpha. If a component looks moulded out of putty, the shadow is doing the design's job instead of the colour's.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Coloured Cavity Rule",
+        "body": "pressed is for white; sunk is for colour. Never put the white half of the pair on a saturated fill — it reads as haze, not as depth.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Visible-Glass Rule",
+        "body": "Glass only goes where there is colour behind it. Frosted white over flat white is an invisible material and a wasted backdrop-filter.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Cool Light Rule",
+        "body": "Shadows are rgba(148,163,193,…), never black except the coloured-cavity inset, and never chromatic.",
+        "section": "elevation"
+      },
+      {
+        "name": "The 48 Rule",
+        "body": "Every interactive control is at least 48 px tall. The single exemption is the 7-column calendar week grid at ~41 px.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do fill component faces with a flat solid colour and let the shadow carry the depth.",
+      "Do keep soft shadows at ~4 px offset and ~30% alpha — a body, not a moulding.",
+      "Do fill state cells solid with the -ink hue and white text (amber takes dark ink instead).",
+      "Do pick the hue from the concept, not the emotion: blue = Planned, green = Actual, violet = Progression, red = Missed, amber = Live.",
+      "Do use sunk on coloured cavities and pressed on white ones.",
+      "Do put glass only over the colour bloom, where the blur is visible.",
+      "Do make the active Set the largest object on screen and place it in the lower third.",
+      "Do keep every interactive control at or above 48 px, and give load numerals the wdth 118 axis.",
+      "Do verify text against the composited surface, translucency included.",
+      "Do show what was performed on a logged dome, never the target it was measured against.",
+      "Do name the problem and the recovery in every error string.",
+      "Do self-host every font as woff2 — the app makes no runtime network requests."
+    ],
+    "donts": [
+      "Don't put a gradient on a component face. Depth is light, not a two-stop ramp.",
+      "Don't raise the shadow amplitude to make something feel tactile; that is 2010s neumorphism and it turns the whole UI into grey putty.",
+      "Don't signal state with a pale wash. Washes vanish in gym light; fills do not.",
+      "Don't put the white half of the shadow pair on a saturated fill — it reads as haze.",
+      "Don't use backdrop-filter where there is no colour behind it.",
+      "Don't push the canvas to pure #FFFFFF, and don't darken it into grey.",
+      "Don't re-enable a pressed cell. A record is not a control.",
+      "Don't introduce chamfers, cut corners, or hard block shadows — that is the discarded Cloud Quarry world.",
+      "Don't set prose in Martian Mono, or any measurement in Archivo.",
+      "Don't nest a card inside a card; use a recessed well.",
+      "Don't add a sixth hue, a second display face, or a dark theme.",
+      "Don't animate width, height, or padding; the rest-timer rail scales, it does not resize.",
+      "Don't loop an animation. The press fires once, and only the live dome and the loading state are allowed to repeat."
+    ]
+  }
+}
