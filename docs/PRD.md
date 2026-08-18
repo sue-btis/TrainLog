@@ -190,17 +190,25 @@ Create YAML routine
         ↓
 Import into PWA
         ↓
-Validate
+Parse + validate
+        ↓
+Wizard Step 1
+review exercises
+        ↓
+Wizard Step 2
+suggested days + weeks
+        ↓
+Accept
         ↓
 Store in IndexedDB
         ↓
-Activate routine
+Generate Placements
         ↓
-Generate training calendar
-        ↓
-Open Today's Workout
+Open Today
         ↓
 Start Workout
+        ↓
+Snapshot planned targets
         ↓
 Complete Sets
         ↓
@@ -212,10 +220,8 @@ Finish Workout
         ↓
 Store Session
         ↓
-Calculate Progress
-        ↓
-Use previous performance
-in next workout
+Derive progression
+from history
 ```
 
 ---
@@ -440,7 +446,8 @@ y elegir:
 .yml
 ```
 
-Proceso:
+La importación es un asistente de dos pasos. La rutina no se almacena hasta que
+el usuario acepta.
 
 ```text
 Select file
@@ -449,32 +456,76 @@ Parse YAML
     ↓
 Schema validation
     ↓
-Semantic validation
+Step 1 - Exercises
     ↓
-Preview
+Step 2 - Days + Weeks
     ↓
-Import
+Accept
+    ↓
+Store routine
+    ↓
+Generate Placements
 ```
+
+## Step 1 - Exercises
+
+Muestra cada Workout con sus ejercicios y su programación.
+
+El usuario puede:
+
+- editar valores (`sets`, `reps`, `rir`, `rest_seconds`, `notes`, `unit`);
+- eliminar ejercicios;
+- reordenar ejercicios.
+
+No puede agregar ejercicios en el MVP: requiere un selector sobre el catálogo y
+la creación de ejercicios nuevos, que quedan fuera de alcance.
+
+## Step 2 - Days and Weeks
+
+Muestra los `suggested_days` declarados en el archivo, ya asignados, y el número
+de semanas.
+
+El usuario puede editar ambos antes de aceptar.
+
+Al aceptar se generan las `Placements` correspondientes.
 
 ## Validation
 
-Debe detectar:
+Existen dos niveles.
 
-- nombre faltante;
-- días inválidos;
-- ejercicios sin nombre;
-- sets inválidos;
-- rangos de reps incorrectos;
-- RIR fuera del rango permitido;
-- descansos negativos;
-- progresiones no reconocidas.
+### Structural - bloquea la importación
+
+- YAML malformado;
+- `version` faltante o desconocida;
+- rutina sin nombre;
+- workout sin nombre;
+- ejercicio sin nombre;
+- campos requeridos ausentes.
 
 Ejemplo:
 
 ```text
 Import failed
 
-Monday → Front Squat
+The file could not be read.
+```
+
+### Semantic - se corrige dentro del asistente
+
+Se carga el archivo y el campo se marca en rojo. `Accept` permanece bloqueado
+hasta que se corrija.
+
+- `min_reps` mayor que `max_reps`;
+- RIR fuera del rango permitido;
+- descansos negativos;
+- sets menores o iguales a cero;
+- progresiones no reconocidas;
+- dos Workouts que comparten un `suggested_day`.
+
+Ejemplo:
+
+```text
+Push - Quad → Front Squat
 
 min_reps cannot be greater
 than max_reps.
@@ -510,17 +561,28 @@ Funciones:
 - eliminar;
 - duplicar posteriormente.
 
+Cada importación crea una rutina nueva e inmutable. La edición ocurre únicamente
+dentro del asistente de importación.
+
+`Delete Routine` se rechaza cuando existen `Sessions` asociadas. En ese caso solo
+se ofrece archivar. Eliminar rutinas con historial contradiría la sección 25.
+
 ---
 
 # 11.3 Calendar
 
-Debe presentar:
+El calendario combina dos cosas:
 
-- entrenamiento programado;
-- entrenamiento realizado;
-- descanso;
-- sesión parcial;
-- entrenamiento omitido.
+```text
+Placements
+lo que el usuario planificó
+
+Sessions
+lo que realmente ocurrió
+```
+
+No existe programación automática por fecha. Las `Placements` se generan en el
+asistente y luego pueden moverse o eliminarse libremente.
 
 Ejemplo:
 
@@ -531,18 +593,25 @@ September 2026
 
  ✓   ✓   -   ✓   ✓   -   -
  ✓   ✓   -   ✓   ✓   -   -
- ✓   ●   -   ○   ○   -   -
+ ✓   ●   -   ○   ✗   -   -
 ```
 
-Estados conceptuales:
+Estados visibles:
 
 ```text
-scheduled
-completed
-partial
-skipped
-rest
+completed      Session completada
+partial        Session parcial
+in_progress    Session activa
+planned        Placement futura sin Session
+missed         Placement pasada sin Session
+rest           día sin Placement
 ```
+
+`missed` es derivado - fecha pasada sin `Session` - y nunca se almacena. No
+existe un proceso que marque días automáticamente.
+
+Una `Placement` pasada sin `Session` permanece en su lugar. No se desplaza ni se
+arrastra hacia adelante.
 
 ---
 
@@ -550,12 +619,27 @@ rest
 
 Pantalla principal de uso diario.
 
+La sugerencia se resuelve así:
+
+```text
+¿Existe Placement para hoy?
+        ↓ sí
+mostrar ese Workout
+
+        ↓ no
+siguiente Workout en rotación
+(orden del archivo)
+```
+
+El selector de Workout está siempre disponible. Un día sin `Placement` no es un
+día bloqueado.
+
 Debe mostrar:
 
 ```text
 Tuesday
 
-Pull — Vertical Strength
+Pull - Vertical Strength
 
 9 exercises
 ~75 min
@@ -589,6 +673,26 @@ RIR
 Rest
 3:00
 ```
+
+Al iniciar cada ejercicio se copian sus objetivos planificados dentro de la
+`ExerciseSession`. El historial nunca vuelve a leer la plantilla.
+
+## Deviation
+
+La sesión real puede apartarse libremente de lo planificado:
+
+- más series de las programadas;
+- menos series;
+- omitir un ejercicio;
+- reordenar ejercicios;
+- sustituir un ejercicio;
+- agregar un ejercicio no planificado.
+
+La sustitución no es un mecanismo propio: es omitir el ejercicio planificado y
+agregar uno no planificado.
+
+La desviación se señala con un indicador de color. Nunca bloquea al usuario ni
+produce un error.
 
 ## Previous Session
 
@@ -650,6 +754,30 @@ Debe permitir:
 - omitir;
 - sumar tiempo manualmente.
 
+## Correctness
+
+El temporizador no depende de un intervalo en ejecución. Se almacena el instante
+de finalización de la serie y el tiempo restante se calcula contra el reloj.
+
+Esto lo mantiene correcto aunque:
+
+- se bloquee el teléfono;
+- la PWA pase a segundo plano;
+- el navegador suspenda temporizadores.
+
+## Screen Wake Lock
+
+Durante una sesión activa se solicita `Screen Wake Lock`. Donde no este
+disponible, se degrada en silencio.
+
+## Notifications
+
+Fuera del MVP. La entrega de notificaciones en PWAs instaladas depende
+fuertemente de plataforma y versión, y debe verificarse en dispositivo antes de
+diseñar sobre ella.
+
+En primer plano se utiliza vibración y sonido segun configuración.
+
 ---
 
 # 11.7 Set Logging
@@ -658,17 +786,26 @@ Cada set terminado debe almacenar:
 
 ```text
 weight
+unit
+weightKg
 reps
 rir
 timestamp
 ```
 
-También:
+Tambien:
 
 ```text
 setNumber
 exerciseSessionId
 ```
+
+El peso se guarda tal como fue introducido, junto con su unidad, y además
+convertido a kilogramos. Toda comparación, gráfico y progresión utiliza el valor
+en kilogramos.
+
+La unidad es propia del ejercicio: una máquina en libras no cambia de unidad
+entre series.
 
 Posteriormente podrían agregarse:
 
@@ -718,6 +855,24 @@ Progression Engine
        ↓
 Suggested Target
 ```
+
+## Derived, never stored
+
+El motor es una función pura sobre el historial. No existe un
+`currentWorkingWeight` almacenado ni estado que actualizar al terminar una
+sesión.
+
+## Scope
+
+El historial se consulta por `exerciseId`, no por `plannedExerciseId`.
+
+Cada importación crea `PlannedExercise` nuevos; consultar por plantilla
+reiniciaría la progresión cada vez que se corrige un archivo.
+
+Solo las sesiones `completed` alimentan el motor. Las parciales son visibles en
+el historial pero se ignoran.
+
+Un ejercicio no planificado no recibe sugerencia.
 
 ## Initial Progression Type
 
@@ -820,7 +975,48 @@ Posteriormente:
 
 ---
 
+# 11.12 Exercise Catalog
+
+La aplicación incluye un catálogo base de ejercicios.
+
+El catálogo se distribuye **dentro del build**, como recurso estatico. No se
+descarga desde la red.
+
+Consecuencias:
+
+- disponible sin conexion desde el primer arranque;
+- no requiere infraestructura (ver G5);
+- se actualiza publicando una nueva versión de la PWA.
+
+Cada ejercicio del catálogo tiene un identificador estable:
+
+```text
+front-squat
+weighted-pull-up
+romanian-deadlift
+```
+
+Ese identificador es el que puede referenciar el archivo YAML mediante
+`exercise_id`.
+
+---
+
 # 12. Routine Template
+
+## Structure
+
+Un archivo declara **una** rutina.
+
+```text
+routine
+  └── workouts (ordered list)
+          └── exercises
+```
+
+El orden de la lista define la rotación.
+
+No existen claves por día de la semana ni `start_date`. Los días son una
+sugerencia declarada por Workout.
 
 ## Example
 
@@ -829,42 +1025,76 @@ version: 1
 
 routine:
   name: "Hybrid Strength - September"
-  start_date: "2026-09-01"
   weeks: 4
 
-days:
+  workouts:
+    - name: "Push - Quad + Shoulder Strength"
+      suggested_days: [monday, friday]
 
-  monday:
-    name: "Push - Quad + Shoulder Strength"
+      exercises:
 
-    exercises:
+        - name: "Front Squat"
+          exercise_id: "front-squat"
+          category: "quadriceps"
+          goal: "strength"
+          unit: "kg"
 
-      - name: "Front Squat"
+          sets: 4
 
-        category: "quadriceps"
-        goal: "strength"
+          reps:
+            min: 4
+            max: 6
 
-        sets: 4
+          rir:
+            min: 1
+            max: 2
 
-        reps:
-          min: 4
-          max: 6
+          rest_seconds: 210
 
-        rir:
-          min: 1
-          max: 2
+          focus: "Quadriceps Strength"
 
-        rest_seconds: 210
+          notes:
+            - "Maintain upright torso"
+            - "Avoid technical failure"
 
-        focus: "Quadriceps Strength"
+          progression:
+            type: "double_progression"
+            increment: 2.5
+```
 
-        notes:
-          - "Maintain upright torso"
-          - "Avoid technical failure"
+## Field Notes
 
-        progression:
-          type: "double_progression"
-          increment: 2.5
+### `weeks`
+
+Duracion prevista de la rutina. Determina cuántas `Placements` se generan.
+Cuando el calendario se agota, el usuario sabe que debe cambiar de programa.
+
+### `suggested_days`
+
+Lista de días sugeridos. Se lee **una sola vez**, durante la importación, para
+proponer las `Placements`. Después no vuelve a consultarse.
+
+Un Workout puede sugerir varios días.
+
+Dos Workouts no pueden compartir un día sugerido: el asistente lo señala y
+bloquea `Accept` hasta corregirlo.
+
+### `exercise_id`
+
+Opcional. Referencia al catálogo. Si falta, el ejercicio se resuelve por nombre
+normalizado.
+
+### `unit`
+
+Opcional. Unidad del ejercicio, `kg` o `lb`. Si falta, se usa la preferencia del
+usuario. `increment` se expresa en esta misma unidad.
+
+### Campos ausentes por diseño
+
+```text
+start_date          las rutinas no tienen fecha de inicio
+monday / tuesday    los días no son estructura
+workouts: 4         el conteo se deriva de la lista
 ```
 
 ---
@@ -939,25 +1169,35 @@ Routine
 
 id
 name
-startDate
-endDate
+weeks
 status
 createdAt
 ```
 
+No tiene fecha de inicio ni de fin. `weeks` es la duración prevista y determina
+cuántas `Placements` se generan al aceptar la importación.
+
 ---
 
-# 14.3 Routine Day
+# 14.3 Workout
+
+Unidad reutilizable de programación dentro de una rutina. No tiene fecha.
 
 ```text
-RoutineDay
+Workout
 
 id
 routineId
-weekday
 name
+suggestedDays
 order
 ```
+
+`order` define la rotación.
+
+`suggestedDays` solo se utiliza durante la importación.
+
+Sustituye a `RoutineDay`, que asumía identidad por día de la semana.
 
 ---
 
@@ -969,7 +1209,7 @@ Define lo programado.
 PlannedExercise
 
 id
-routineDayId
+workoutId
 exerciseId
 
 sets
@@ -981,6 +1221,8 @@ minRir
 maxRir
 
 restSeconds
+
+unit
 
 focus
 notes
@@ -1006,24 +1248,28 @@ conditions
 
 ---
 
-# 14.6 Workout Session
+# 14.6 Session
 
 Representa un entrenamiento real.
 
 ```text
-WorkoutSession
+Session
 
 id
 
 routineId
-routineDayId
+workoutId
 
-scheduledDate
 startedAt
 completedAt
 
 status
 ```
+
+No existe `scheduledDate`. La fecha de una sesión es la fecha en que ocurrió.
+
+La intencion de entrenar vive en `Placement` (14.9), que es una entidad
+independiente y puede no existir.
 
 ---
 
@@ -1033,13 +1279,25 @@ status
 ExerciseSession
 
 id
-workoutSessionId
+sessionId
 exerciseId
-plannedExerciseId
+plannedExerciseId   (nullable)
+
+plannedSets
+plannedMinReps
+plannedMaxReps
+plannedMinRir
+plannedMaxRir
+plannedRestSeconds
 
 order
 status
 ```
+
+Los campos `planned*` son una copia tomada al iniciar el ejercicio. El historial
+no depende de la plantilla.
+
+`plannedExerciseId` es nulo cuando el ejercicio no estaba programado.
 
 ---
 
@@ -1057,11 +1315,43 @@ exerciseSessionId
 setNumber
 
 weight
+unit
+weightKg
+
 reps
 rir
 
 completedAt
 ```
+
+`weight` y `unit` conservan lo introducido. `weightKg` es el valor derivado que
+utilizan comparaciones, gráficos y progresión.
+
+---
+
+# 14.9 Placement
+
+Asignación de un Workout a una fecha concreta. Pertenece al usuario.
+
+```text
+Placement
+
+id
+routineId
+workoutId
+date
+```
+
+Se generan en el asistente de importación y luego pueden moverse o eliminarse
+libremente.
+
+No existe recurrencia: cada `Placement` es una fila independiente.
+
+Una `Placement` no crea una `Session`. Una `Session` no requiere una
+`Placement`.
+
+Dos `Placements` pueden compartir fecha: después del asistente, el calendario
+describe la realidad.
 
 ---
 
@@ -1070,18 +1360,23 @@ completedAt
 ```text
 Routine
    │
-   ├── RoutineDay
+   ├── Workout
    │      │
    │      └── PlannedExercise
    │              │
    │              └── ProgressionRule
    │
-   └── WorkoutSession
+   ├── Placement          (Workout + date)
+   │
+   └── Session
            │
            └── ExerciseSession
                    │
                    └── CompletedSet
 ```
+
+`Placement` y `Session` son independientes entre si. Ninguna referencia a la
+otra.
 
 ---
 
@@ -1096,9 +1391,9 @@ Front Squat
 4 × 4-6
 RIR 1-2
 Rest 3:30
-       │
-       │ performed as
-       ▼
+       |
+       | snapshot al iniciar
+       ↓
 ACTUAL
 
 75 × 6 @2
@@ -1111,11 +1406,15 @@ Nunca modificar lo programado para representar automáticamente lo realizado.
 
 Son entidades diferentes.
 
+El mecanismo que lo garantiza es el snapshot: al iniciar un ejercicio, sus
+objetivos se copian dentro de la `ExerciseSession`. Editar una plantilla más
+tarde no puede reescribir lo que una sesión pasada afirma haber planificado.
+
 ---
 
 # 17. Backup Architecture
 
-Debido a que no existe servidor, el backup es una funcionalidad crítica.
+Debido a que no existe servidor, el backup es una funcionalidad critica.
 
 ## Export
 
@@ -1138,14 +1437,19 @@ Debe contener:
   "version": 1,
   "exportedAt": "...",
   "routines": [],
-  "exercises": [],
-  "plannedExercises": [],
   "workouts": [],
+  "plannedExercises": [],
+  "placements": [],
+  "exercises": [],
+  "sessions": [],
   "exerciseSessions": [],
   "completedSets": [],
   "settings": {}
 }
 ```
+
+`exercises` incluye únicamente los ejercicios creados por el usuario. El
+catálogo base no se exporta: viaja dentro del build.
 
 ---
 
@@ -1164,6 +1468,41 @@ Restore IndexedDB
 ```
 
 El backup debe validarse antes de modificar la base local existente.
+
+## Scope
+
+`Restore` reemplaza:
+
+```text
+routines
+workouts
+plannedExercises
+placements
+sessions
+exerciseSessions
+completedSets
+user-created exercises
+```
+
+No reemplaza:
+
+```text
+bundled catalog
+settings
+```
+
+## Versions
+
+El backup declara `version`.
+
+```text
+version < actual    migrar hacia adelante
+version = actual    restaurar
+version > actual    rechazar
+```
+
+Un backup más nuevo se rechaza con un mensaje explicito. Ignorar campos
+desconocidos perdería datos de forma permanente.
 
 ---
 
@@ -1279,73 +1618,100 @@ El sistema valida el archivo antes de almacenarlo.
 
 ## FR-03
 
-La rutina importada se almacena en IndexedDB.
+Los errores estructurales rechazan la importación; los errores semánticos se
+corrigen dentro del asistente.
 
 ## FR-04
 
-El usuario puede activar una rutina.
+El usuario puede editar valores, eliminar y reordenar ejercicios durante la
+importación.
 
 ## FR-05
 
-La aplicación genera el calendario correspondiente.
+El usuario puede editar los días sugeridos y el número de semanas durante la
+importación.
 
 ## FR-06
 
-El usuario puede iniciar una sesión.
+La rutina aceptada se almacena en IndexedDB.
 
 ## FR-07
 
-La aplicación muestra los ejercicios programados.
+La aplicación genera las `Placements` correspondientes al aceptar.
 
 ## FR-08
 
-La aplicación muestra la sesión anterior del ejercicio.
+El usuario puede mover o eliminar una `Placement`.
 
 ## FR-09
 
-El usuario puede registrar peso.
+El usuario puede activar una rutina.
 
 ## FR-10
 
-El usuario puede registrar reps.
+El usuario puede iniciar una sesión desde la `Placement` del día o desde
+cualquier Workout de la rutina activa.
 
 ## FR-11
 
-El usuario puede registrar RIR.
+La aplicación copia los objetivos planificados dentro de la sesión al iniciar
+cada ejercicio.
 
 ## FR-12
 
-La aplicación puede iniciar el temporizador de descanso.
+La aplicación muestra la sesión anterior del ejercicio.
 
 ## FR-13
 
-El usuario puede modificar una serie.
+El usuario puede registrar peso, reps y RIR.
 
 ## FR-14
 
-El usuario puede eliminar una serie registrada accidentalmente.
+El usuario puede agregar series adicionales, registrar menos series, omitir un
+ejercicio y reordenar ejercicios.
 
 ## FR-15
 
-El usuario puede finalizar un entrenamiento.
+El usuario puede agregar un ejercicio no planificado.
 
 ## FR-16
 
-La aplicación almacena el entrenamiento completado.
+La aplicación puede iniciar el temporizador de descanso y mantenerlo correcto
+tras bloquear el teléfono.
 
 ## FR-17
 
-El historial permanece disponible offline.
+El usuario puede modificar una serie.
 
 ## FR-18
 
-El usuario puede consultar progreso por ejercicio.
+El usuario puede eliminar una serie registrada accidentalmente.
 
 ## FR-19
 
-El usuario puede exportar toda la información.
+El usuario puede finalizar un entrenamiento.
 
 ## FR-20
+
+La aplicación almacena el entrenamiento completado.
+
+## FR-21
+
+El historial permanece disponible offline.
+
+## FR-22
+
+El usuario puede consultar progreso por ejercicio.
+
+## FR-23
+
+La aplicación deriva la carga sugerida a partir del historial del ejercicio.
+
+## FR-24
+
+El usuario puede exportar toda la información.
+
+## FR-25
 
 El usuario puede restaurar un backup.
 
@@ -1466,7 +1832,14 @@ September Routine
 new programming
 ```
 
-La información histórica de agosto debe permanecer exactamente como fue realizada.
+La información histórica de agosto debe permanecer exactamente como fue
+realizada.
+
+Cada importación crea una rutina nueva. Las rutinas no se versionan ni se editan
+después de aceptarlas.
+
+Esto es posible porque el historial no depende de la plantilla: los objetivos se
+copian dentro de la sesión al iniciarla (ver 14.7 y 16).
 
 ---
 
@@ -1490,7 +1863,29 @@ Front Squat
 RIR 2
 ```
 
-Así el historial de `Front Squat` puede consultarse a través de múltiples rutinas.
+Así el historial de `Front Squat` puede consultarse a traves de múltiples
+rutinas.
+
+## Resolution
+
+Al importar, cada ejercicio se resuelve así:
+
+```text
+¿Trae exercise_id?
+        ↓ sí
+buscar en catálogo
+
+        ↓ no
+buscar por nombre normalizado
+(trim, minúsculas, espacios colapsados)
+
+        ↓ sín coincidencia
+crear ejercicio de usuario
+```
+
+Consecuencia aceptada: renombrar un ejercicio en el YAML, sin `exercise_id`,
+crea un ejercicio nuevo y separa su historial. `exercise_id` es la vía para
+evitarlo.
 
 ---
 
@@ -1583,6 +1978,22 @@ Ejemplo:
 
 77.5 kg suggested
 ```
+
+## Sesiones que no coinciden con el plan
+
+La sesión real puede tener más o menos series que las programadas.
+
+```text
+N = series planificadas
+
+evaluar las primeras N series
+ignorar las adicionales
+menos de N series → objetivo no alcanzado
+```
+
+Se eligió esta regla porque puede explicarse en una frase. Evaluar todas las
+series penalizaría una serie extra; evaluar las mejores N inflaría la carga de
+forma difícil de predecir.
 
 ---
 
@@ -1687,7 +2098,7 @@ theme
 Initial settings:
 
 ```text
-Weight unit
+Default weight unit
 kg / lb
 
 Default RIR
@@ -1699,9 +2110,15 @@ on / off
 Timer sound
 on / off
 
+Keep screen awake during workout
+on / off
+
 Theme
 system / light / dark
 ```
+
+La unidad de configuración es solo el valor por defecto. Cada ejercicio conserva
+la suya.
 
 ---
 
@@ -1772,30 +2189,34 @@ Si la aplicación se cierra durante un entrenamiento:
 ```text
 Open app
     ↓
-Detect active workout
+Detect active session
     ↓
-Resume Workout
+Resume Session
 ```
 
 Una sesión activa debe persistir después de cada serie.
 
+El temporizador de descanso se reconstruye desde la marca de tiempo almacenada,
+no desde un contador en memoria.
+
 ---
 
-# 36. Workout State
+# 36. Session State
 
 Estados posibles:
 
 ```text
-scheduled
-
 in_progress
 
 completed
 
 partial
-
-skipped
 ```
+
+`scheduled` y `skipped` no existen como estado almacenado.
+
+La intencion de entrenar es una `Placement`. Un día perdido es una `Placement`
+pasada sin `Session`, y se deriva al consultar.
 
 Una sesión `in_progress` debe poder recuperarse después de:
 
@@ -1811,12 +2232,16 @@ Antes de operaciones destructivas:
 
 ```text
 Delete Routine
-Delete Workout
+Delete Session
+Delete Placement
 Restore Backup
 Clear Data
 ```
 
-se debe realizar confirmación explícita.
+se debe realizar confirmacion explicita.
+
+`Delete Routine` se rechaza si existen `Sessions` asociadas. La alternativa
+ofrecida es archivar.
 
 El `Restore Backup` debe permitir:
 
@@ -1824,7 +2249,7 @@ El `Restore Backup` debe permitir:
 replace existing data
 ```
 
-y posteriormente podría incluir:
+y posteriormente podria incluir:
 
 ```text
 merge
@@ -1841,23 +2266,37 @@ No implementar `merge` en MVP.
 ### Routine
 
 - YAML import;
-- validation;
+- structural + semantic validation;
+- import wizard (exercises, days, weeks);
 - routine storage;
-- activate routine.
+- activate routine;
+- archive routine.
+
+### Schedule
+
+- placement generation;
+- move placement;
+- delete placement.
 
 ### Calendar
 
-- planned days;
-- completed days.
+- placements;
+- completed sessions;
+- derived missed days.
 
 ### Workout
 
 - start session;
+- snapshot planned targets;
 - exercises;
-- weight;
+- weight + unit;
 - reps;
 - RIR;
 - completed sets;
+- extra / fewer sets;
+- skip exercise;
+- reorder exercises;
+- unplanned exercises;
 - rest timer;
 - previous results;
 - finish session.
@@ -1874,6 +2313,7 @@ No implementar `merge` en MVP.
 
 ### Data
 
+- bundled exercise catalog;
 - IndexedDB;
 - backup;
 - restore;
@@ -2018,7 +2458,8 @@ La IA nunca debe formar parte de la lógica fundamental de almacenamiento o prog
 
 # 44. Success Criteria for MVP
 
-El MVP se considera funcional cuando puede realizarse este flujo completamente offline:
+El MVP se considera funcional cuando puede realizarse este flujo completamente
+offline:
 
 ```text
 1. Install PWA
@@ -2026,46 +2467,64 @@ El MVP se considera funcional cuando puede realizarse este flujo completamente o
 2. Import:
    september.yaml
 
-3. Activate routine
+3. Review exercises
+   in the wizard
 
-4. Open Tuesday
+4. Confirm suggested days
+   and weeks
 
-5. Start Pull workout
+5. Accept
 
-6. See:
+6. Placements appear
+   in the calendar
+
+7. Open Today
+
+8. Start Pull workout
+
+9. See:
    Weighted Pull-Up
    4 × 4-6
    RIR 1-2
    Rest 3:00
 
-7. See previous performance
+10. See previous performance
 
-8. Enter:
-   +7.5 kg
-   6 reps
-   RIR 2
+11. Enter:
+    +7.5 kg
+    6 reps
+    RIR 2
 
-9. Complete set
+12. Complete set
 
-10. Rest timer starts
+13. Rest timer starts
 
-11. Finish all exercises
+14. Lock the phone
+    for two minutes
 
-12. Complete workout
+15. Reopen - the timer
+    is still correct
 
-13. Close application
+16. Finish all exercises
 
-14. Reopen without internet
+17. Complete workout
 
-15. Workout history still exists
+18. Close application
 
-16. Next Tuesday shows
+19. Reopen without internet
+
+20. Workout history still exists
+
+21. Move next week's Pull
+    placement to another day
+
+22. That session shows
     previous results
 
-17. Progression engine
+23. Progression engine
     calculates next target
 
-18. Export complete backup
+24. Export complete backup
 ```
 
 Si este flujo funciona correctamente, existe un producto utilizable.
@@ -2136,37 +2595,52 @@ sin contexto funcional.
 
 2. IndexedDB schema
 
-3. YAML specification
+3. Bundled exercise catalog
 
-4. YAML parser + validator
+4. YAML specification
 
-5. Routine import
+5. YAML parser + validator
 
-6. Routine viewer
+6. Import wizard - step 1
 
-7. Calendar generation
+7. Import wizard - step 2
 
-8. Workout session creation
+8. Placement generation
 
-9. Set logging
+9. Routine viewer
 
-10. Rest timer
+10. Calendar
 
-11. Workout completion
+11. Today resolution
+    (placement, else rotation)
 
-12. Previous performance
+12. Session creation
+    + target snapshot
 
-13. Exercise history
+13. Set logging
+    (weight + unit)
 
-14. Progression engine
+14. Rest timer
+    (timestamp-based)
 
-15. Backup / Restore
+15. Session completion
 
-16. PWA offline behavior
+16. Deviation
+    (extra sets, skip, unplanned)
 
-17. Charts
+17. Previous performance
 
-18. UX polish
+18. Exercise history
+
+19. Progression engine
+
+20. Backup / Restore
+
+21. PWA offline behavior
+
+22. Charts
+
+23. UX polish
 ```
 
 ---
@@ -2186,6 +2660,8 @@ domain objects
       ↓
 IndexedDB
       ↓
+Placements
+      ↓
 query routine
 ```
 
@@ -2196,13 +2672,17 @@ PlannedExercise
       ↓
 Start Workout
       ↓
+snapshot targets
+      ↓
 ExerciseSession
       ↓
 CompletedSet
       ↓
 IndexedDB
       ↓
-Workout History
+Session History
+      ↓
+Progression (derived)
 ```
 
 Estos dos flujos forman el núcleo técnico del producto.
