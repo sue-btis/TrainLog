@@ -9,6 +9,7 @@ web
 ## Stack
 
 Committed by the repository, not open: Vite · React · TypeScript · React Router ·
+Tailwind CSS v4 · shadcn/ui (Radix, re-skinned to DESIGN.md — never its default skin) ·
 Dexie over IndexedDB with `dexie-react-hooks` · Zod · `vite-plugin-pwa` · Vitest with
 `fake-indexeddb`. Deploys as static files to any host. Layering is binding —
 `features → db → domain`, and `domain/` imports from neither (AGENTS.MD).

@@ -274,6 +274,28 @@ TypeScript
 Vite
 ```
 
+## Estilos y componentes de UI
+
+```text
+Tailwind CSS v4
+shadcn/ui (Radix UI)
+```
+
+- Tailwind v4 con un **único bloque `@theme`** que declara los tokens de
+  [DESIGN.md](../DESIGN.md) (colores, radios, sombras, tipografías, easings). Los tokens son la
+  fuente: no se permiten valores arbitrarios de color, radio, sombra o tipografía en el código de
+  aplicación.
+- shadcn/ui se adopta **por su comportamiento accesible** (trampa de foco, portales, cierre con
+  Escape, roles ARIA), no por su apariencia. Cada componente copiado se re-estiliza con los tokens
+  del sistema antes de su primer uso, y se elimina el tema oscuro que genera el CLI.
+- Componentes propios (dome, tarjetas, campos, chips, navegación) se escriben directamente con
+  utilidades; shadcn se reserva para diálogos, sheets, popovers, select, tabs, switch, tooltip,
+  accordion y toasts.
+- El CLI de shadcn se ejecuta solo en tiempo de desarrollo. No se admite ninguna dependencia que
+  realice peticiones de red en runtime (§9): fuentes autoalojadas en woff2, iconos empaquetados con
+  `lucide-react`.
+- La autoridad sobre la apariencia es [DESIGN.md](../DESIGN.md); este documento solo fija el stack.
+
 ## PWA
 
 Recommended:

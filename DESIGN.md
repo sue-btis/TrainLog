@@ -535,6 +535,298 @@ Borders are hairlines in `{colors.rule}` only. There are no coloured left-border
 block shadows, and no chamfers or cut corners anywhere. Raised faces carry a single 1 px inner top
 highlight — a specular edge, not a gradient across the face.
 
+## Implementation — Tailwind v4 & shadcn
+
+Everything above is the specification. Tailwind and shadcn are how it gets built, and neither is
+allowed to change it: **Tailwind renders the tokens, shadcn supplies behaviour, appearance comes
+from this file.** A screen that looks like default shadcn is a defect, not a shortcut.
+[PRD §8](./docs/PRD.md) fixes the stack; this section is the binding between that stack and the
+tokens above, written so it can be pasted into a repository and compiled.
+
+### Where it lives
+
+```text
+src/styles/theme.css        @font-face · @theme · shadcn bridge · @utility type scale
+src/lib/utils.ts            cn() = clsx + tailwind-merge
+src/components/ui/          shadcn — behaviour only, geometry re-skinned on arrival
+src/components/             ours — Dome, Button, Card, Chip, Field, Well, Nav, Alert, Empty
+src/assets/fonts/           archivo-*.woff2, martianmono-*.woff2
+```
+
+`theme.css` is the single declaration of this system. Every value in the frontmatter of this
+document appears there exactly once, and nowhere else in the tree.
+
+### 1. Fonts — self-hosted, variable, no runtime request
+
+The `font-stretch` range is what makes the `wdth` axis reachable; without it the Width-Not-Weight
+Rule cannot be implemented at all. Both families ship as two subsets (latin, latin-ext).
+
+```css
+@font-face {
+  font-family: Archivo;
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("../assets/fonts/archivo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+                 U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+                 U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* …archivo-latin-ext.woff2, plus martianmono-latin.woff2 and its -ext subset
+   (font-weight 300 700, font-stretch 75% 112.5%) — same shape. The exact
+   unicode-range values are in design/preview.html. */
+```
+
+### 2. `@theme` — the tokens become the utilities
+
+```css
+@import "tailwindcss";
+
+@theme {
+  /* surfaces */
+  --color-board: #F4F6FB;          --color-card: #FFFFFF;
+  --color-panel: #FAFBFE;          --color-field: #FFFFFF;
+  --color-well: #EDF1F8;           --color-glass-fill: #FFFFFF8C;
+  --color-rule: #94A3C13D;         --color-scrim: #00000038;
+
+  /* ink */
+  --color-ink: #141A2A;            --color-ink-2: #3C465C;
+  --color-ink-3: #4E586E;          --color-on-fill: #FFFFFF;
+  --color-on-live: #3A2400;
+
+  /* the five hues — base for strokes, -ink for fills, -wash for tints */
+  --color-planned: #2F62F0;  --color-planned-ink: #1F49C4;  --color-planned-wash: #E7EDFE;
+  --color-actual: #0F9B67;   --color-actual-ink: #0A7049;   --color-actual-wash: #E2F5EE;
+  --color-actual-deep: #08603E;
+  --color-progress: #6D3FE0; --color-progress-ink: #5A2FC4; --color-progress-wash: #EDE7FD;
+  --color-missed: #DE3B45;   --color-missed-ink: #B32530;   --color-missed-wash: #FCE8E9;
+  --color-missed-deep: #951C26;
+  --color-live: #F5A524;     --color-live-ink: #8A5200;     --color-live-wash: #FEF2DE;
+  --color-live-rail: #FFD489;
+
+  /* radii */
+  --radius-line: 2px;     --radius-hair: 6px;      --radius-field: 12px;
+  --radius-control: 14px; --radius-card: 20px;     --radius-frame-sm: 22px;
+  --radius-frame: 30px;   --radius-cell: 999px;    --radius-chip: 999px;
+
+  /* elevation */
+  --shadow-dome: 4px 4px 10px rgba(148,163,193,.30), -3px -3px 8px rgba(255,255,255,.95);
+  --shadow-dome-lift: 7px 8px 18px rgba(148,163,193,.30), -4px -4px 10px rgba(255,255,255,1);
+  --shadow-lift: 0 1px 2px rgba(148,163,193,.24), 0 8px 20px -12px rgba(148,163,193,.55);
+  --shadow-glass: 0 10px 30px -14px rgba(148,163,193,.7);
+  --shadow-overlay: 0 24px 52px -22px rgba(30,42,64,.26);
+  --shadow-edge: 0 0 0 1px rgba(148,163,193,.24);
+  --inset-shadow-pressed: 3px 3px 7px rgba(148,163,193,.32), -2px -2px 5px rgba(255,255,255,.95);
+  --inset-shadow-sunk: 0 2px 5px rgba(20,26,42,.22);
+  --inset-shadow-glass: 0 1px 0 rgba(255,255,255,.85);
+
+  /* type families and motion */
+  --font-face: Archivo, system-ui, sans-serif;
+  --font-measure: "Martian Mono", ui-monospace, monospace;
+  --ease-press: cubic-bezier(.22, 1, .36, 1);
+  --ease-snap: cubic-bezier(.4, 0, 1, 1);
+  --animate-breathe: breathe 2.6s ease-in-out infinite;
+  --animate-pulse-well: pulse-well 1.6s ease-in-out infinite;
+}
+```
+
+That yields `bg-planned-ink`, `text-ink-3`, `rounded-cell`, `shadow-dome`, `inset-shadow-sunk`,
+`font-measure`, `ease-press` and `animate-breathe` — the vocabulary of this document, spelled the
+same way in the markup.
+
+Three notes the compiler cares about:
+
+- **`--shade` is not a colour token.** It is the `148,163,193` triplet the shadow recipes
+  interpolate. Declared inside `@theme` as `--color-shade` it would generate a `bg-shade` utility
+  resolving to garbage, so it stays a plain `:root` custom property — or is inlined into the shadow
+  values, as above.
+- **Glass is two tokens plus a filter.** `backdrop-filter` cannot be expressed as a shadow, so the
+  nav film is `shadow-glass inset-shadow-glass backdrop-blur-[20px] backdrop-saturate-[1.8]`, and
+  that blur/saturate pair is a sanctioned arbitrary value.
+- **Spacing is Tailwind's default 4 px rhythm.** `s-1…s-8` (4/8/12/16/24/32/48/72) are already
+  `1, 2, 3, 4, 6, 8, 12, 18`. Do not redeclare a spacing scale.
+
+Keyframes sit at the top level of the same file:
+
+```css
+@keyframes breathe    { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes pulse-well { 0%, 100% { opacity: 1; }         50% { opacity: .48; } }
+```
+
+### 3. The shadcn bridge — bind the names, don't strip them
+
+shadcn's components are authored against a fixed set of semantic variables (`bg-background`,
+`text-muted-foreground`, `border-border`, `ring-ring`, and radii derived from `--radius`). There are
+two ways to keep them from looking like shadcn: edit those references out of every copied file, or
+declare the names once and point them at our palette. **We bind.** Stripping means repeating the
+same edits per component and again on every upgrade; binding means a component lands already wearing
+our colours, and what is left to fix by hand is geometry and elevation.
+
+```css
+@theme {
+  /* …tokens above… */
+
+  /* shadcn bridge — their names, our values. No new colour is introduced here. */
+  --color-background: var(--color-board);
+  --color-foreground: var(--color-ink);
+  --color-card-foreground: var(--color-ink);        /* --color-card is ours already, and agrees */
+  --color-popover: var(--color-card);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-actual-ink);         /* the primary action is: record what happened */
+  --color-primary-foreground: var(--color-on-fill);
+  --color-secondary: var(--color-card);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-well);
+  --color-muted-foreground: var(--color-ink-3);
+  --color-accent: var(--color-planned-wash);
+  --color-accent-foreground: var(--color-planned-ink);
+  --color-destructive: var(--color-missed-ink);
+  --color-destructive-foreground: var(--color-on-fill);
+  --color-border: var(--color-rule);
+  --color-input: var(--color-rule);
+  --color-ring: var(--color-planned);
+}
+
+:root {
+  --shade: 148, 163, 193;
+  --radius: 14px;                                   /* = --radius-control; shadcn derives sm/md/lg */
+}
+```
+
+`--color-primary` reads green because in this product the primary action is always *record what
+happened*, so a shadcn `Button` with no variant is already the right button. `--color-accent` lands
+on `planned-wash` because accent is what shadcn uses for hover and selected rows — exactly the
+ghost-button hover in §Buttons.
+
+**Verify rather than assume.** The CLI's variable set moves between versions, so after the first
+`add`, enumerate what the copied files actually reference:
+
+```bash
+grep -rhoE "var\(--[a-z0-9-]+\)|(bg|text|border|ring|fill|stroke)-[a-z0-9-]+" src/components/ui | sort -u
+```
+
+Anything unbound is either a name to add to the bridge or a reference to delete. `chart-1…5` and the
+`sidebar-*` family are deleted rather than bound: charts take their strokes from §Charts, and a
+phone PWA with four nav items has no sidebar.
+
+### 4. The type scale is `@utility`, not `@apply`
+
+Each named style in the frontmatter becomes one utility carrying family, size, weight, line height,
+tracking, `font-variation-settings` and `font-feature-settings` **together**, because those
+properties are only correct as a set. `fontVariation` maps to `font-variation-settings`,
+`fontFeature` to `font-feature-settings`.
+
+```css
+@utility type-load {
+  font-family: var(--font-face);
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  font-weight: 800;
+  line-height: .92;
+  letter-spacing: -.045em;
+  font-variation-settings: "wdth" 118;
+  font-feature-settings: "tnum";
+}
+
+@utility type-readout {
+  font-family: var(--font-face);
+  font-size: 1.875rem; font-weight: 800; line-height: 1.1; letter-spacing: -.03em;
+  font-variation-settings: "wdth" 118;
+  font-feature-settings: "tnum";
+}
+
+@utility type-label {
+  font-family: var(--font-measure);
+  font-size: .625rem; font-weight: 600; line-height: 1.4; letter-spacing: .12em;
+  text-transform: uppercase;
+}
+```
+
+The remaining styles — clock, page-title, display, headline, title, lede, body, body-sm, caption,
+measure, measure-sm, lot, micro — follow mechanically from the frontmatter. `type-*` is the only
+prefix, and a size utility used without its scale mate (`text-2xl font-bold`) is outside the system.
+
+### 5. shadcn — behaviour, not appearance
+
+Take shadcn where the behaviour is expensive and easy to get subtly wrong on a screen operated
+one-handed: focus traps, portals, escape and outside-dismiss, ARIA roles, typeahead,
+controlled/uncontrolled state.
+
+| Take from shadcn | Re-skin on arrival |
+| --- | --- |
+| Dialog, AlertDialog | `rounded-card shadow-overlay bg-card`, overlay `bg-scrim`, padding `p-6` |
+| Sheet / Drawer | same, plus `rounded-t-card` and a `bg-well` grab rail |
+| Popover, Tooltip, Select | `rounded-control shadow-lift shadow-edge bg-card`, items `type-body-sm` |
+| Tabs | triggers are domes: `rounded-control shadow-dome`; active `bg-planned-ink inset-shadow-sunk` |
+| Switch | track `bg-well inset-shadow-pressed`, thumb `bg-card shadow-dome`, checked `bg-actual-ink` |
+| Accordion | hairline `border-rule` only, chevron from `lucide-react` at 1.75 |
+| Sonner | `bg-card shadow-lift rounded-control`; hued variants use the `-ink` fills |
+| Progress | track `bg-well inset-shadow-pressed`, indicator `bg-actual` |
+
+Write it plainly where the behaviour is not hard — buttons, cards, chips, fields, wells, nav items,
+alerts, empty states. A wrapper around `<button>` buys indirection, not accessibility.
+
+**The Dome is ours.** No shadcn component, variant or slot models a Set. It is hand-written, and it
+is the only component carrying all five hues and both depth states.
+
+### 6. Variants close, not open
+
+`cva` defines the variant surface, `cn()` (clsx + tailwind-merge) is the only place classes are
+combined, and the 48 Rule lives in the variant base — never at the call site.
+
+```ts
+export const button = cva(
+  "inline-flex items-center justify-center gap-2 min-h-12 rounded-control type-title " +
+  "transition-[box-shadow,transform,background-color] duration-[110ms] ease-snap " +
+  "active:scale-[.975] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-planned " +
+  "focus-visible:shadow-[0_0_0_3px_var(--color-planned-wash)] disabled:pointer-events-none",
+  {
+    variants: {
+      variant: {
+        primary: "bg-actual-ink text-on-fill shadow-lift hover:bg-actual-deep",
+        secondary: "bg-card text-ink shadow-dome hover:shadow-dome-lift hover:-translate-y-0.5",
+        ghost: "bg-transparent text-planned-ink hover:bg-planned-wash",
+        danger: "bg-missed-ink text-on-fill shadow-lift hover:bg-missed-deep",
+      },
+      size: { control: "px-[22px] py-3.5", compact: "px-4 py-2", lg: "w-full min-h-[60px] px-6" },
+    },
+    compoundVariants: [
+      { variant: "primary", class: "disabled:bg-well disabled:text-ink-3 disabled:shadow-none " +
+        "disabled:inset-shadow-pressed" },
+    ],
+    defaultVariants: { variant: "primary", size: "control" },
+  },
+);
+```
+
+The Dome takes the same shape, keyed on Set state rather than emphasis — `planned | live | logged |
+suggested | missed | locked` × `compact | default | live` — where `logged` and `missed` carry
+`inset-shadow-sunk` and `disabled`, and every instance carries an `aria-label` spelling out set
+number, state and load.
+
+### Named Rules
+
+**The Token-Only Rule.** No arbitrary values for colour, radius, shadow, or type in application
+code: `bg-[#2F62F0]`, `rounded-[20px]`, `shadow-[4px_4px…]` are banned. If a value is worth using it
+is worth naming in `@theme`. Arbitrary values survive only where no token describes the value — the
+41 px calendar cell, the glass `backdrop-blur-[20px] backdrop-saturate-[1.8]`, the focus halo, a
+chart container height.
+
+**The Bridge-Not-Strip Rule.** shadcn's semantic names are bound once, in `@theme`, to tokens that
+already exist in this document; they are not edited out of components one file at a time, and the
+bridge never introduces a value of its own. The failure mode this rule exists to prevent is still
+the half-skinned component — our colours on their borders, their radii and their flat elevation — so
+binding covers colour only, and the arrival re-skin must still fix radius, shadow and padding by
+hand, per the table in §5.
+
+**The No-Dark-Variant Rule.** The shadcn CLI writes a dark theme. Delete the `.dark` block, and do
+not let the bridge grow a `prefers-color-scheme` twin. Dark was rejected from the use scene, and a
+`.dark` block left in the tree is an invitation to ship one. Settings offers no theme control.
+
+**The Offline Rule outranks the CLI.** `npx shadcn@latest add` runs at author time only. Anything it
+pulls in that would fetch at runtime — remote fonts, hosted icon sets, telemetry — is removed before
+the commit. Icons come from `lucide-react`, bundled, stroked at 1.75.
+
 ## Components
 
 ### The Dome — signature component
@@ -643,6 +935,9 @@ type, 20 px stroked icons at 1.75 weight from one drawn set. Active is white on
 - **Do** show what was performed on a logged dome, never the target it was measured against.
 - **Do** name the problem *and* the recovery in every error string.
 - **Do** self-host every font as woff2 — the app makes no runtime network requests.
+- **Do** name a value in `@theme` before using it; the utility and the token are the same thing.
+- **Do** take shadcn for anything focus-trapped, portalled or dismissible, and re-skin it in the
+  same commit.
 
 ### Don't
 
@@ -664,3 +959,8 @@ type, 20 px stroked icons at 1.75 weight from one drawn set. Active is white on
 - **Don't** animate `width`, `height`, or `padding`; the rest-timer rail scales, it does not resize.
 - **Don't** loop an animation. The press fires once, and only the live dome and the loading state
   are allowed to repeat.
+- **Don't** ship a shadcn component wearing its default geometry — its radii, its flat elevation,
+  its padding. The bridge rewrites the colour behind `bg-background`, `border-input` and `ring-ring`;
+  it does not rewrite the shape, and it never survives the generated `.dark` block.
+- **Don't** reach for arbitrary Tailwind values (`bg-[#…]`, `rounded-[20px]`) or rebuild the type
+  scale with `@apply`; that is what `@theme`, `@utility` and `cva` are for.
