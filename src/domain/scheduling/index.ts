@@ -14,7 +14,13 @@ import {
   type LocalDate,
 } from '@/domain/dates';
 import { newId, type PlacementId, type WorkoutId } from '@/domain/ids';
-import type { Placement, Session, Weekday, Workout } from '@/domain/types';
+import type {
+  Placement,
+  PlannedExercise,
+  Session,
+  Weekday,
+  Workout,
+} from '@/domain/types';
 
 /** Days after the Monday that opens the week (DEC-008: week 1 begins on a Monday). */
 const DAYS_AFTER_MONDAY: Record<Weekday, number> = {
@@ -109,4 +115,75 @@ export function isMissed(
       session.workoutId === placement.workoutId &&
       formatLocalDate(new Date(session.startedAt)) === placement.date,
   );
+}
+
+/**
+ * The six states a calendar day can read as (§11.3).
+ *
+ * `rest` is simply a day the programme never claimed — not a failure, and not
+ * a stored fact.
+ */
+export type DayState =
+  | 'completed'
+  | 'partial'
+  | 'in_progress'
+  | 'planned'
+  | 'missed'
+  | 'rest';
+
+/**
+ * What one calendar day reads as, derived from Placements and Sessions alone
+ * (§11.3, ADR 0001). Pure: it reads no clock — `today` is a parameter — and it
+ * writes nothing, so `missed` never becomes a stored fact.
+ *
+ * What happened outranks what was planned, because the calendar's job is to
+ * show the record. Among Sessions, an open one outranks a finished one: a
+ * lifter training right now needs to see that before anything else.
+ */
+export function dayState(
+  placements: readonly Placement[],
+  sessions: readonly Session[],
+  date: LocalDate,
+  today: LocalDate,
+): DayState {
+  const onDay = sessions.filter(
+    (session) => formatLocalDate(new Date(session.startedAt)) === date,
+  );
+  if (onDay.some((session) => session.status === 'in_progress')) return 'in_progress';
+  // Among finished Sessions, a partial one is the more informative fact.
+  if (onDay.some((session) => session.status === 'partial')) return 'partial';
+  if (onDay.length > 0) return 'completed';
+
+  const planned = placements.filter((placement) => placement.date === date);
+  if (planned.length === 0) return 'rest';
+
+  // Reuse the one definition of missed rather than restating it (REQ-044).
+  return planned.some((placement) => isMissed(placement, sessions, today))
+    ? 'missed'
+    : 'planned';
+}
+
+/**
+ * Session length estimate for Today (§11.4), which shows `~75 min` but defines
+ * no formula. This one is the change owner's, frozen as three constants so a
+ * later adjustment is deliberate rather than drift:
+ *
+ *   Σ sets × (rest + work), 90s assumed when the exercise declares no rest
+ *
+ * Rounded to five minutes, because a minute-precise estimate of a gym session
+ * claims an accuracy nobody has.
+ */
+export const WORK_SECONDS_PER_SET = 45;
+export const DEFAULT_REST_SECONDS = 90;
+export const ROUNDING_MINUTES = 5;
+
+/** Estimated minutes for a Workout, rounded to `ROUNDING_MINUTES`. */
+export function estimateDuration(plannedExercises: readonly PlannedExercise[]): number {
+  const seconds = plannedExercises.reduce(
+    (total, exercise) =>
+      total +
+      exercise.sets * ((exercise.restSeconds ?? DEFAULT_REST_SECONDS) + WORK_SECONDS_PER_SET),
+    0,
+  );
+  return Math.round(seconds / 60 / ROUNDING_MINUTES) * ROUNDING_MINUTES;
 }

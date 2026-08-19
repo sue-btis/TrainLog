@@ -16,7 +16,9 @@ import {
   SessionInProgressError,
   createSession,
   getInProgressSession,
+  getLastPerformedWorkout,
   getSession,
+  listSessionsBetween,
   saveFinishedSession,
 } from '@/db/repositories/sessions';
 import {
@@ -37,8 +39,15 @@ import {
   startSession,
   startUnplannedExercise,
 } from '@/domain/session';
+import { parseLocalDate, toLocalDate } from '@/domain/dates';
 import { toId } from '@/domain/ids';
-import type { ExerciseId, PlannedExerciseId, RoutineId, WorkoutId } from '@/domain/ids';
+import type {
+  ExerciseId,
+  PlannedExerciseId,
+  RoutineId,
+  SessionId,
+  WorkoutId,
+} from '@/domain/ids';
 import type { PlannedExercise } from '@/domain/types';
 
 const routineId = toId<RoutineId>('routine-1');
@@ -165,5 +174,62 @@ describe('TST-021 — in-progress session recovery', () => {
     expect(stored?.status).toBe('completed');
     expect(stored?.completedAt).toBe(9_000);
     expect(await listCompletedSetsByExerciseSession(skipped.id)).toEqual([]);
+  });
+});
+
+/**
+ * R-43, R-44 — the calendar's range read and Today's rotation anchor.
+ *
+ * The boundary is the point: `startedAt` is an instant, the calendar asks in
+ * local days, and a session started at 23:30 belongs to that local day.
+ */
+describe('session range reads (R-43, R-44)', () => {
+  const at = (date: string, hours: number, minutes = 0): number => {
+    const day = parseLocalDate(toLocalDate(date));
+    day.setHours(hours, minutes, 0, 0);
+    return day.getTime();
+  };
+
+  const sessionAt = (id: string, workout: string, startedAt: number) => ({
+    id: toId<SessionId>(id),
+    routineId,
+    workoutId: toId<WorkoutId>(workout),
+    startedAt,
+    completedAt: startedAt + 3_600_000,
+    status: 'completed' as const,
+  });
+
+  beforeEach(async () => {
+    await resetDatabase();
+    await db.sessions.bulkAdd([
+      sessionAt('s-early', 'push', at('2026-09-06', 12)),
+      sessionAt('s-late-night', 'pull', at('2026-09-11', 23, 30)),
+      sessionAt('s-next-day', 'legs', at('2026-09-12', 0, 30)),
+      sessionAt('s-mid', 'push', at('2026-09-09', 9)),
+    ]);
+  });
+
+  it('includes a session started at 23:30 on the last day of the range (AC-46)', async () => {
+    const range = await listSessionsBetween(toLocalDate('2026-09-07'), toLocalDate('2026-09-11'));
+    expect(range.map((s) => s.id)).toEqual(['s-late-night', 's-mid']);
+  });
+
+  it('excludes a session started just after midnight the next day (AC-46)', async () => {
+    const range = await listSessionsBetween(toLocalDate('2026-09-07'), toLocalDate('2026-09-11'));
+    expect(range.map((s) => s.id)).not.toContain('s-next-day');
+  });
+
+  it('includes both ends of the range', async () => {
+    const range = await listSessionsBetween(toLocalDate('2026-09-06'), toLocalDate('2026-09-12'));
+    expect(range).toHaveLength(4);
+  });
+
+  it('names the workout of the most recently started session (AC-47)', async () => {
+    expect(await getLastPerformedWorkout(routineId)).toBe('legs');
+  });
+
+  it('names no workout when the routine has no sessions (AC-47)', async () => {
+    await resetDatabase();
+    expect(await getLastPerformedWorkout(routineId)).toBeNull();
   });
 });
