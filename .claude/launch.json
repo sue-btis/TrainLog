@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--yes", "http-server", "design", "-p", "4713", "-c-1", "--silent"],
       "port": 4713
+    },
+    {
+      "name": "trainlog",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 5173
     }
   ]
 }
