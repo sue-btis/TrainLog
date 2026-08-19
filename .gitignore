@@ -1,0 +1,20 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Tool caches
+.vite/
+node_modules/.vite/
+node_modules/.vitest/
+coverage/
+.eslintcache
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+
+# Mutation testing
+.stryker-tmp/
+reports/
