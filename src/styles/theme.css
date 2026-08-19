@@ -1,0 +1,271 @@
+@import "tailwindcss";
+
+/* ── Fonts — self-hosted, variable, no runtime request ─────────────────────
+   The font-stretch range is what makes the `wdth` axis reachable; without it
+   the Width-Not-Weight Rule cannot be implemented at all. */
+
+@font-face {
+  font-family: Archivo;
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("../assets/fonts/archivo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+                 U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+                 U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: Archivo;
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("../assets/fonts/archivo-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  font-style: normal;
+  font-weight: 300 700;
+  font-stretch: 75% 112.5%;
+  font-display: swap;
+  src: url("../assets/fonts/martianmono-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+                 U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+                 U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  font-style: normal;
+  font-weight: 300 700;
+  font-stretch: 75% 112.5%;
+  font-display: swap;
+  src: url("../assets/fonts/martianmono-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ── Tokens — the frontmatter of DESIGN.md, declared once ────────────────── */
+
+@theme {
+  /* surfaces */
+  --color-board: #F4F6FB;          --color-card: #FFFFFF;
+  --color-panel: #FAFBFE;          --color-field: #FFFFFF;
+  --color-well: #EDF1F8;           --color-glass-fill: #FFFFFF8C;
+  --color-rule: #94A3C13D;         --color-scrim: #00000038;
+
+  /* ink */
+  --color-ink: #141A2A;            --color-ink-2: #3C465C;
+  --color-ink-3: #4E586E;          --color-on-fill: #FFFFFF;
+  --color-on-live: #3A2400;
+
+  /* the five hues — base for strokes, -ink for fills, -wash for tints */
+  --color-planned: #2F62F0;  --color-planned-ink: #1F49C4;  --color-planned-wash: #E7EDFE;
+  --color-actual: #0F9B67;   --color-actual-ink: #0A7049;   --color-actual-wash: #E2F5EE;
+  --color-actual-deep: #08603E;
+  --color-progress: #6D3FE0; --color-progress-ink: #5A2FC4; --color-progress-wash: #EDE7FD;
+  --color-missed: #DE3B45;   --color-missed-ink: #B32530;   --color-missed-wash: #FCE8E9;
+  --color-missed-deep: #951C26;
+  --color-live: #F5A524;     --color-live-ink: #8A5200;     --color-live-wash: #FEF2DE;
+  --color-live-rail: #FFD489;
+
+  /* radii */
+  --radius-line: 2px;     --radius-hair: 6px;      --radius-field: 12px;
+  --radius-control: 14px; --radius-card: 20px;     --radius-frame-sm: 22px;
+  --radius-frame: 30px;   --radius-cell: 999px;    --radius-chip: 999px;
+
+  /* elevation — shade #94A3C1 and overlay-shadow #1E2A40 inlined as triplets */
+  --shadow-dome: 4px 4px 10px rgba(148,163,193,.30), -3px -3px 8px rgba(255,255,255,.95);
+  --shadow-dome-lift: 7px 8px 18px rgba(148,163,193,.30), -4px -4px 10px rgba(255,255,255,1);
+  --shadow-lift: 0 1px 2px rgba(148,163,193,.24), 0 8px 20px -12px rgba(148,163,193,.55);
+  --shadow-glass: 0 10px 30px -14px rgba(148,163,193,.7);
+  --shadow-overlay: 0 24px 52px -22px rgba(30,42,64,.26);
+  --shadow-edge: 0 0 0 1px rgba(148,163,193,.24);
+  --inset-shadow-pressed: 3px 3px 7px rgba(148,163,193,.32), -2px -2px 5px rgba(255,255,255,.95);
+  --inset-shadow-sunk: 0 2px 5px rgba(20,26,42,.22);
+  --inset-shadow-glass: 0 1px 0 rgba(255,255,255,.85);
+
+  /* type families and motion */
+  --font-face: Archivo, system-ui, sans-serif;
+  --font-measure: "Martian Mono", ui-monospace, monospace;
+  --ease-press: cubic-bezier(.22, 1, .36, 1);
+  --ease-snap: cubic-bezier(.4, 0, 1, 1);
+  --animate-breathe: breathe 2.6s ease-in-out infinite;
+  --animate-pulse-well: pulse-well 1.6s ease-in-out infinite;
+
+  /* shadcn bridge — their names, our values. No new colour is introduced here. */
+  --color-background: var(--color-board);
+  --color-foreground: var(--color-ink);
+  --color-card-foreground: var(--color-ink);        /* --color-card is ours already, and agrees */
+  --color-popover: var(--color-card);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-actual-ink);         /* the primary action is: record what happened */
+  --color-primary-foreground: var(--color-on-fill);
+  --color-secondary: var(--color-card);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-well);
+  --color-muted-foreground: var(--color-ink-3);
+  --color-accent: var(--color-planned-wash);
+  --color-accent-foreground: var(--color-planned-ink);
+  --color-destructive: var(--color-missed-ink);
+  --color-destructive-foreground: var(--color-on-fill);
+  --color-border: var(--color-rule);
+  --color-input: var(--color-rule);
+  --color-ring: var(--color-planned);
+}
+
+/* Outside @theme on purpose: --shade is the shadow triplet, not a colour.
+   Declared as --color-shade inside @theme it would generate a bg-shade utility
+   resolving to garbage. --radius is shadcn's derivation base. */
+:root {
+  --shade: 148, 163, 193;
+  --radius: 14px;                                   /* = --radius-control; shadcn derives sm/md/lg */
+}
+
+@keyframes breathe    { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes pulse-well { 0%, 100% { opacity: 1; }         50% { opacity: .48; } }
+
+/* ── Type scale — one utility per named style, properties carried together ── */
+
+@utility type-load {
+  font-family: var(--font-face);
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  font-weight: 800;
+  line-height: .92;
+  letter-spacing: -.045em;
+  font-variation-settings: "wdth" 118;
+  font-feature-settings: "tnum";
+}
+
+@utility type-clock {
+  font-family: var(--font-face);
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.045em;
+  font-variation-settings: "wdth" 118;
+  font-feature-settings: "tnum";
+}
+
+@utility type-page-title {
+  font-family: var(--font-face);
+  font-size: clamp(2.6rem, 6vw, 4.2rem);
+  font-weight: 800;
+  line-height: .95;
+  letter-spacing: -.035em;
+  font-variation-settings: "wdth" 118;
+}
+
+@utility type-display {
+  font-family: var(--font-face);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+  font-variation-settings: "wdth" 112;
+}
+
+@utility type-headline {
+  font-family: var(--font-face);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+  font-variation-settings: "wdth" 112;
+}
+
+@utility type-readout {
+  font-family: var(--font-face);
+  font-size: 1.875rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -.03em;
+  font-variation-settings: "wdth" 118;
+  font-feature-settings: "tnum";
+}
+
+@utility type-title {
+  font-family: var(--font-face);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -.012em;
+}
+
+@utility type-lede {
+  font-family: var(--font-face);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+@utility type-body {
+  font-family: var(--font-face);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+@utility type-body-sm {
+  font-family: var(--font-face);
+  font-size: .9375rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+@utility type-caption {
+  font-family: var(--font-face);
+  font-size: .875rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+@utility type-measure {
+  font-family: var(--font-measure);
+  font-size: .8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  font-feature-settings: "tnum";
+}
+
+@utility type-measure-sm {
+  font-family: var(--font-measure);
+  font-size: .75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  font-feature-settings: "tnum";
+}
+
+@utility type-lot {
+  font-family: var(--font-measure);
+  font-size: .6875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+@utility type-label {
+  font-family: var(--font-measure);
+  font-size: .625rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+@utility type-micro {
+  font-family: var(--font-measure);
+  font-size: .5625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
