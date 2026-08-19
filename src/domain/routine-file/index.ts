@@ -10,6 +10,11 @@
  * });
  * ```
  *
+ * Between validation and mapping the wizard may edit the file — `editExercise`,
+ * `deleteExercise`, `moveExercise`, `toggleSuggestedDay`, `setWeeks` — and
+ * re-validate, because §11.1 is where a Routine is corrected and the only
+ * place it can be.
+ *
  * Nothing here touches a database or a clock; `src/db` persists the draft.
  */
 
@@ -27,6 +32,16 @@ export {
   type RoutineFileWorkout,
   type StructuralError,
 } from '@/domain/routine-file/schema';
+
+export {
+  deleteExercise,
+  editExercise,
+  moveExercise,
+  toggleSuggestedDay,
+  setWeeks,
+  type ExerciseRef,
+  type MoveDirection,
+} from '@/domain/routine-file/edit';
 
 export {
   MAX_RIR,

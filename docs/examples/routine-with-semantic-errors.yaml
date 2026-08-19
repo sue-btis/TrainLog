@@ -1,0 +1,44 @@
+# Every semantic check of PRD §11.1, in one file.
+#
+# It parses, so the wizard loads it and marks the offending fields in red;
+# `Accept` stays blocked until each one is corrected.
+#
+#   Front Squat    min_reps (12) above max_reps (8)
+#   Overhead Press sets of 0, negative rest, RIR 4-14 outside 0-10,
+#                  and a progression type this app does not run
+#   Push and Pull  both claim monday
+#
+# Six problems. Correcting them inside the wizard clears them one at a time.
+
+version: 1
+
+routine:
+  name: "Broken Block"
+  weeks: 3
+
+  workouts:
+    - name: "Push"
+      suggested_days: [monday]
+      exercises:
+        - name: "Front Squat"
+          exercise_id: "front-squat"
+          sets: 4
+          reps: { min: 12, max: 8 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 210
+          progression: { type: "double_progression", increment: 2.5 }
+        - name: "Overhead Press"
+          sets: 0
+          reps: { min: 5, max: 8 }
+          rir: { min: 4, max: 14 }
+          rest_seconds: -30
+          progression: { type: "linear_load" }
+
+    - name: "Pull"
+      suggested_days: [monday, thursday]
+      exercises:
+        - name: "Romanian Deadlift"
+          sets: 4
+          reps: { min: 6, max: 8 }
+          rest_seconds: 180
+          progression: { type: "manual" }

@@ -10,6 +10,12 @@
  * The draft and the placements are produced by the domain
  * (`routineFileToDomain`, `generatePlacements`) and arrive fully formed: this
  * function decides nothing, it only writes.
+ *
+ * The one thing it does decide is which Routine is current. A draft always
+ * arrives `active` — an import is the user saying "this is what I am running
+ * now" — and at most one Routine may be active (REQ-076, §11.2), so the
+ * previously active one is archived in the same transaction. Archiving keeps
+ * its Sessions and its history intact (§37); only deletion is refused.
  */
 
 import { db } from '@/db/database';
@@ -37,6 +43,12 @@ export async function importRoutine(
     'rw',
     [db.routines, db.workouts, db.plannedExercises, db.exercises, db.placements],
     async () => {
+      if (draft.routine.status === 'active') {
+        const active = await db.routines.where('status').equals('active').toArray();
+        for (const routine of active) {
+          await db.routines.update(routine.id, { status: 'archived' });
+        }
+      }
       await db.routines.add(draft.routine);
       await db.workouts.bulkAdd(draft.workouts);
       await db.plannedExercises.bulkAdd(draft.plannedExercises);

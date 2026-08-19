@@ -1,0 +1,314 @@
+/**
+ * Routine import (§11.1).
+ *
+ *   select file → parse → structural check → step 1 exercises →
+ *   step 2 days + weeks → accept → store routine → generate placements
+ *
+ * Every decision on that path already belongs to the domain: `parseRoutineFile`
+ * rejects, `validateRoutineFile` flags, the edit functions correct,
+ * `routineFileToDomain` and `generatePlacements` produce, and `importRoutine`
+ * writes the lot in one transaction. This component owns what is left — which
+ * step is showing, which row is open, and where the clock is read.
+ *
+ * The clock is read exactly once, in `accept`. §12 deliberately gives a routine
+ * no start date, so the anchor belongs to the moment of import and to nothing
+ * else (DEC-008).
+ */
+
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Link } from 'react-router';
+import { Check, FileUp, FlaskConical } from 'lucide-react';
+import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
+import { formatLocalDate } from '@/domain/dates';
+import {
+  deleteExercise,
+  editExercise,
+  moveExercise,
+  routineFileToDomain,
+  parseRoutineFile,
+  validateRoutineFile,
+  type ExerciseRef,
+  type MoveDirection,
+  type RoutineFileExercise,
+  type SemanticIssue,
+} from '@/domain/routine-file';
+import { generatePlacements } from '@/domain/scheduling';
+import type { Weekday } from '@/domain/types';
+import { ActionBar } from '@/features/import/ActionBar';
+import { ExercisesStep } from '@/features/import/ExercisesStep';
+import { FileStep } from '@/features/import/FileStep';
+import { ScheduleStep } from '@/features/import/ScheduleStep';
+import {
+  fieldId,
+  indexIssues,
+  pathKey,
+  stepOfIssue,
+  workoutPath,
+} from '@/features/import/issues';
+import {
+  INITIAL_STATE,
+  reduceWizard,
+  type AcceptedSummary,
+  type WizardStep,
+} from '@/features/import/state';
+import {
+  CARD,
+  COLUMN,
+  ICON_STROKE,
+  LABEL,
+  SCREEN,
+  WELL,
+  button,
+  chip,
+} from '@/features/ui/styles';
+import { cn } from '@/lib/utils';
+
+export function ImportWizard() {
+  const [state, dispatch] = useReducer(reduceWizard, INITIAL_STATE);
+  const [activeWorkout, setActiveWorkout] = useState(0);
+  const [openRef, setOpenRef] = useState<ExerciseRef | null>(null);
+  const column = useRef<HTMLDivElement>(null);
+  /** The control an action-bar jump asked for, focused once it has rendered. */
+  const pendingFocus = useRef<string | null>(null);
+
+  const file = state.phase === 'editing' ? state.file : null;
+  const issues = useMemo<readonly SemanticIssue[]>(
+    () => (file === null ? [] : validateRoutineFile(file)),
+    [file],
+  );
+  const issueIndex = useMemo(() => indexIssues(issues), [issues]);
+
+  // A jump from the action bar lands on the control that carries the issue —
+  // which only exists after the step and Workout it lives on have rendered.
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (id === null) return;
+    pendingFocus.current = null;
+    const target = document.getElementById(id);
+    target?.scrollIntoView({ block: 'center' });
+    target?.focus({ preventScroll: true });
+  });
+
+  async function chooseFile(chosen: File) {
+    let text: string;
+    try {
+      text = await chosen.text();
+    } catch (error) {
+      dispatch({ type: 'unreadable', fileName: chosen.name, message: messageOf(error) });
+      return;
+    }
+
+    const parsed = parseRoutineFile(text);
+    if (!parsed.ok) {
+      dispatch({ type: 'rejected', fileName: chosen.name, errors: parsed.errors });
+      return;
+    }
+
+    setActiveWorkout(0);
+    setOpenRef(null);
+    dispatch({
+      type: 'loaded',
+      fileName: chosen.name,
+      file: parsed.file,
+      defaultUnit: await getDefaultUnit(),
+    });
+  }
+
+  async function accept() {
+    if (state.phase !== 'editing' || issues.length > 0) return;
+    dispatch({ type: 'accepting' });
+
+    try {
+      const [defaultUnit, existingExercises] = await Promise.all([
+        getDefaultUnit(),
+        listUserExercises(),
+      ]);
+      const draft = routineFileToDomain(state.file, {
+        defaultUnit,
+        existingExercises,
+        createdAt: Date.now(),
+      });
+      const placements = generatePlacements({
+        workouts: draft.workouts,
+        weeks: draft.routine.weeks,
+        anchorDate: formatLocalDate(new Date()),
+      });
+
+      await importRoutine(draft, placements);
+
+      dispatch({
+        type: 'accepted',
+        summary: {
+          routineName: draft.routine.name,
+          workouts: draft.workouts.length,
+          exercises: draft.plannedExercises.length,
+          placements: placements.length,
+          first: placements[0]?.date ?? null,
+          last: placements[placements.length - 1]?.date ?? null,
+        },
+      });
+    } catch (error) {
+      dispatch({ type: 'acceptFailed', message: messageOf(error) });
+    }
+  }
+
+  function goToStep(step: WizardStep) {
+    dispatch({ type: 'step', step });
+    column.current?.scrollIntoView({ block: 'start' });
+  }
+
+  function jumpToIssue(issue: SemanticIssue) {
+    const path = issue.paths[0];
+    if (path === undefined) return;
+
+    const step = stepOfIssue(issue);
+    dispatch({ type: 'step', step });
+
+    const workout = typeof path[2] === 'number' ? path[2] : 0;
+    setActiveWorkout(workout);
+
+    if (step === 2) {
+      pendingFocus.current = fieldId(workoutPath(workout));
+      return;
+    }
+
+    if (typeof path[4] === 'number') setOpenRef({ workout, exercise: path[4] });
+    pendingFocus.current = fieldId(pathKey(path));
+  }
+
+  const edit = {
+    exercise: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) =>
+      file && dispatch({ type: 'edited', file: editExercise(file, ref, patch) }),
+    remove: (ref: ExerciseRef) => {
+      if (!file) return;
+      setOpenRef(null);
+      dispatch({ type: 'edited', file: deleteExercise(file, ref) });
+    },
+    move: (ref: ExerciseRef, direction: MoveDirection) => {
+      if (!file) return;
+      // The open row follows the exercise the user is moving.
+      setOpenRef({ ...ref, exercise: ref.exercise + direction });
+      dispatch({ type: 'edited', file: moveExercise(file, ref, direction) });
+    },
+    toggleDay: (workout: number, day: Weekday) =>
+      dispatch({ type: 'toggleDay', workout, day }),
+    weeksBy: (delta: number) => dispatch({ type: 'weeksBy', delta }),
+  };
+
+  return (
+    <main className={SCREEN}>
+      <div className={cn(COLUMN, state.phase === 'editing' && 'pb-48')} ref={column}>
+        {state.phase === 'choosing' && (
+          <FileStep
+            errors={state.errors}
+            fileName={state.fileName}
+            onFile={chooseFile}
+            unreadable={state.unreadable}
+          />
+        )}
+
+        {state.phase === 'editing' && state.step === 1 && (
+          <ExercisesStep
+            activeWorkout={activeWorkout}
+            defaultUnit={state.defaultUnit}
+            file={state.file}
+            issues={issueIndex}
+            onActiveWorkout={setActiveWorkout}
+            onDelete={edit.remove}
+            onEdit={edit.exercise}
+            onMove={edit.move}
+            onToggle={setOpenRef}
+            openRef={openRef}
+          />
+        )}
+
+        {state.phase === 'editing' && state.step === 2 && (
+          <ScheduleStep
+            file={state.file}
+            issues={issues}
+            onToggleDay={edit.toggleDay}
+            onWeeksBy={edit.weeksBy}
+            today={formatLocalDate(new Date())}
+          />
+        )}
+
+        {state.phase === 'accepted' && (
+          <Accepted onAnother={() => dispatch({ type: 'restart' })} summary={state.summary} />
+        )}
+      </div>
+
+      {state.phase === 'editing' && (
+        <ActionBar
+          accepting={state.accepting}
+          failure={state.failure}
+          issues={issues}
+          onAccept={accept}
+          onJump={jumpToIssue}
+          onStep={goToStep}
+          step={state.step}
+        />
+      )}
+    </main>
+  );
+}
+
+interface AcceptedProps {
+  readonly summary: AcceptedSummary;
+  readonly onAnother: () => void;
+}
+
+function Accepted({ summary, onAnother }: AcceptedProps) {
+  return (
+    <>
+      <header className="flex flex-col gap-3">
+        <span className={chip('actual', 'self-start')}>
+          <Check aria-hidden="true" size={12} strokeWidth={ICON_STROKE} />
+          imported
+        </span>
+        <h1 className="type-display">{summary.routineName}</h1>
+        <p className="type-lede text-ink-2">
+          This is now your active Routine. Any Routine you were running before has been
+          archived — its history is untouched.
+        </p>
+      </header>
+
+      <section className={CARD}>
+        <div className={WELL}>
+          <span className={LABEL}>stored</span>
+          <dl className="grid grid-cols-3 gap-3">
+            <Figure label="workouts" value={String(summary.workouts)} />
+            <Figure label="exercises" value={String(summary.exercises)} />
+            <Figure label="sessions" value={String(summary.placements)} />
+          </dl>
+          <p className="type-measure-sm text-ink-3">
+            {summary.first === null || summary.last === null
+              ? 'No sessions were placed — no Workout suggested a day.'
+              : `placed ${summary.first} → ${summary.last}`}
+          </p>
+        </div>
+
+        <button className={button('primary', 'block')} onClick={onAnother} type="button">
+          <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          Import another routine
+        </button>
+        <Link className={button('ghost', 'block')} to="/harness">
+          <FlaskConical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          Open the session harness
+        </Link>
+      </section>
+    </>
+  );
+}
+
+function Figure({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className={LABEL}>{label}</dt>
+      <dd className="type-readout">{value}</dd>
+    </div>
+  );
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

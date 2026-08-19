@@ -102,6 +102,44 @@ describe('importRoutine', () => {
 });
 
 /**
+ * TST-026 (R-14, AC-17) — an accepted import becomes the one active Routine.
+ *
+ * The wizard is what makes this reachable: every draft arrives `active`, so
+ * without the demotion a second import would leave two Routines claiming to be
+ * the programme in progress.
+ */
+describe('importRoutine — at most one active Routine', () => {
+  it('archives the previously active Routine when a new one is accepted', async () => {
+    const first = draftOf(catalogOnlyFile());
+    await importRoutine(first, placementsOf(first));
+
+    const second = draftOf(catalogOnlyFile());
+    await importRoutine(second, placementsOf(second));
+
+    const active = await db.routines.where('status').equals('active').toArray();
+    expect(active.map((routine) => routine.id)).toEqual([second.routine.id]);
+    expect((await db.routines.get(first.routine.id))?.status).toBe('archived');
+  });
+
+  it('leaves the previous Routine active when the import fails', async () => {
+    const first = draftOf(catalogOnlyFile());
+    await importRoutine(first, placementsOf(first));
+
+    const second = draftOf(catalogOnlyFile());
+    const placements = placementsOf(second);
+    const head = placements[0];
+    if (!head) throw new Error('fixture must generate at least one placement');
+
+    await expect(importRoutine(second, [...placements, { ...head }])).rejects.toMatchObject({
+      name: 'BulkError',
+    });
+
+    const active = await db.routines.where('status').equals('active').toArray();
+    expect(active.map((routine) => routine.id)).toEqual([first.routine.id]);
+  });
+});
+
+/**
  * TST-018 — failure injection (AC-075).
  *
  * The failure is induced inside Dexie, not mocked: the placement list carries

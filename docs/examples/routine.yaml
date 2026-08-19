@@ -1,0 +1,70 @@
+# A complete, valid routine file (PRD §12).
+#
+# Import it at /import. It exercises every part of the format: two Workouts,
+# catalog exercises resolved by `exercise_id` and by name, one exercise the
+# catalog does not know (Sandbag Bear Hug Carry, which import creates as a user
+# Exercise), an exercise in `lb`, optional `rir` present and absent, notes, and
+# both progression types.
+#
+# Expected result: 2 Workouts, 6 Planned Exercises, and Placements on every
+# Monday, Wednesday and Friday for 4 weeks starting from the day you import.
+
+version: 1
+
+routine:
+  name: "Hybrid Strength - September"
+  weeks: 4
+
+  workouts:
+    - name: "Push - Quad + Shoulder Strength"
+      suggested_days: [monday, friday]
+      exercises:
+        - name: "Front Squat"
+          exercise_id: "front-squat"
+          category: "quadriceps"
+          unit: "kg"
+          sets: 4
+          reps: { min: 4, max: 6 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 210
+          focus: "Quadriceps Strength"
+          notes:
+            - "Maintain upright torso"
+            - "Avoid technical failure"
+          progression: { type: "double_progression", increment: 2.5 }
+        - name: "Overhead Press"
+          sets: 3
+          reps: { min: 5, max: 8 }
+          rir: { min: 1, max: 3 }
+          rest_seconds: 150
+          progression: { type: "double_progression", increment: 1.25 }
+        - name: "Incline Dumbbell Press"
+          sets: 3
+          reps: { min: 8, max: 12 }
+          rest_seconds: 90
+          progression: { type: "manual" }
+
+    - name: "Pull - Hinge + Back"
+      suggested_days: [wednesday]
+      exercises:
+        - name: "Romanian Deadlift"
+          exercise_id: "romanian-deadlift"
+          sets: 4
+          reps: { min: 6, max: 8 }
+          rir: { min: 2, max: 3 }
+          rest_seconds: 180
+          progression: { type: "double_progression", increment: 5 }
+        - name: "Weighted Pull Up"
+          exercise_id: "weighted-pull-up"
+          sets: 4
+          reps: { min: 4, max: 7 }
+          rest_seconds: 180
+          notes:
+            - "Full dead hang at the bottom"
+          progression: { type: "double_progression", increment: 2.5 }
+        - name: "Sandbag Bear Hug Carry"
+          unit: "lb"
+          sets: 3
+          reps: { min: 1, max: 1 }
+          rest_seconds: 120
+          progression: { type: "manual" }

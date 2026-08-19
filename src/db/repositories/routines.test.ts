@@ -72,7 +72,9 @@ describe('TST-020 activateRoutine', () => {
   it('leaves exactly one active Routine', async () => {
     const first = await importFixture('August Hybrid', 1_754_000_000_000);
     const second = await importFixture('September Hybrid', 1_757_000_000_000);
-    // Both arrive `active`, since every import does (§11.2).
+    // Accepting the second import already archived the first (R-14), so the
+    // two-active state this function exists to resolve is staged directly.
+    await db.routines.update(first.routine.id, { status: 'active' });
     expect(await listRoutinesByStatus('active')).toHaveLength(2);
 
     await activateRoutine(second.routine.id);

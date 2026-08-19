@@ -1,0 +1,14 @@
+# A file the wizard must refuse outright (PRD §11.1 "Structural").
+#
+# Unknown `version`, no routine name, no Workout name, no exercise name, and
+# missing required fields. Nothing here can be repaired inside the wizard, so
+# the import fails and the errors are listed by field path.
+
+version: 2
+
+routine:
+  weeks: 4
+  workouts:
+    - suggested_days: [monday]
+      exercises:
+        - sets: 4
