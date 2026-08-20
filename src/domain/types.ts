@@ -198,6 +198,14 @@ interface ExerciseSessionBase {
  */
 export interface PlannedExerciseSession extends ExerciseSessionBase {
   readonly plannedExerciseId: PlannedExerciseId;
+  /**
+   * The unit this exercise is loaded in (§11.7). Snapshotted like every other
+   * planned value, and for the same reason: without it the first set of a
+   * `lb` exercise has nothing to read but the settings default, and would be
+   * stored as kilograms with a `weightKg` converted from the wrong number.
+   * Once any set exists, `CompletedSet.unit` carries it instead.
+   */
+  readonly plannedUnit: Unit;
   readonly plannedSets: number;
   readonly plannedMinReps: number;
   readonly plannedMaxReps: number;

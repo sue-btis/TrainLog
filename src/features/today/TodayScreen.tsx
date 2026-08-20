@@ -9,20 +9,24 @@
  * A day without a Placement is not a blocked day, so the Workout selector is
  * always there. And the suggestion is a suggestion — nothing here writes.
  *
- * There is no `Start workout` yet: the execution screen is the next change, and
- * a button that cannot start anything would be a worse answer than its absence.
+ * `Start workout` is the one thing here that writes, and it writes the whole
+ * session at once: the Session plus a snapshot of every planned exercise, in one
+ * transaction (R-2). With a session already open it becomes `Resume session`,
+ * because §35 recovers a session and never abandons one silently.
  */
 
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { Activity, FileUp, Timer } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { Activity, FileUp, Play, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { createStartedWorkout } from '@/db';
 import { formatLocalDate } from '@/domain/dates';
-import type { WorkoutId } from '@/domain/ids';
+import type { RoutineId, WorkoutId } from '@/domain/ids';
 import { estimateDuration, nextWorkoutInRotation } from '@/domain/scheduling';
-import type { Session, Workout } from '@/domain/types';
+import { startWorkout } from '@/domain/session';
+import type { PlannedExercise, Session, Workout } from '@/domain/types';
 import {
   useActiveRoutine,
   useExerciseNames,
@@ -45,6 +49,7 @@ import {
 } from '@/features/ui/styles';
 
 export function TodayScreen() {
+  const navigate = useNavigate();
   const today = formatLocalDate(new Date());
   const routine = useActiveRoutine();
   const routineId = routine?.id ?? null;
@@ -56,6 +61,7 @@ export function TodayScreen() {
   const sessions = useSessionsByRoutine(routineId) ?? [];
 
   const [picked, setPicked] = useState<WorkoutId | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const suggested = suggestWorkout(workouts, todaysPlacements.map((p) => p.workoutId), lastPerformed);
   const shown = workouts.find((workout) => workout.id === picked) ?? suggested;
   const placed = todaysPlacements.some((placement) => placement.workoutId === shown?.id);
@@ -68,11 +74,11 @@ export function TodayScreen() {
           <div className="flex flex-col gap-1">
             <p className="type-title">A session is still open</p>
             <p className="type-body-sm">
-              Started {shortDate(formatLocalDate(new Date(open.startedAt)))}. Until the
-              training screen exists, it can be finished from the harness.
+              Started {shortDate(formatLocalDate(new Date(open.startedAt)))}. Pick it up
+              where you left off — every set you logged is still there.
             </p>
-            <Link className="type-body-sm underline underline-offset-4" to="/harness">
-                Open the harness
+            <Link className="type-body-sm underline underline-offset-4" to="/session">
+              Resume session
             </Link>
           </div>
         </div>
@@ -82,6 +88,12 @@ export function TodayScreen() {
         <p className="type-lede text-ink-2">{longDate(today)}</p>
         {routine !== undefined && <p className="type-lot text-ink-3">{routine.name}</p>}
       </div>
+
+      {failure !== null && (
+        <p className="type-measure text-missed-ink" role="alert">
+          {failure}
+        </p>
+      )}
 
       {routine === undefined ? (
         <NoRoutine />
@@ -113,7 +125,13 @@ export function TodayScreen() {
             )}
 
             <TabsContent value={shown.id}>
-              <WorkoutCard workout={shown} />
+              <WorkoutCard
+                onStart={(exercises) =>
+                  void start(routine.id, shown.id, exercises, navigate, setFailure)
+                }
+                open={open !== undefined}
+                workout={shown}
+              />
               <LastSession sessions={sessions} workoutId={shown.id} />
             </TabsContent>
           </Tabs>
@@ -141,7 +159,14 @@ function NoRoutine() {
   );
 }
 
-function WorkoutCard({ workout }: { readonly workout: Workout }) {
+interface WorkoutCardProps {
+  readonly workout: Workout;
+  /** Whether a Session is already open — then the action is to resume, not start. */
+  readonly open: boolean;
+  readonly onStart: (exercises: readonly PlannedExercise[]) => void;
+}
+
+function WorkoutCard({ workout, open, onStart }: WorkoutCardProps) {
   const exercises = usePlannedExercises(workout.id) ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
 
@@ -174,8 +199,53 @@ function WorkoutCard({ workout }: { readonly workout: Workout }) {
           ))}
         </div>
       )}
+
+      {/* The one control on this screen that writes. It sits at the bottom of
+          the card because a lifter reads what they are about to do first. */}
+      {open ? (
+        <Button asChild size="block" variant="primary">
+          <Link to="/session">
+            <Play aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            Resume session
+          </Link>
+        </Button>
+      ) : (
+        <Button
+          onClick={() => onStart(exercises)}
+          size="block"
+          type="button"
+          variant="primary"
+        >
+          <Play aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          Start workout
+        </Button>
+      )}
     </Card>
   );
+}
+
+/**
+ * R-2 — starts the Workout and leaves for gym mode.
+ *
+ * The Session and every snapshotted exercise are written in one transaction, so
+ * navigating into `/session` cannot arrive before the rows it reads exist. A
+ * refusal (REQ-058: another session is already open) surfaces its own message
+ * rather than being swallowed into a screen that silently did nothing.
+ */
+async function start(
+  routineId: RoutineId,
+  workoutId: WorkoutId,
+  planned: readonly PlannedExercise[],
+  navigate: (to: string) => void | Promise<void>,
+  onFailure: (message: string | null) => void,
+): Promise<void> {
+  onFailure(null);
+  try {
+    await createStartedWorkout(startWorkout({ routineId, workoutId, planned, startedAt: Date.now() }));
+    await navigate('/session');
+  } catch (error) {
+    onFailure(error instanceof Error ? error.message : String(error));
+  }
 }
 
 /** The last time this Workout was trained — §11.4's "última sesión". */

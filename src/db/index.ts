@@ -52,6 +52,7 @@ export {
 export {
   SessionInProgressError,
   createSession,
+  createStartedWorkout,
   getInProgressSession,
   getLastPerformedWorkout,
   getSession,
@@ -66,6 +67,7 @@ export {
   listExerciseSessionsByExercise,
   listExerciseSessionsBySession,
   saveExerciseSession,
+  saveExerciseSessions,
 } from '@/db/repositories/exerciseSessions';
 
 export {

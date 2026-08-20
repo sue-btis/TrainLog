@@ -30,6 +30,23 @@ export async function saveExerciseSession(exerciseSession: ExerciseSession): Pro
   await db.exerciseSessions.put(exerciseSession);
 }
 
+/**
+ * R-10 — overwrites several ExerciseSessions at once, which is what a reorder
+ * is: `reorderExerciseSessions` renumbers `order` across the whole list, and a
+ * list written row by row would be briefly readable with two exercises claiming
+ * the same position.
+ *
+ * Only ExerciseSessions are written. The PlannedExercises behind them are not
+ * touched — deviation belongs to the Session, and Routines are immutable once
+ * accepted (§11.5, AGENTS.MD).
+ */
+export async function saveExerciseSessions(
+  exerciseSessions: readonly ExerciseSession[],
+): Promise<void> {
+  if (exerciseSessions.length === 0) return;
+  await db.exerciseSessions.bulkPut([...exerciseSessions]);
+}
+
 /** One Session's exercises in `order` (§11.5). Index: sessionId. */
 export async function listExerciseSessionsBySession(
   sessionId: SessionId,

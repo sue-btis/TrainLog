@@ -9,6 +9,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   getActiveRoutine,
+  getDefaultUnit,
   getExerciseNames,
   getInProgressSession,
   getLastPerformedWorkout,
@@ -23,6 +24,7 @@ import {
   listRoutines,
   listSessionsBetween,
   listSessionsByRoutine,
+  listUserExercises,
   listWorkoutsByRoutine,
 } from '@/db';
 import type { LocalDate } from '@/domain/dates';
@@ -139,4 +141,25 @@ export function useWorkoutsById(ids: readonly WorkoutId[]) {
       found.filter((workout): workout is Workout => workout !== undefined).map((w) => [w.id, w]),
     );
   }, [key]);
+}
+
+/* ── Gym mode's reads ──────────────────────────────────────────────────── */
+
+/**
+ * The unit an exercise with no plan of its own logs in (§11.7, A-4). An
+ * unplanned exercise has no PlannedExercise to take a unit from, so it takes
+ * the settings default.
+ */
+export function useDefaultUnit() {
+  return useLiveQuery(() => getDefaultUnit(), []);
+}
+
+/**
+ * What the unplanned-exercise picker offers: the bundled catalog plus every
+ * Exercise a routine file has already created. The catalog ships in the build
+ * and is never in the table (DEC-007), so the two lists are disjoint and are
+ * concatenated rather than merged.
+ */
+export function useUserExercises() {
+  return useLiveQuery(() => listUserExercises(), []);
 }

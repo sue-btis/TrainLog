@@ -17,7 +17,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { CalendarDays, Check, FileUp, FlaskConical, ListChecks } from 'lucide-react';
+import { CalendarDays, Check, Dumbbell, FileUp, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
@@ -324,9 +324,9 @@ function Accepted({ summary, onAnother }: AcceptedProps) {
             Import another routine
           </Button>
           <Button asChild size="block" variant="ghost">
-            <Link to="/harness">
-              <FlaskConical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-              Open the session harness
+            <Link to="/today">
+              <Dumbbell aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+              Go to Today
             </Link>
           </Button>
         </div>

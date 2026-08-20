@@ -107,6 +107,7 @@ const plannedExerciseSession: PlannedExerciseSession = {
   order: 0,
   status: 'performed',
   plannedExerciseId,
+  plannedUnit: 'kg',
   plannedSets: 4,
   plannedMinReps: 4,
   plannedMaxReps: 6,

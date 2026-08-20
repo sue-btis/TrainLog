@@ -57,6 +57,37 @@ export async function createSession(session: Session): Promise<void> {
 }
 
 /**
+ * R-2 — persists what `startWorkout` produced: the Session and one
+ * ExerciseSession per planned exercise, in a single transaction.
+ *
+ * One transaction because the two are one fact. A Session written without its
+ * exercises would be an `in_progress` session that `deriveSessionStatus` reads
+ * as `completed` the moment it is finished (DEC-009); exercises written without
+ * their Session would be rows nothing can reach. The REQ-058 refusal happens
+ * inside the same transaction, so the at-most-one invariant still has no window
+ * in which it is false.
+ *
+ * This is what the Today screen calls. `createSession` above writes a Session
+ * alone and now has no production caller — it survives as the narrow primitive
+ * the repository tests build fixtures from. Index: status.
+ */
+export async function createStartedWorkout(started: {
+  readonly session: Session;
+  readonly exerciseSessions: readonly ExerciseSession[];
+}): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.exerciseSessions], async () => {
+    const open = await db.sessions.where('status').equals('in_progress').first();
+    if (open !== undefined && open.id !== started.session.id) {
+      throw new SessionInProgressError(open.id);
+    }
+    await db.sessions.add(started.session);
+    if (started.exerciseSessions.length > 0) {
+      await db.exerciseSessions.bulkAdd([...started.exerciseSessions]);
+    }
+  });
+}
+
+/**
  * Persists a Session produced by `finishSession` together with the final state
  * of its ExerciseSessions (REQ-057).
  *

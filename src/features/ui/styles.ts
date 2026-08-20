@@ -211,3 +211,78 @@ export function alert(tone: 'missed' | 'planned' = 'missed', extra?: string): st
 
 /** The one place an icon's stroke weight is decided (DESIGN.md). */
 export const ICON_STROKE = 1.75;
+
+/* ── Gym mode ──────────────────────────────────────────────────────────── */
+
+/**
+ * The Dome — one dome is one Set (DESIGN.md §Components).
+ *
+ * The only component that carries all five hues, so it is the one place where
+ * state and colour are bound together, and it is bound once. A circle, because
+ * a set is a whole object; 96px when live so it is the largest thing on screen;
+ * `animate-breathe` while it waits to be performed. `logged` and `missed` are
+ * flat and inert — what happened cannot be pressed again.
+ */
+const DOME_STATE = {
+  planned: 'bg-card text-planned-ink shadow-dome ring-2 ring-planned-wash',
+  live: 'bg-live text-on-live shadow-dome-lift animate-breathe',
+  logged: 'bg-actual-ink text-on-fill shadow-none',
+  suggested: 'bg-progress text-on-fill shadow-dome-lift',
+  missed: 'bg-missed-ink text-on-fill shadow-none',
+  locked: 'bg-well text-ink-3 shadow-none',
+} as const;
+
+const DOME_SIZE = {
+  compact: 'size-[60px] type-body-sm',
+  default: 'size-[76px] type-title',
+  live: 'size-[96px] type-readout',
+} as const;
+
+export type DomeState = keyof typeof DOME_STATE;
+export type DomeSize = keyof typeof DOME_SIZE;
+
+export function dome(state: DomeState, size: DomeSize = 'default', extra?: string): string {
+  return cn(
+    'inline-flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-cell leading-none',
+    PRESS,
+    FOCUS_RING,
+    'disabled:pointer-events-none',
+    DOME_STATE[state],
+    DOME_SIZE[size],
+    extra,
+  );
+}
+
+/**
+ * The stepper beside a readout: a small dome carrying one glyph. It adjusts a
+ * value rather than recording one, so it takes the navigation face the month
+ * pager already wears, not the green of "record what happened".
+ */
+export const STEPPER = cn(
+  'inline-flex size-12 shrink-0 items-center justify-center rounded-cell',
+  'bg-planned-wash text-planned-ink ring-1 ring-planned shadow-dome',
+  'hover:bg-card hover:shadow-dome-lift',
+  'disabled:bg-well disabled:text-ink-3 disabled:shadow-none disabled:ring-rule disabled:pointer-events-none',
+  PRESS,
+  FOCUS_RING,
+);
+
+/**
+ * A weight / reps / RIR readout: the cavity the value sits in, flat, with the
+ * number in Readout type and the unit as a smaller inline span
+ * (DESIGN.md §Inputs). It is not an input — adjustment is by steppers, so
+ * nothing here takes a keyboard.
+ */
+export const READOUT = 'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well px-2 py-3';
+
+/**
+ * The rest timer: the one full-bleed coloured surface in the product. The
+ * darker `live-ink` rather than `live`, so white Clock type clears it
+ * (DESIGN.md §Rest timer).
+ */
+export const TIMER_SHELL = 'relative overflow-hidden rounded-card bg-live-ink p-5 text-on-fill shadow-lift';
+
+/** The track along its bottom edge, and the rail that scales down inside it. */
+export const TIMER_TRACK = 'absolute inset-x-0 bottom-0 h-1.5 bg-scrim';
+export const TIMER_RAIL =
+  'h-full origin-left bg-live-rail transition-transform duration-1000 ease-linear';

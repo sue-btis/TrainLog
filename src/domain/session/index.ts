@@ -89,6 +89,7 @@ export function startPlannedExercise({
     order,
     status: 'pending',
     plannedExerciseId: planned.id,
+    plannedUnit: planned.unit,
     plannedSets: planned.sets,
     plannedMinReps: planned.minReps,
     plannedMaxReps: planned.maxReps,
@@ -202,4 +203,111 @@ export function finishSession(
     completedAt,
     status: deriveSessionStatus(exerciseSessions),
   };
+}
+
+export interface StartWorkoutInput {
+  readonly routineId: RoutineId;
+  readonly workoutId: WorkoutId;
+  /** The Workout's PlannedExercises. Read once, here, and never again (ADR 0002). */
+  readonly planned: readonly PlannedExercise[];
+  readonly startedAt: Timestamp;
+}
+
+/**
+ * R-2 — the Session a lifter actually starts, with every planned exercise
+ * already snapshotted.
+ *
+ * §11.5 says the targets are copied "al iniciar cada ejercicio", and this takes
+ * every copy at once, on purpose. An exercise reached but never touched has to
+ * exist as a `pending` row, because that is the only thing `deriveSessionStatus`
+ * reads: with lazy rows, a session in which nothing was done would hold no
+ * pending exercise and finish `completed` (DEC-009). Reordering and skipping
+ * need the same rows for the same reason.
+ *
+ * `order` is assigned from the template's order, compacted to 0..n-1, so the
+ * session starts in the programme's order and can then depart from it freely
+ * (§11.5) without a gap in the sequence the screen pages through.
+ */
+export function startWorkout({
+  routineId,
+  workoutId,
+  planned,
+  startedAt,
+}: StartWorkoutInput): {
+  readonly session: Session;
+  readonly exerciseSessions: readonly PlannedExerciseSession[];
+} {
+  const session = startSession({ routineId, workoutId, startedAt });
+  const exerciseSessions = [...planned]
+    .sort((a, b) => a.order - b.order)
+    .map((exercise, order) => startPlannedExercise({ sessionId: session.id, planned: exercise, order }));
+
+  return { session, exerciseSessions };
+}
+
+/**
+ * R-10 — moves one exercise a place earlier or later within the Session and
+ * renumbers `order` contiguously from zero.
+ *
+ * Deviation belongs to the Session and never to the template (§11.5): this
+ * returns ExerciseSessions, and the PlannedExercises behind them are not so
+ * much as read. Routines are immutable once accepted.
+ *
+ * Position is taken from `order` rather than from the array, so a caller that
+ * hands over rows in whatever sequence the database returned still gets the
+ * move it asked for. At either end, and for an id the list does not hold, the
+ * list comes back unchanged — the screen can offer the control unconditionally
+ * and let a no-op be a no-op.
+ */
+export function reorderExerciseSessions<T extends ExerciseSession>(
+  exerciseSessions: readonly T[],
+  id: ExerciseSessionId,
+  direction: 'up' | 'down',
+): readonly T[] {
+  const ordered = [...exerciseSessions].sort((a, b) => a.order - b.order);
+  const from = ordered.findIndex((it) => it.id === id);
+  const to = from + (direction === 'up' ? -1 : 1);
+  if (from === -1 || to < 0 || to >= ordered.length) return exerciseSessions;
+
+  const moved = ordered[from] as T;
+  ordered[from] = ordered[to] as T;
+  ordered[to] = moved;
+
+  return ordered.map((it, order) => (it.order === order ? it : { ...it, order }));
+}
+
+export interface RestRemainingInput {
+  /** When the rest began — the `completedAt` of the set that started it (§35). */
+  readonly since: Timestamp;
+  /** The planned rest, in seconds. */
+  readonly seconds: number;
+  readonly now: Timestamp;
+  /** Seconds the lifter added by hand (§11.6). */
+  readonly added?: number;
+  /** When the lifter paused, if they did. The clock stops there. */
+  readonly pausedAt?: Timestamp;
+}
+
+/**
+ * R-7 — the seconds of rest left, computed against the clock.
+ *
+ * This is the whole of §35's correctness requirement: nothing accumulates ticks,
+ * so a locked phone, a backgrounded PWA and a throttled browser timer all cost
+ * exactly nothing. A screen calls this on every frame it cares to repaint and
+ * gets the truth each time; the interval driving those repaints is a display
+ * detail that may drift or stop without making the number wrong.
+ *
+ * Rounded up, so the last second reads `1` until it has actually been spent and
+ * the timer never shows `0` while rest remains.
+ */
+export function restRemaining({
+  since,
+  seconds,
+  now,
+  added = 0,
+  pausedAt,
+}: RestRemainingInput): number {
+  const elapsed = (pausedAt ?? now) - since;
+  const remaining = (seconds + added) * 1_000 - elapsed;
+  return Math.max(0, Math.ceil(remaining / 1_000));
 }

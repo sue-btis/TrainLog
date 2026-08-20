@@ -8,8 +8,8 @@
  * detail is the one route below a section, and it is the only one with a way
  * back — a root section has nowhere to go.
  *
- * The wizard and the harness render their own frames and are deliberately
- * outside this one.
+ * The wizard and gym mode render their own frames and are deliberately outside
+ * this one.
  */
 
 import { Outlet, useLocation } from 'react-router';
