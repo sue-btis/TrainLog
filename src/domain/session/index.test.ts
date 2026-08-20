@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   toId,
+  type CompletedSetId,
   type ExerciseId,
   type ExerciseSessionId,
   type PlannedExerciseId,
@@ -8,12 +9,15 @@ import {
   type SessionId,
   type WorkoutId,
 } from '@/domain/ids';
-import type { PlannedExercise, PlannedExerciseSession } from '@/domain/types';
+import type { CompletedSet, PlannedExercise, PlannedExerciseSession } from '@/domain/types';
+import { toKg } from '@/domain/units';
 import {
   deriveSessionStatus,
+  editSet,
   finishSession,
   logSet,
-  reorderExerciseSessions,
+  moveExerciseSession,
+  removeSet,
   restRemaining,
   skipExercise,
   startPlannedExercise,
@@ -369,7 +373,7 @@ describe('startWorkout (R-2, AC-3, AC-4)', () => {
   });
 });
 
-describe('reorderExerciseSessions (R-10, AC-20)', () => {
+describe('moveExerciseSession (R-3, AC-9…AC-12)', () => {
   function three(): PlannedExerciseSession[] {
     return [0, 1, 2].map((order) => ({
       ...startPlannedExercise({ sessionId, planned: plannedExercise(), order }),
@@ -377,64 +381,96 @@ describe('reorderExerciseSessions (R-10, AC-20)', () => {
     }));
   }
 
-  it('moves an exercise later and renumbers order contiguously from zero', () => {
-    const moved = reorderExerciseSessions(three(), toId<ExerciseSessionId>('es-0'), 'down');
+  function five(): PlannedExerciseSession[] {
+    return [0, 1, 2, 3, 4].map((order) => ({
+      ...startPlannedExercise({ sessionId, planned: plannedExercise(), order }),
+      id: toId<ExerciseSessionId>(`es-${order}`),
+    }));
+  }
 
-    expect(moved.map((it) => it.id)).toEqual(['es-1', 'es-0', 'es-2']);
-    expect(moved.map((it) => it.order)).toEqual([0, 1, 2]);
+  it('moves the first exercise to last in one step (AC-9)', () => {
+    const moved = moveExerciseSession(five(), toId<ExerciseSessionId>('es-0'), 4);
+
+    expect(moved.map((it) => it.id)).toEqual(['es-1', 'es-2', 'es-3', 'es-4', 'es-0']);
+    expect(moved.map((it) => it.order)).toEqual([0, 1, 2, 3, 4]);
   });
 
-  it('moves an exercise earlier', () => {
-    const moved = reorderExerciseSessions(three(), toId<ExerciseSessionId>('es-2'), 'up');
+  it('moves the last exercise to first in one step', () => {
+    const moved = moveExerciseSession(five(), toId<ExerciseSessionId>('es-4'), 0);
 
-    expect(moved.map((it) => it.id)).toEqual(['es-0', 'es-2', 'es-1']);
-    expect(moved.map((it) => it.order)).toEqual([0, 1, 2]);
+    expect(moved.map((it) => it.id)).toEqual(['es-4', 'es-0', 'es-1', 'es-2', 'es-3']);
+    expect(moved.map((it) => it.order)).toEqual([0, 1, 2, 3, 4]);
   });
 
-  // The middle is the ordinary case and the one the ends do not exercise:
-  // moving it up lands on position 0, and its own index is neither 0 nor last.
-  it('moves the middle exercise up into first place', () => {
-    const moved = reorderExerciseSessions(three(), toId<ExerciseSessionId>('es-1'), 'up');
+  it('moves a middle exercise to either end', () => {
+    expect(
+      moveExerciseSession(five(), toId<ExerciseSessionId>('es-2'), 0).map((it) => it.id),
+    ).toEqual(['es-2', 'es-0', 'es-1', 'es-3', 'es-4']);
 
-    expect(moved.map((it) => it.id)).toEqual(['es-1', 'es-0', 'es-2']);
-    expect(moved.map((it) => it.order)).toEqual([0, 1, 2]);
+    expect(
+      moveExerciseSession(five(), toId<ExerciseSessionId>('es-2'), 4).map((it) => it.id),
+    ).toEqual(['es-0', 'es-1', 'es-3', 'es-4', 'es-2']);
   });
 
-  it('moves the middle exercise down into last place', () => {
-    const moved = reorderExerciseSessions(three(), toId<ExerciseSessionId>('es-1'), 'down');
+  // Up and down are the special case this replaced: a move to `from ± 1`.
+  it('still expresses a one-place move, in both directions', () => {
+    expect(
+      moveExerciseSession(three(), toId<ExerciseSessionId>('es-0'), 1).map((it) => it.id),
+    ).toEqual(['es-1', 'es-0', 'es-2']);
 
-    expect(moved.map((it) => it.id)).toEqual(['es-0', 'es-2', 'es-1']);
-    expect(moved.map((it) => it.order)).toEqual([0, 1, 2]);
+    expect(
+      moveExerciseSession(three(), toId<ExerciseSessionId>('es-2'), 1).map((it) => it.id),
+    ).toEqual(['es-0', 'es-2', 'es-1']);
   });
 
-  it('is a no-op at either end, and for an id it does not hold', () => {
+  it('returns the same list when the exercise is already there (AC-12)', () => {
     const list = three();
 
-    expect(reorderExerciseSessions(list, toId<ExerciseSessionId>('es-0'), 'up')).toEqual(list);
-    expect(reorderExerciseSessions(list, toId<ExerciseSessionId>('es-2'), 'down')).toEqual(list);
-    expect(reorderExerciseSessions(list, toId<ExerciseSessionId>('nope'), 'up')).toEqual(list);
+    expect(moveExerciseSession(list, toId<ExerciseSessionId>('es-1'), 1)).toBe(list);
   });
 
-  // Both directions, because they fail differently. An unknown id going up
-  // lands on -2 and is caught by the lower bound; going down it lands on 0,
-  // which is inside the list — so only the `from === -1` check stops it from
-  // swapping against index -1 and emitting a row with no id.
-  it('is a no-op for an unknown id in either direction', () => {
+  it('returns the same list for an id it does not hold', () => {
     const list = three();
-    const missing = toId<ExerciseSessionId>('nope');
 
-    for (const direction of ['up', 'down'] as const) {
-      const result = reorderExerciseSessions(list, missing, direction);
-      expect(result).toEqual(list);
-      expect(result.every((it) => it.id !== undefined)).toBe(true);
-    }
+    expect(moveExerciseSession(list, toId<ExerciseSessionId>('nope'), 0)).toBe(list);
+    expect(moveExerciseSession(list, toId<ExerciseSessionId>('nope'), 2)).toBe(list);
   });
 
-  it('reads the given order rather than the array order', () => {
+  it('clamps a position outside the list rather than tearing it', () => {
+    const below = moveExerciseSession(three(), toId<ExerciseSessionId>('es-2'), -5);
+    const above = moveExerciseSession(three(), toId<ExerciseSessionId>('es-0'), 99);
+
+    expect(below.map((it) => it.id)).toEqual(['es-2', 'es-0', 'es-1']);
+    expect(above.map((it) => it.id)).toEqual(['es-1', 'es-2', 'es-0']);
+    expect(below.map((it) => it.order)).toEqual([0, 1, 2]);
+    expect(above.map((it) => it.order)).toEqual([0, 1, 2]);
+  });
+
+  // The clamp lands *before* the "already there?" check, so an out-of-range
+  // destination for an exercise already at that end has to come back as the
+  // same list. Clamping loosely would still produce the right order — and a
+  // pointless write of every row on every stray tap.
+  it('is a no-op when the clamped position is the one it already holds', () => {
+    const list = three();
+
+    expect(moveExerciseSession(list, toId<ExerciseSessionId>('es-2'), 5)).toBe(list);
+    expect(moveExerciseSession(list, toId<ExerciseSessionId>('es-0'), -3)).toBe(list);
+  });
+
+  it('reads position from order rather than array order', () => {
     const shuffled = [...three()].reverse();
-    const moved = reorderExerciseSessions(shuffled, toId<ExerciseSessionId>('es-0'), 'down');
+    const moved = moveExerciseSession(shuffled, toId<ExerciseSessionId>('es-0'), 2);
 
-    expect(moved.map((it) => it.id)).toEqual(['es-1', 'es-0', 'es-2']);
+    expect(moved.map((it) => it.id)).toEqual(['es-1', 'es-2', 'es-0']);
+    expect(moved.map((it) => it.order)).toEqual([0, 1, 2]);
+  });
+
+  it('survives being applied twice, as a panel lets a lifter do (AC-10)', () => {
+    const once = moveExerciseSession(five(), toId<ExerciseSessionId>('es-4'), 0);
+    const twice = moveExerciseSession(once, toId<ExerciseSessionId>('es-1'), 4);
+
+    expect(twice.map((it) => it.id)).toEqual(['es-4', 'es-0', 'es-2', 'es-3', 'es-1']);
+    expect(twice.map((it) => it.order)).toEqual([0, 1, 2, 3, 4]);
   });
 });
 
@@ -458,5 +494,118 @@ describe('restRemaining (R-7, AC-13, AC-14)', () => {
 
   it('rounds up, so a timer reads 1 until the second is actually spent', () => {
     expect(restRemaining({ since: 1_000, seconds: 180, now: 180_500 })).toBe(1);
+  });
+});
+
+/* ── Correcting and removing a set (R-4) ───────────────────────────────── */
+
+function loggedSets(count: number): CompletedSet[] {
+  let exercise: PlannedExerciseSession = startPlannedExercise({
+    sessionId,
+    planned: plannedExercise(),
+    order: 0,
+  });
+  const sets: CompletedSet[] = [];
+  for (let index = 0; index < count; index++) {
+    const logged = logSet({
+      exerciseSession: exercise,
+      setNumber: index + 1,
+      weight: 100,
+      unit: 'kg',
+      reps: 6 - index,
+      rir: 2,
+      completedAt: 2_000 + index,
+    });
+    sets.push(logged.set);
+    exercise = logged.exerciseSession;
+  }
+  return sets;
+}
+
+describe('editSet (R-4, AC-11)', () => {
+  it('recomputes weightKg from the corrected weight', () => {
+    const [original] = loggedSets(1);
+    const edited = editSet({ set: original!, weight: 102.5, unit: 'kg', reps: 5, rir: 1 });
+
+    expect(edited).toMatchObject({ weight: 102.5, unit: 'kg', weightKg: 102.5, reps: 5, rir: 1 });
+  });
+
+  it('recomputes weightKg when the unit itself is corrected', () => {
+    const [original] = loggedSets(1);
+    const edited = editSet({ set: original!, weight: 100, unit: 'lb', reps: 6, rir: 2 });
+
+    expect(edited.unit).toBe('lb');
+    // Asserted against the one conversion rather than a literal: `toKg` owns
+    // the rounding, and a second copy of it here would be a second definition.
+    expect(edited.weightKg).toBe(toKg(100, 'lb'));
+  });
+
+  it('keeps identity, position and the instant it happened', () => {
+    const [original] = loggedSets(1);
+    const edited = editSet({ set: original!, weight: 105, unit: 'kg', reps: 5, rir: 1 });
+
+    expect(edited.id).toBe(original!.id);
+    expect(edited.exerciseSessionId).toBe(original!.exerciseSessionId);
+    expect(edited.setNumber).toBe(original!.setNumber);
+    expect(edited.completedAt).toBe(original!.completedAt);
+  });
+});
+
+describe('removeSet (R-4, AC-12, AC-13)', () => {
+  const exercise = (): PlannedExerciseSession => ({
+    ...startPlannedExercise({ sessionId, planned: plannedExercise(), order: 0 }),
+    status: 'performed',
+  });
+
+  it('renumbers the survivors contiguously when a middle set goes (AC-12)', () => {
+    const sets = loggedSets(3);
+    const result = removeSet({ exerciseSession: exercise(), sets, setId: sets[1]!.id });
+
+    expect(result.sets.map((it) => it.setNumber)).toEqual([1, 2]);
+    // The third set's values now sit at position 2 — the position moved, the
+    // performance did not.
+    expect(result.sets[1]).toMatchObject({ id: sets[2]!.id, reps: sets[2]!.reps });
+    expect(result.exerciseSession.status).toBe('performed');
+  });
+
+  it('returns the exercise to pending when its last set goes (AC-13)', () => {
+    const sets = loggedSets(1);
+    const result = removeSet({ exerciseSession: exercise(), sets, setId: sets[0]!.id });
+
+    expect(result.sets).toEqual([]);
+    expect(result.exerciseSession.status).toBe('pending');
+  });
+
+  it('leaves a skipped exercise skipped rather than reviving it as pending', () => {
+    const sets = loggedSets(1);
+    const skipped = { ...exercise(), status: 'skipped' as const };
+    const result = removeSet({ exerciseSession: skipped, sets, setId: sets[0]!.id });
+
+    expect(result.exerciseSession.status).toBe('skipped');
+  });
+
+  it('is a no-op for a set the list does not hold', () => {
+    const sets = loggedSets(2);
+    const original = exercise();
+    const result = removeSet({
+      exerciseSession: original,
+      sets,
+      setId: toId<CompletedSetId>('nope'),
+    });
+
+    // Identity, not deep equality: the contract is that an untouched list comes
+    // back untouched. A copy that merely looks the same would still renumber a
+    // list whose positions were not contiguous, and would still be a write the
+    // repository had no reason to make.
+    expect(result.sets).toBe(sets);
+    expect(result.exerciseSession).toBe(original);
+  });
+
+  it('reads position from setNumber rather than array order', () => {
+    const sets = [...loggedSets(3)].reverse();
+    const result = removeSet({ exerciseSession: exercise(), sets, setId: sets[2]!.id });
+
+    expect(result.sets.map((it) => it.setNumber)).toEqual([1, 2]);
+    expect(result.sets.map((it) => it.reps)).toEqual([5, 4]);
   });
 });

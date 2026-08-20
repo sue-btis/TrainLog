@@ -17,8 +17,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ArrowDown,
-  ArrowUp,
+  ArrowUpDown,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -39,16 +38,20 @@ import {
 import {
   DEFAULT_UNIT,
   addExerciseSession,
+  deleteCompletedSet,
+  saveEditedSet,
   saveExerciseSession,
   saveExerciseSessions,
   saveFinishedSession,
   saveLoggedSet,
 } from '@/db';
-import type { ExerciseId } from '@/domain/ids';
+import type { ExerciseId, ExerciseSessionId } from '@/domain/ids';
 import {
+  editSet,
   finishSession,
   logSet,
-  reorderExerciseSessions,
+  moveExerciseSession,
+  removeSet,
   skipExercise,
   startUnplannedExercise,
 } from '@/domain/session';
@@ -56,6 +59,7 @@ import type { Timestamp } from '@/domain/dates';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import type { Unit } from '@/domain/units';
 import { ExercisePicker } from '@/features/session/ExercisePicker';
+import { ExerciseReorder } from '@/features/session/ExerciseReorder';
 import { ExerciseView } from '@/features/session/ExerciseView';
 import { RestTimer } from '@/features/session/RestTimer';
 import type { SetValues } from '@/features/session/SetLogger';
@@ -86,6 +90,16 @@ export function SessionScreen() {
   /** The rest a lifter dismissed, remembered by the set that started it. */
   const [skippedRest, setSkippedRest] = useState<Timestamp | null>(null);
   const [picking, setPicking] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  /**
+   * The exercise that was on screen when the reorder panel opened.
+   *
+   * The pager holds a *position*, and reordering is precisely the act of
+   * changing which exercise a position names. Without this, moving the exercise
+   * you are in the middle of would drop you back onto whichever one inherited
+   * its slot — with the logger pointed at an exercise you did not choose.
+   */
+  const [returnTo, setReturnTo] = useState<ExerciseSessionId | null>(null);
   /** Finishing with work left undone asks once; this is the armed state (§37). */
   const [confirmFinish, setConfirmFinish] = useState(false);
 
@@ -132,6 +146,36 @@ export function SessionScreen() {
   }
 
   /**
+   * R-4 — a correction to a set already logged. The values are the domain's;
+   * this only stores them, and `weightKg` is re-derived there rather than here.
+   */
+  async function editLoggedSet(set: CompletedSet, values: SetValues, unit: Unit) {
+    await run(() =>
+      saveEditedSet(
+        editSet({ set, weight: values.weight, unit, reps: values.reps, rir: values.rir }),
+      ),
+    );
+  }
+
+  /**
+   * R-4 — removing a set. The domain decides what the survivors and the
+   * exercise's status become; the repository writes all of it in one
+   * transaction, so the renumbering can never be visible without the deletion
+   * that caused it.
+   */
+  async function deleteLoggedSet(set: CompletedSet) {
+    const owner = entries.find((it) => it.exerciseSession.id === set.exerciseSessionId);
+    if (owner === undefined) return;
+
+    const removal = removeSet({
+      exerciseSession: owner.exerciseSession,
+      sets: owner.sets,
+      setId: set.id,
+    });
+    await run(() => deleteCompletedSet({ removed: set.id, ...removal }));
+  }
+
+  /**
    * FR-14 — an exercise the lifter chose not to do. `skipped` is not `pending`,
    * so skipping does not make the Session partial (DEC-009). It stays visible
    * in the pager: what was skipped is part of what happened.
@@ -142,22 +186,37 @@ export function SessionScreen() {
   }
 
   /**
-   * FR-14 — moving an exercise within the Session. The renumbering is the
-   * domain's; only ExerciseSessions are written, never the template behind
-   * them. The pager follows the exercise rather than staying on a position, so
-   * moving the one you are looking at does not swap another under your thumb.
+   * FR-14 — moving an exercise to a position within the Session. The
+   * renumbering is the domain's; only ExerciseSessions are written, never the
+   * template behind them.
+   *
+   * The pager is not adjusted per move — the panel shows the whole session, so
+   * there is nothing on screen to keep up with. It is realigned once on the way
+   * out, in `leaveReorder`, onto the exercise the lifter came in on.
    */
-  function move(direction: 'up' | 'down') {
-    if (entry === undefined) return;
+  function move(id: ExerciseSessionId, toPosition: number) {
     const current = entries.map((it) => it.exerciseSession);
-    const moved = reorderExerciseSessions(current, entry.exerciseSession.id, direction);
+    const moved = moveExerciseSession(current, id, toPosition);
 
-    // The domain hands back the same list when the move is impossible — at
-    // either end, or for an id it does not hold. Identity is the signal.
+    // The domain hands back the same list when the move changes nothing — to
+    // its own position, or for an id it does not hold. Identity is the signal,
+    // and it is what keeps a no-op from becoming a write.
     if (moved === current) return;
 
-    setIndex(at + (direction === 'up' ? -1 : 1));
     void run(() => saveExerciseSessions(moved));
+  }
+
+  /** Opens the reorder panel, remembering the exercise to come back to. */
+  function enterReorder() {
+    setReturnTo(entry?.exerciseSession.id ?? null);
+    setReordering(true);
+  }
+
+  /** Leaves it on that same exercise, wherever the lifter moved it to. */
+  function leaveReorder() {
+    const back = entries.findIndex((it) => it.exerciseSession.id === returnTo);
+    if (back !== -1) setIndex(back);
+    setReordering(false);
   }
 
   /**
@@ -226,15 +285,28 @@ export function SessionScreen() {
     );
   }
 
+  if (reordering) {
+    return (
+      <Frame>
+        <ExerciseReorder
+          busy={busy}
+          exerciseSessions={entries.map((it) => it.exerciseSession)}
+          names={names}
+          onDone={leaveReorder}
+          onMove={move}
+        />
+      </Frame>
+    );
+  }
+
   return (
     <Frame
       action={
         entry === undefined ? undefined : (
           <SessionMenu
-            canMoveDown={at < entries.length - 1}
-            canMoveUp={at > 0}
+            canReorder={entries.length > 1}
             onAdd={() => setPicking(true)}
-            onMove={move}
+            onReorder={enterReorder}
             onSkip={skip}
           />
         )
@@ -265,7 +337,11 @@ export function SessionScreen() {
 
           <ExerciseView
             busy={busy}
+            isLast={at >= entries.length - 1}
             key={entry.exerciseSession.id}
+            onAdvance={() => (at >= entries.length - 1 ? finish() : setIndex(at + 1))}
+            onDeleteSet={deleteLoggedSet}
+            onEditSet={editLoggedSet}
             defaultUnit={defaultUnit ?? DEFAULT_UNIT}
             exerciseSession={entry.exerciseSession}
             name={names?.get(entry.exerciseSession.exerciseId) ?? '…'}
@@ -372,16 +448,14 @@ function Frame({
  */
 function SessionMenu({
   onSkip,
-  onMove,
+  onReorder,
   onAdd,
-  canMoveUp,
-  canMoveDown,
+  canReorder,
 }: {
   readonly onSkip: () => void;
-  readonly onMove: (direction: 'up' | 'down') => void;
+  readonly onReorder: () => void;
   readonly onAdd: () => void;
-  readonly canMoveUp: boolean;
-  readonly canMoveDown: boolean;
+  readonly canReorder: boolean;
 }) {
   return (
     <DropdownMenu>
@@ -393,14 +467,6 @@ function SessionMenu({
 
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>This exercise</DropdownMenuLabel>
-        <DropdownMenuItem disabled={!canMoveUp} onSelect={() => onMove('up')}>
-          <ArrowUp aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-          Move earlier
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled={!canMoveDown} onSelect={() => onMove('down')}>
-          <ArrowDown aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-          Move later
-        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onSkip}>
           <SkipForward aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
           Skip this exercise
@@ -409,6 +475,10 @@ function SessionMenu({
         <DropdownMenuSeparator />
 
         <DropdownMenuLabel>This session</DropdownMenuLabel>
+        <DropdownMenuItem disabled={!canReorder} onSelect={onReorder}>
+          <ArrowUpDown aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          Reorder exercises
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onAdd}>
           <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
           Add an exercise

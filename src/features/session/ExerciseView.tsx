@@ -12,15 +12,20 @@
  */
 
 import { useState } from 'react';
-import { History } from 'lucide-react';
+import { Link } from 'react-router';
+import { ArrowRight, CheckCircle2, History, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { CompletedSetId, ExerciseId } from '@/domain/ids';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import type { LoadSuggestion } from '@/domain/progression';
 import { suggestLoad } from '@/domain/progression';
 import type { Unit } from '@/domain/units';
+import { SetEditor } from '@/features/session/SetEditor';
 import { SetLogger, type SetValues } from '@/features/session/SetLogger';
 import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
 import { range } from '@/features/ui/format';
 import { ICON_STROKE, LABEL, RULED, WELL, chip, dome } from '@/features/ui/styles';
+import { cn } from '@/lib/utils';
 
 /** The plate granularity of an exercise, where its rule declares one (§29). */
 const DEFAULT_STEP = 2.5;
@@ -32,6 +37,12 @@ interface ExerciseViewProps {
   /** The unit an unplanned exercise logs in — it has no plan to take one from. */
   readonly defaultUnit: Unit;
   readonly onLog: (values: SetValues, unit: Unit, setNumber: number) => Promise<void>;
+  /** Move to the next exercise, or finish when this is the last one (R-3). */
+  readonly onAdvance: () => void;
+  readonly isLast: boolean;
+  /** Correct a set already logged, and remove one (R-4). */
+  readonly onEditSet: (set: CompletedSet, values: SetValues, unit: Unit) => Promise<void>;
+  readonly onDeleteSet: (set: CompletedSet) => Promise<void>;
   readonly busy: boolean;
 }
 
@@ -41,6 +52,10 @@ export function ExerciseView({
   sets,
   defaultUnit,
   onLog,
+  onAdvance,
+  isLast,
+  onEditSet,
+  onDeleteSet,
   busy,
 }: ExerciseViewProps) {
   const planned = exerciseSession.plannedExerciseId === null ? null : exerciseSession;
@@ -66,9 +81,32 @@ export function ExerciseView({
   // carrying the last exercise's numbers across.
   const [values, setValues] = useState<SetValues | null>(null);
 
+  const [addingExtra, setAddingExtra] = useState(false);
+  const [editing, setEditing] = useState<CompletedSetId | null>(null);
+  const editedSet = sets.find((set) => set.id === editing) ?? null;
+
   const opening = openingValues(exerciseSession, sets, suggestion, previousSets);
   const current = values ?? opening;
   const setNumber = sets.length + 1;
+
+  /**
+   * R-3 — the programmed sets are in. The green button then stops asking for
+   * another one: an exercise that is done should not present "Complete set" as
+   * the obvious next thing to press, when the obvious next thing is the next
+   * exercise. A fifth set stays one tap away, because deviating upward is
+   * legitimate training (FR-14, §11.5).
+   *
+   * An unplanned exercise has no count to reach, so it never switches.
+   */
+  const done = planned !== null && sets.length >= planned.plannedSets;
+
+  /**
+   * Whether a set is being entered right now — the one fact the strip and the
+   * controls below it must agree on. They disagreed before: the strip inferred
+   * it from `sets.length + 1` and drew a live dome for a set the logger was not
+   * offering.
+   */
+  const entering = editedSet === null && (!done || addingExtra);
 
   return (
     <section className="flex flex-col gap-5">
@@ -92,24 +130,64 @@ export function ExerciseView({
         </div>
       </header>
 
-      <Previous sets={previousSets} suggestion={suggestion} />
-
-      <DomeStrip
-        plannedSets={planned?.plannedSets ?? 0}
-        sets={sets}
-        setNumber={setNumber}
+      <Previous
+        exerciseId={exerciseSession.exerciseId}
+        sets={previousSets}
+        suggestion={suggestion}
       />
 
+      <DomeStrip
+        canAdd={editedSet === null && !entering}
+        entering={entering}
+        onAddSet={() => setAddingExtra(true)}
+        onEdit={(set) => setEditing(set.id)}
+        plannedSets={planned?.plannedSets ?? 0}
+        sets={sets}
+      />
+
+      {/* One region, three states: correcting a set already logged, the
+          programme's sets still to do, or an exercise that has reached its
+          count and should be offering the next one instead (R-3, R-4). */}
       <div className={RULED}>
-        <SetLogger
-          busy={busy}
-          onChange={setValues}
-          onComplete={() => void onLog(current, unit, setNumber)}
-          setNumber={setNumber}
-          unit={unit}
-          values={current}
-          weightStep={stepOf(exerciseSession)}
-        />
+        {editedSet !== null ? (
+          <SetEditor
+            busy={busy}
+            key={editedSet.id}
+            onCancel={() => setEditing(null)}
+            onDelete={() => {
+              setEditing(null);
+              void onDeleteSet(editedSet);
+            }}
+            onSave={(next, unit) => {
+              setEditing(null);
+              void onEditSet(editedSet, next, unit);
+            }}
+            set={editedSet}
+            weightStep={stepOf(exerciseSession)}
+          />
+        ) : !entering ? (
+          <Button onClick={onAdvance} size="block" type="button" variant="primary">
+            {isLast ? (
+              <CheckCircle2 aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            ) : (
+              <ArrowRight aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            )}
+            {isLast ? 'Finish session' : 'Next exercise'}
+          </Button>
+        ) : (
+          <SetLogger
+            busy={busy}
+            onChange={setValues}
+            onComplete={() => {
+              setAddingExtra(false);
+              void onLog(current, unit, setNumber);
+            }}
+            setNumber={setNumber}
+            unit={unit}
+            values={current}
+            weightStep={stepOf(exerciseSession)}
+          />
+        )}
       </div>
     </section>
   );
@@ -121,19 +199,26 @@ export function ExerciseView({
  * what progression feeds on.
  */
 function Previous({
+  exerciseId,
   sets,
   suggestion,
 }: {
+  readonly exerciseId: ExerciseId;
   readonly sets: readonly CompletedSet[];
   readonly suggestion: LoadSuggestion | null;
 }) {
   return (
     <section className={WELL}>
       <div className="flex items-center justify-between gap-3">
-        <span className={LABEL}>
+        {/* The card shows one session — the last one. Everything before it is a
+            tap away rather than crowded in here (§11.10, §21). */}
+        <Link
+          className={cn(LABEL, 'underline decoration-rule underline-offset-4')}
+          to={`/exercises/${exerciseId}`}
+        >
           <History aria-hidden="true" className="mr-1.5 inline" size={13} strokeWidth={ICON_STROKE} />
-          previous
-        </span>
+          previous · all history
+        </Link>
         {suggestion !== null && (
           <span className={chip(suggestion.targetMet ? 'actual' : 'neutral')}>
             {suggestion.targetMet ? 'target met' : 'repeat'} · {suggestion.weight} {suggestion.unit}
@@ -161,8 +246,14 @@ function Previous({
 
 /**
  * One dome per Set (DESIGN.md §Components). A logged dome shows what was
- * performed, never the target it was measured against; the live one is the
- * set being entered; the rest are the plan, marked but not filled.
+ * performed, never the target it was measured against; the live one is the set
+ * being entered; the rest are the plan, marked but not filled.
+ *
+ * **`entering` is what stops the strip inventing a set.** The count of domes
+ * cannot be derived from `sets.length + 1` alone: once every planned set is
+ * logged, that number is one past the last set, and the strip drew a breathing
+ * 96px `live` dome for a set nobody was performing. Whether a set is being
+ * entered is a fact about the screen, not about the sets, so it is passed in.
  *
  * The strip runs past `plannedSets` on its own, because a lifter who logs a
  * fifth set of a four-set exercise has deviated, not erred (§11.5).
@@ -170,36 +261,58 @@ function Previous({
 function DomeStrip({
   plannedSets,
   sets,
-  setNumber,
+  entering,
+  canAdd,
+  onEdit,
+  onAddSet,
 }: {
   readonly plannedSets: number;
   readonly sets: readonly CompletedSet[];
-  readonly setNumber: number;
+  /** Whether the logger is open for a new set — the live dome's only reason. */
+  readonly entering: boolean;
+  /**
+   * Whether another set can be started from here. False while a logged set is
+   * being corrected: the editor owns the region below, so a `+` would be a
+   * control that looks pressable and answers nothing.
+   */
+  readonly canAdd: boolean;
+  readonly onEdit: (set: CompletedSet) => void;
+  readonly onAddSet: () => void;
 }) {
-  const count = Math.max(plannedSets, setNumber);
+  const liveNumber = sets.length + 1;
+  const count = Math.max(plannedSets, sets.length + (entering ? 1 : 0));
 
   return (
-    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 py-1">
+    // Wraps rather than scrolls. A strip you have to drag hides sets behind an
+    // edge, and how many you have done is the one thing that must be legible at
+    // a glance between sets — including the extra ones, which are exactly the
+    // ones a scrolling strip would push out of sight.
+    <div className="flex flex-wrap items-center gap-3 py-1">
       {Array.from({ length: count }, (_, index) => {
         const number = index + 1;
         const set = sets[index];
 
         if (set !== undefined) {
+          // A logged dome is the way into correcting it (R-4). The set it shows
+          // is the set you would be editing, so it is its own affordance and
+          // nothing else has to be added to the screen to carry one.
           return (
-            <div
-              aria-label={`Set ${number}, logged, ${set.weight} ${set.unit} for ${set.reps} reps at RIR ${set.rir}`}
+            <button
+              aria-label={`Edit set ${number}, ${set.weight} ${set.unit} for ${set.reps} reps at RIR ${set.rir}`}
               className={dome('logged', 'compact')}
               key={set.id}
+              onClick={() => onEdit(set)}
+              type="button"
             >
               <span>{set.weight}</span>
               <span className="type-label opacity-80">
                 {set.reps}·{set.rir}
               </span>
-            </div>
+            </button>
           );
         }
 
-        const live = number === setNumber;
+        const live = entering && number === liveNumber;
         return (
           <div
             aria-label={`Set ${number}, ${live ? 'in progress' : 'planned'}`}
@@ -210,6 +323,21 @@ function DomeStrip({
           </div>
         );
       })}
+
+      {/* The offer of one more set, at the end of the strip where the next set
+          would go. It replaces a button below: an extra set is one more of
+          these circles, so it belongs among them rather than in a row of prose
+          competing with the primary action (§21). */}
+      {canAdd && (
+        <button
+          aria-label={`Add set ${liveNumber}`}
+          className={dome('add', 'compact')}
+          onClick={onAddSet}
+          type="button"
+        >
+          <Plus aria-hidden="true" size={22} strokeWidth={ICON_STROKE} />
+        </button>
+      )}
     </div>
   );
 }

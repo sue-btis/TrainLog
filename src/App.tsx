@@ -13,6 +13,7 @@
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { CalendarScreen } from '@/features/calendar/CalendarScreen';
+import { ExerciseHistoryScreen } from '@/features/history/ExerciseHistoryScreen';
 import { ImportWizard } from '@/features/import/ImportWizard';
 import { RoutineDetailScreen } from '@/features/routines/RoutineDetailScreen';
 import { RoutinesScreen } from '@/features/routines/RoutinesScreen';
@@ -29,6 +30,7 @@ export function App() {
           <Route element={<CalendarScreen />} path="/calendar" />
           <Route element={<RoutinesScreen />} path="/routines" />
           <Route element={<RoutineDetailScreen />} path="/routines/:routineId" />
+          <Route element={<ExerciseHistoryScreen />} path="/exercises/:exerciseId" />
         </Route>
         <Route element={<ImportWizard />} path="/import" />
         <Route element={<SessionScreen />} path="/session" />

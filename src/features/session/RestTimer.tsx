@@ -26,8 +26,8 @@ import { restRemaining } from '@/domain/session';
 import { ICON_STROKE, LABEL, PRESS, TIMER_RAIL, TIMER_SHELL, TIMER_TRACK } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
-/** What `+` adds, and what §11.6 calls "sumar tiempo manualmente". */
-const BUMP_SECONDS = 30;
+/** What the add-time control offers before the lifter changes it (§11.6). */
+const DEFAULT_BUMP = 30;
 
 interface RestTimerProps {
   /** The instant the set was completed — the stored mark the rest counts from. */
@@ -48,6 +48,9 @@ export function RestTimer({ since, seconds, onSkip }: RestTimerProps) {
    */
   const [restartedAt, setRestartedAt] = useState<Timestamp | null>(null);
   const [now, setNow] = useState(Date.now);
+  /** How much the add-time control adds, and the draft while it is typed into. */
+  const [bump, setBump] = useState(DEFAULT_BUMP);
+  const [bumpDraft, setBumpDraft] = useState<string | null>(null);
   const buzzed = useRef(false);
 
   // Each tick *re-reads* the clock rather than adding a second to the last
@@ -78,6 +81,14 @@ export function RestTimer({ since, seconds, onSkip }: RestTimerProps) {
   const minutes = Math.floor(remaining / 60);
   const paused = pausedAt !== null;
 
+  function commitBump() {
+    if (bumpDraft === null) return;
+    const parsed = Number(bumpDraft.trim());
+    // A zero bump is a control that does nothing, so the floor is one second.
+    if (Number.isFinite(parsed) && parsed >= 1) setBump(Math.round(parsed));
+    setBumpDraft(null);
+  }
+
   return (
     <section aria-label="Rest timer" className={TIMER_SHELL}>
       <div className="flex items-center justify-between gap-4">
@@ -88,42 +99,62 @@ export function RestTimer({ since, seconds, onSkip }: RestTimerProps) {
           </span>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <Control label={paused ? 'Resume rest' : 'Pause rest'} onClick={() => setPausedAt(paused ? null : Date.now())}>
-              {paused ? (
-                <Play aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-              ) : (
-                <Pause aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-              )}
-            </Control>
-            <Control
-              label={`Add ${BUMP_SECONDS} seconds`}
-              onClick={() => {
-                setAdded((value) => value + BUMP_SECONDS);
-                buzzed.current = false;
-              }}
-            >
-              <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            </Control>
-          </div>
-          <div className="flex gap-2">
-            <Control
-              label="Restart rest"
-              onClick={() => {
-                setAdded(0);
-                setPausedAt(null);
-                setRestartedAt(Date.now());
-                buzzed.current = false;
-              }}
-            >
-              <RotateCcw aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            </Control>
-            <Control label="Skip rest" onClick={onSkip}>
-              <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            </Control>
-          </div>
+        <div className="flex gap-2">
+          <Control label={paused ? 'Resume rest' : 'Pause rest'} onClick={() => setPausedAt(paused ? null : Date.now())}>
+            {paused ? (
+              <Play aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            ) : (
+              <Pause aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            )}
+          </Control>
+          <Control
+            label="Restart rest"
+            onClick={() => {
+              setAdded(0);
+              setPausedAt(null);
+              setRestartedAt(Date.now());
+              buzzed.current = false;
+            }}
+          >
+            <RotateCcw aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          </Control>
+          <Control label="Skip rest" onClick={onSkip}>
+            <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          </Control>
         </div>
+      </div>
+
+      {/* How much to add is the lifter's, not the app's. Thirty seconds is only
+          what the field starts at; a heavy single might want three minutes and
+          the old fixed control made that six presses. */}
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <Control
+          label={`Add ${bump} seconds to the rest`}
+          onClick={() => {
+            setAdded((value) => value + bump);
+            buzzed.current = false;
+          }}
+        >
+          <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        </Control>
+        <label className="flex items-center gap-2">
+          <input
+            aria-label="Seconds to add"
+            className={cn(
+              'w-16 rounded-field bg-on-fill/15 px-2 py-1.5 text-center type-title text-on-fill',
+              'outline-none focus-visible:ring-2 focus-visible:ring-on-fill',
+            )}
+            inputMode="numeric"
+            onBlur={commitBump}
+            onChange={(event) => setBumpDraft(event.target.value)}
+            onFocus={(event) => event.target.select()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+            value={bumpDraft ?? String(bump)}
+          />
+          <span className={cn(LABEL, 'text-on-fill/90')}>seconds</span>
+        </label>
       </div>
 
       {/* The rail *scales*; it does not resize. DESIGN.md forbids animating

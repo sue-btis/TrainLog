@@ -7,7 +7,7 @@
  */
 
 import { db } from '@/db/database';
-import type { ExerciseSessionId } from '@/domain/ids';
+import type { CompletedSetId, ExerciseSessionId } from '@/domain/ids';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 
 /**
@@ -25,6 +25,49 @@ export async function saveLoggedSet(logged: {
   await db.transaction('rw', [db.completedSets, db.exerciseSessions], async () => {
     await db.completedSets.add(logged.set);
     await db.exerciseSessions.put(logged.exerciseSession);
+  });
+}
+
+/**
+ * R-4 — overwrites a set corrected by `editSet`.
+ *
+ * A correction touches nothing but the row itself: the set still belongs to the
+ * same exercise at the same position, and no status can change, because the
+ * exercise still holds exactly the sets it held before.
+ */
+export async function saveEditedSet(set: CompletedSet): Promise<void> {
+  await db.completedSets.put(set);
+}
+
+/**
+ * R-4 — removes a set and stores what `removeSet` returned with it (§37).
+ *
+ * One transaction, because a deletion is three facts that are only true
+ * together: the row is gone, the survivors have closed ranks into a contiguous
+ * `1..n`, and an exercise left with no sets counts as undone again. Written
+ * separately, a failure between them could leave two sets sharing position 2,
+ * or an exercise reading `performed` while holding nothing — which
+ * `deriveSessionStatus` would then let a Session finish `completed` on
+ * (DEC-009).
+ *
+ * `removed` is what the caller asked to delete. When `removeSet` found no such
+ * set it returns the list untouched, and the guard below turns the whole call
+ * into a no-op rather than opening a transaction to write what is already there.
+ */
+export async function deleteCompletedSet(removal: {
+  readonly removed: CompletedSetId;
+  readonly sets: readonly CompletedSet[];
+  readonly exerciseSession: ExerciseSession;
+}): Promise<void> {
+  const { removed, sets, exerciseSession } = removal;
+
+  await db.transaction('rw', [db.completedSets, db.exerciseSessions], async () => {
+    const existing = await db.completedSets.get(removed);
+    if (existing === undefined) return;
+
+    await db.completedSets.delete(removed);
+    if (sets.length > 0) await db.completedSets.bulkPut([...sets]);
+    await db.exerciseSessions.put(exerciseSession);
   });
 }
 

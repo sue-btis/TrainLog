@@ -230,6 +230,12 @@ const DOME_STATE = {
   suggested: 'bg-progress text-on-fill shadow-dome-lift',
   missed: 'bg-missed-ink text-on-fill shadow-none',
   locked: 'bg-well text-ink-3 shadow-none',
+  /**
+   * Not a Set — the offer of one. It is the only dome drawn as an outline
+   * rather than a body, because there is nothing there yet: a solid circle
+   * would claim a set exists. Dashed says "this could be one".
+   */
+  add: 'bg-transparent text-ink-3 border-2 border-dashed border-rule hover:border-planned hover:text-planned-ink shadow-none',
 } as const;
 
 const DOME_SIZE = {
@@ -269,11 +275,28 @@ export const STEPPER = cn(
 
 /**
  * A weight / reps / RIR readout: the cavity the value sits in, flat, with the
- * number in Readout type and the unit as a smaller inline span
- * (DESIGN.md §Inputs). It is not an input — adjustment is by steppers, so
- * nothing here takes a keyboard.
+ * number in Readout type and the unit named in the label above it
+ * (DESIGN.md §Inputs).
+ *
+ * It holds a real input. DESIGN.md says adjustment is by steppers and not by
+ * keyboard, and steppers are still the default path — but stepping 20 to 90 is
+ * 28 presses, so the readout takes typing too. The two edit one value; see
+ * `SetLogger`.
  */
-export const READOUT = 'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well px-2 py-3';
+export const READOUT = cn(
+  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well px-2 py-3',
+  // The value inside is typed into as well as stepped, so the cavity takes the
+  // focus halo on behalf of the borderless input it holds.
+  'focus-within:ring-1 focus-within:ring-planned focus-within:shadow-[0_0_0_3px_var(--color-planned-wash)]',
+);
+
+/**
+ * The number itself inside a readout: an input wearing the readout's face
+ * rather than a field of its own, so typing and stepping are visibly the same
+ * control rather than two that disagree.
+ */
+export const READOUT_INPUT =
+  'w-full min-w-0 bg-transparent text-center type-readout text-ink outline-none';
 
 /**
  * The rest timer: the one full-bleed coloured surface in the product. The

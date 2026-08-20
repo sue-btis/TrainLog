@@ -4,21 +4,31 @@
  * Three readouts and one green button, and that is deliberately all: §21 says
  * nothing that does not contribute to the current set may compete with it.
  *
- * Adjustment is by steppers, never by keyboard (DESIGN.md §Inputs). One hand is
- * occupied, the phone is on a bench, and a numeric keypad over the bottom half
- * of the screen is the worst possible thing to put between a lifter and the
- * button they came here to press. It also means there is no text to parse and
- * nothing to validate: a value that can only be reached by stepping is always a
- * number, and the steppers themselves are what enforce the floor.
+ * Two ways to the same number, and they are not equals. Stepping is the default
+ * path and the one the gym is designed around: one hand is occupied, the phone
+ * is on a bench, and a numeric keypad over the bottom half of the screen is a
+ * bad thing to put between a lifter and the button they came here to press.
+ * DESIGN.md §Inputs says as much, and says steppers *only*.
+ *
+ * Typing was added because that rule costs too much at the edges: going from 20
+ * to 90 is 28 presses, and the first set of an exercise is exactly when the
+ * jump is largest. So the readout is the input rather than a second control
+ * beside it — one value, reachable either way, never two that can disagree.
+ *
+ * The cost is a parse, and it is paid in `Field` below: a draft string while
+ * focused, committed on blur and Enter, and anything that is not a non-negative
+ * number falls back to the last good value rather than raising an error nobody
+ * can read mid-set.
  *
  * The weight steps by the exercise's own increment where its rule declares one,
  * because that is the granularity its plates actually come in (§29).
  */
 
+import { useState } from 'react';
 import { Check, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Unit } from '@/domain/units';
-import { ICON_STROKE, LABEL, READOUT, STEPPER } from '@/features/ui/styles';
+import { ICON_STROKE, LABEL, READOUT, READOUT_INPUT, STEPPER } from '@/features/ui/styles';
 
 export interface SetValues {
   readonly weight: number;
@@ -37,19 +47,27 @@ interface SetLoggerProps {
   readonly busy: boolean;
 }
 
-export function SetLogger({
-  setNumber,
+/**
+ * The three numbers of a set, on their own.
+ *
+ * Extracted because a set is entered in two places — logging a new one and
+ * correcting one already logged — and those must be the same control. Two
+ * copies would be two chances for stepping, parsing and the zero floor to drift
+ * apart on the screen a lifter uses one-handed.
+ */
+export function SetFields({
   values,
   onChange,
   unit,
   weightStep,
-  onComplete,
-  busy,
-}: SetLoggerProps) {
+}: {
+  readonly values: SetValues;
+  readonly onChange: (values: SetValues) => void;
+  readonly unit: Unit;
+  readonly weightStep: number;
+}) {
   return (
-    <section className="flex flex-col gap-3">
-      <span className={LABEL}>set {setNumber}</span>
-
+    <>
       <div className="flex items-stretch gap-2">
         <Field
           label="weight"
@@ -74,6 +92,24 @@ export function SetLogger({
           value={values.rir}
         />
       </div>
+    </>
+  );
+}
+
+export function SetLogger({
+  setNumber,
+  values,
+  onChange,
+  unit,
+  weightStep,
+  onComplete,
+  busy,
+}: SetLoggerProps) {
+  return (
+    <section className="flex flex-col gap-3">
+      <span className={LABEL}>set {setNumber}</span>
+
+      <SetFields onChange={onChange} unit={unit} values={values} weightStep={weightStep} />
 
       {/* Zero reps is the one combination that is not a set. A load of zero is
           a bodyweight exercise and an RIR of zero is a set taken to failure —
@@ -101,17 +137,48 @@ interface FieldProps {
 }
 
 /**
- * One readout between its two steppers.
+ * Rounds to hundredths.
  *
- * The floor is zero for every one of the three. A negative load, a negative rep
- * and a negative RIR are all meaningless, and refusing to step below zero is a
- * cheaper way to say so than an error message nobody can read at arm's length.
+ * Stepping by 2.5 repeatedly accumulates binary float dust — `77.50000000000001`
+ * by the fourth press — and hundredths is fine enough to erase it while still
+ * holding the 0.25 kg microplates a lifter can actually load. Tenths would round
+ * those away.
+ */
+function normalize(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * One value, reachable two ways: stepped with the buttons, or typed into.
  *
- * The arithmetic is done in tenths so a 2.5 step does not accumulate binary
- * float dust into `77.50000000000001` on the fourth press.
+ * The steppers are what a hand on a barbell wants, and they are still the
+ * default path. But a jump from 20 to 90 is 28 presses, and at that point typing
+ * is the humane answer — so the readout is the input rather than a second
+ * control beside it. They edit one number and neither is authoritative.
+ *
+ * The typed value is held as a draft string while the field has focus, because
+ * `62.` and `` are both states a number cannot represent but a person passes
+ * through on the way to one. It commits on blur and on Enter; anything that is
+ * not a non-negative number falls back to the last good value rather than
+ * announcing an error nobody can read mid-set.
  */
 function Field({ label, value, step, unit, onChange }: FieldProps) {
-  const shift = (by: number) => onChange(Math.max(0, Math.round((value + by) * 10) / 10));
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const shift = (by: number) => {
+    setDraft(null);
+    onChange(Math.max(0, normalize(value + by)));
+  };
+
+  function commit() {
+    if (draft === null) return;
+    // A comma is what half the world's keypads produce for a decimal point.
+    const parsed = Number(draft.trim().replace(',', '.'));
+    if (draft.trim() !== '' && Number.isFinite(parsed) && parsed >= 0) {
+      onChange(normalize(parsed));
+    }
+    setDraft(null);
+  }
 
   return (
     <div className="flex flex-1 items-center gap-2">
@@ -125,13 +192,26 @@ function Field({ label, value, step, unit, onChange }: FieldProps) {
         <Minus aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
       </button>
 
-      <div className={READOUT}>
-        <span className={LABEL}>{label}</span>
-        <span className="type-readout text-ink">
-          {value}
-          {unit !== undefined && <span className="type-body-sm text-ink-3"> {unit}</span>}
+      <label className={READOUT}>
+        <span className={LABEL}>
+          {label}
+          {unit !== undefined && <span className="text-ink-3"> · {unit}</span>}
         </span>
-      </div>
+        <input
+          aria-label={unit === undefined ? label : `${label} in ${unit}`}
+          className={READOUT_INPUT}
+          // `decimal` rather than `numeric`: reps and RIR are whole, but weight
+          // is not, and one keypad across the three beats three that differ.
+          inputMode="decimal"
+          onBlur={commit}
+          onChange={(event) => setDraft(event.target.value)}
+          onFocus={(event) => event.target.select()}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+          }}
+          value={draft ?? String(value)}
+        />
+      </label>
 
       <button
         aria-label={`Increase ${label}`}

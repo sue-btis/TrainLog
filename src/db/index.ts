@@ -71,8 +71,10 @@ export {
 } from '@/db/repositories/exerciseSessions';
 
 export {
+  deleteCompletedSet,
   groupCompletedSetsByExerciseSession,
   listCompletedSetsByExerciseSession,
+  saveEditedSet,
   saveLoggedSet,
 } from '@/db/repositories/completedSets';
 

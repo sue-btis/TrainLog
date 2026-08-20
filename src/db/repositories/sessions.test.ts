@@ -36,7 +36,7 @@ import { getSessionDetail } from '@/db/repositories/history';
 import {
   finishSession,
   logSet,
-  reorderExerciseSessions,
+  moveExerciseSession,
   skipExercise,
   startPlannedExercise,
   startSession,
@@ -356,7 +356,7 @@ describe('saveExerciseSessions (R-10, AC-20)', () => {
     await createStartedWorkout(started);
 
     const before = await listExerciseSessionsBySession(started.session.id);
-    const moved = reorderExerciseSessions(before, before[2]!.id, 'up');
+    const moved = moveExerciseSession(before, before[2]!.id, 1);
     await saveExerciseSessions(moved);
 
     db.close();

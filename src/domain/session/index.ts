@@ -246,32 +246,39 @@ export function startWorkout({
 }
 
 /**
- * R-10 — moves one exercise a place earlier or later within the Session and
- * renumbers `order` contiguously from zero.
+ * Moves one exercise to any position within the Session and renumbers `order`
+ * contiguously from zero.
+ *
+ * A position rather than a direction, because "one place up" is a control that
+ * makes the lifter do the arithmetic: getting the fifth exercise to the front is
+ * four presses, and nothing on screen says how many are left. Given a
+ * destination, the same call covers one step and the whole distance, and
+ * up/down become `toPosition = from ± 1`.
  *
  * Deviation belongs to the Session and never to the template (§11.5): this
  * returns ExerciseSessions, and the PlannedExercises behind them are not so
  * much as read. Routines are immutable once accepted.
  *
  * Position is taken from `order` rather than from the array, so a caller that
- * hands over rows in whatever sequence the database returned still gets the
- * move it asked for. At either end, and for an id the list does not hold, the
- * list comes back unchanged — the screen can offer the control unconditionally
- * and let a no-op be a no-op.
+ * hands over rows in whatever sequence the database returned still gets the move
+ * it asked for. A destination outside the list is clamped into it, and a move
+ * that changes nothing — to its own position, or for an id the list does not
+ * hold — returns the very same list, so the caller can skip the write.
  */
-export function reorderExerciseSessions<T extends ExerciseSession>(
+export function moveExerciseSession<T extends ExerciseSession>(
   exerciseSessions: readonly T[],
   id: ExerciseSessionId,
-  direction: 'up' | 'down',
+  toPosition: number,
 ): readonly T[] {
   const ordered = [...exerciseSessions].sort((a, b) => a.order - b.order);
   const from = ordered.findIndex((it) => it.id === id);
-  const to = from + (direction === 'up' ? -1 : 1);
-  if (from === -1 || to < 0 || to >= ordered.length) return exerciseSessions;
+  if (from === -1) return exerciseSessions;
 
-  const moved = ordered[from] as T;
-  ordered[from] = ordered[to] as T;
-  ordered[to] = moved;
+  const to = Math.min(Math.max(toPosition, 0), ordered.length - 1);
+  if (to === from) return exerciseSessions;
+
+  const [moved] = ordered.splice(from, 1);
+  ordered.splice(to, 0, moved as T);
 
   return ordered.map((it, order) => (it.order === order ? it : { ...it, order }));
 }
@@ -310,4 +317,75 @@ export function restRemaining({
   const elapsed = (pausedAt ?? now) - since;
   const remaining = (seconds + added) * 1_000 - elapsed;
   return Math.max(0, Math.ceil(remaining / 1_000));
+}
+
+export interface EditSetInput {
+  readonly set: CompletedSet;
+  /** The corrected weight, exactly as entered, in `unit`. */
+  readonly weight: number;
+  readonly unit: Unit;
+  readonly reps: number;
+  readonly rir: number;
+}
+
+/**
+ * R-4 — corrects a set already logged.
+ *
+ * `weightKg` is re-derived rather than carried over, because it is the value
+ * every comparison, chart and progression step reads (§11.7). A correction that
+ * changed the entered weight but left the kilogram value behind would be
+ * invisible on this screen and wrong everywhere else.
+ *
+ * Identity, position and `completedAt` survive untouched: the set is the same
+ * set, performed at the same moment. Only what was recorded about it changes.
+ */
+export function editSet({ set, weight, unit, reps, rir }: EditSetInput): CompletedSet {
+  return { ...set, weight, unit, weightKg: toKg(weight, unit), reps, rir };
+}
+
+export interface RemoveSetInput<T extends ExerciseSession> {
+  readonly exerciseSession: T;
+  /** Every set of that exercise. */
+  readonly sets: readonly CompletedSet[];
+  readonly setId: CompletedSetId;
+}
+
+/**
+ * R-4 — removes a set and returns the survivors renumbered, with the
+ * ExerciseSession's resulting status.
+ *
+ * Two things fall out of a deletion and both are returned here so the caller
+ * writes them together:
+ *
+ * `setNumber` is a position, not an identity, so the survivors close ranks into
+ * a contiguous `1..n`. §29 judges "the first N sets"; a gap at position 2 would
+ * leave that phrase with two readings.
+ *
+ * An exercise with no sets left is `pending` again, not `performed`. `performed`
+ * means work was recorded here, and `deriveSessionStatus` reads exactly that to
+ * decide whether a Session is `completed` — so an exercise that ends up empty
+ * must go back to counting as undone (DEC-009). A `skipped` exercise stays
+ * skipped: skipping is a decision the lifter made, and deleting a set is not
+ * the same as un-making it.
+ */
+export function removeSet<T extends ExerciseSession>({
+  exerciseSession,
+  sets,
+  setId,
+}: RemoveSetInput<T>): { readonly sets: readonly CompletedSet[]; readonly exerciseSession: T } {
+  if (!sets.some((set) => set.id === setId)) return { sets, exerciseSession };
+
+  const survivors = [...sets]
+    .filter((set) => set.id !== setId)
+    .sort((a, b) => a.setNumber - b.setNumber)
+    .map((set, index) =>
+      set.setNumber === index + 1 ? set : { ...set, setNumber: index + 1 },
+    );
+
+  const emptied = survivors.length === 0 && exerciseSession.status === 'performed';
+
+  return {
+    sets: survivors,
+    exerciseSession: emptied ? { ...exerciseSession, status: 'pending' } : exerciseSession,
+  };
 }
