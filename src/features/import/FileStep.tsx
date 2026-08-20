@@ -9,9 +9,9 @@
 
 import { useRef } from 'react';
 import { FileUp, TriangleAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { formatPath, type StructuralError } from '@/domain/routine-file';
-import { ScreenHeader } from '@/features/ui/ScreenHeader';
-import { ICON_STROKE, LABEL, WELL, alert, button } from '@/features/ui/styles';
+import { ICON_STROKE, LABEL, WELL, alert } from '@/features/ui/styles';
 
 interface FileStepProps {
   readonly fileName: string | null;
@@ -26,9 +26,6 @@ export function FileStep({ fileName, errors, unreadable, onFile }: FileStepProps
 
   return (
     <>
-      {/* No lede: it said what the box below already says. */}
-      <ScreenHeader icon={FileUp} title="Import a routine" />
-
       {rejected ? (
         <>
           <div className={alert('missed')}>
@@ -87,14 +84,15 @@ export function FileStep({ fileName, errors, unreadable, onFile }: FileStepProps
         ref={input}
         type="file"
       />
-      <button
-        className={button(rejected ? 'secondary' : 'primary', 'block')}
+      <Button
         onClick={() => input.current?.click()}
+        size="block"
         type="button"
+        variant={rejected ? 'secondary' : 'primary'}
       >
         <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
         {rejected ? 'Choose another file' : 'Choose a routine file'}
-      </button>
+      </Button>
     </>
   );
 }

@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import { EllipsisVertical, ListChecks, Pencil, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowRight, EllipsisVertical, Pencil, Trash2, TriangleAlert } from 'lucide-react';
 import type { ExerciseRef, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import type { Unit } from '@/domain/types';
 import { NotesField, NumberField, SelectField } from '@/features/import/fields';
@@ -25,19 +25,17 @@ import {
   workoutPath,
   type IssueIndex,
 } from '@/features/import/issues';
-import { plural } from '@/features/ui/format';
-import { ScreenHeader } from '@/features/ui/ScreenHeader';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
-  FOCUS_RING,
-  ICON_STROKE,
-  LABEL,
-  PANEL_CARD,
-  RULED,
-  WELL,
-  button,
-  chip,
-  tab,
-} from '@/features/ui/styles';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { plural } from '@/features/ui/format';
+import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 const UNIT_OPTIONS = [
@@ -73,78 +71,137 @@ export function ExercisesStep({
 
   return (
     <>
-      {/* Two lines under the title, not one: a long routine name plus a count
-          wraps mid-phrase at 390px. The name is prose and takes the UI face;
-          the count is data and takes the mono provenance line. */}
-      <ScreenHeader icon={ListChecks} title="Review the exercises">
-        <p className="type-body-sm text-ink-2">{file.routine.name}</p>
+      {/* Two lines, not one: a long routine name plus a count wraps mid-phrase
+          at 390px. The name is prose and takes the UI face; the count is data
+          and takes the mono provenance line. The step's own title is in the bar
+          above, so neither is repeated here. */}
+      <div className="flex flex-col gap-1">
+        <p className="type-lede text-ink-2">{file.routine.name}</p>
         <p className="type-lot text-ink-3">{plural(workouts.length, 'workout')}</p>
-      </ScreenHeader>
+      </div>
 
-      {workouts.length > 1 && (
-        <div aria-label="Workouts" className="rail -mx-4 -my-1 flex gap-2 px-4 py-1" role="group">
-          {workouts.map((workout, index) => (
-            <button
-              aria-pressed={index === activeWorkout}
-              className={tab(index === activeWorkout)}
-              key={`${workout.name}-${index}`}
-              onClick={() => onActiveWorkout(index)}
-              type="button"
-            >
-              {workout.name}
-              {hasIssuesUnder(issues, workoutPath(index)) && (
-                <span
-                  aria-label="has a problem"
-                  className={cn(
-                    'size-2 rounded-cell',
-                    index === activeWorkout ? 'bg-on-fill' : 'bg-missed',
-                  )}
-                  role="img"
+      {/* Radix owns the strip: arrow keys move between Workouts and the panel
+          below follows, which the two hand-rolled strips never did. The list is
+          dropped for a single Workout — one tab is a label, not a choice. */}
+      <Tabs
+        onValueChange={(value) => onActiveWorkout(Number(value))}
+        value={String(activeWorkout)}
+      >
+        {workouts.length > 1 && (
+          <TabsList aria-label="Workouts">
+            {workouts.map((workout, index) => (
+              <TabsTrigger key={`${workout.name}-${index}`} value={String(index)}>
+                {workout.name}
+                {hasIssuesUnder(issues, workoutPath(index)) && (
+                  <span
+                    aria-label="has a problem"
+                    className="size-2 rounded-cell bg-missed data-[state=active]:bg-on-fill"
+                    role="img"
+                  />
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
+
+        {current === undefined ? (
+          <div className={WELL}>
+            <p className="type-title">This routine declares no Workouts</p>
+            <p className="type-body-sm text-ink-2">
+              Add at least one Workout to the file and choose it again.
+            </p>
+          </div>
+        ) : (
+          <TabsContent value={String(activeWorkout)}>
+            {workouts.length === 1 && <h2 className="type-headline">{current.name}</h2>}
+
+            {current.exercises.length === 0 ? (
+              <div className={WELL}>
+                <p className="type-title">{current.name} has no exercises left</p>
+                <p className="type-body-sm text-ink-2">
+                  You removed all of them. That is allowed — the Workout will simply record
+                  nothing. To put one back, choose the file again.
+                </p>
+              </div>
+            ) : (
+              current.exercises.map((exercise, index) => (
+                <ExerciseRow
+                  defaultUnit={defaultUnit}
+                  exercise={exercise}
+                  exerciseRef={{ workout: activeWorkout, exercise: index }}
+                  issues={issues}
+                  key={`${exercise.name}-${index}`}
+                  onDelete={onDelete}
+                  onEdit={onEdit}
+                  onToggle={onToggle}
+                  open={openRef?.workout === activeWorkout && openRef.exercise === index}
+                  position={index + 1}
                 />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+              ))
+            )}
 
-      {current === undefined ? (
-        <div className={WELL}>
-          <p className="type-title">This routine declares no Workouts</p>
-          <p className="type-body-sm text-ink-2">
-            Add at least one Workout to the file and choose it again.
-          </p>
-        </div>
-      ) : (
-        <>
-          {workouts.length === 1 && <h2 className="type-headline">{current.name}</h2>}
-
-          {current.exercises.length === 0 ? (
-            <div className={WELL}>
-              <p className="type-title">{current.name} has no exercises left</p>
-              <p className="type-body-sm text-ink-2">
-                You removed all of them. That is allowed — the Workout will simply record
-                nothing. To put one back, choose the file again.
-              </p>
-            </div>
-          ) : (
-            current.exercises.map((exercise, index) => (
-              <ExerciseRow
-                defaultUnit={defaultUnit}
-                exercise={exercise}
-                exerciseRef={{ workout: activeWorkout, exercise: index }}
-                issues={issues}
-                key={`${exercise.name}-${index}`}
-                onDelete={onDelete}
-                onEdit={onEdit}
-                onToggle={onToggle}
-                open={openRef?.workout === activeWorkout && openRef.exercise === index}
-                position={index + 1}
+            {workouts.length > 1 && (
+              <WorkoutHandoff
+                hasNext={activeWorkout + 1 < workouts.length}
+                onNext={() => onActiveWorkout(activeWorkout + 1)}
+                position={activeWorkout + 1}
+                total={workouts.length}
               />
-            ))
-          )}
-        </>
-      )}
+            )}
+          </TabsContent>
+        )}
+      </Tabs>
     </>
+  );
+}
+
+interface WorkoutHandoffProps {
+  readonly position: number;
+  readonly total: number;
+  readonly hasNext: boolean;
+  readonly onNext: () => void;
+}
+
+/**
+ * The end of a Workout's list, and the way into the next one.
+ *
+ * A tab strip is a poor invitation: it says the other Workouts exist, once, at
+ * the top, and then scrolls away above six exercises. By the time the lifter
+ * reaches the bottom of Push they have no reason to remember Pull is waiting —
+ * so the list itself hands them over, at the moment they have finished reading
+ * and are looking for what is next.
+ *
+ * The count is stated in words rather than left to the strip, because "1 of 3"
+ * is what makes an unopened Workout feel outstanding rather than optional. The
+ * button does not name the Workout it goes to: a routine file may call it
+ * anything, and "Review D2 / GPP (deload)" is a worse promise than "next".
+ *
+ * It is blue, and white nowhere: every exercise above it is a raised white card,
+ * so a sixth white dome at the bottom of the stack reads as one more of them.
+ * Instrument Blue is already this system's navigation hue — the active nav item
+ * and the focus ring are both blue — and moving between Workouts is navigation,
+ * not another edit. The washed face says the same thing the colour does: this
+ * row is about the list, not in it.
+ */
+function WorkoutHandoff({ position, total, hasNext, onNext }: WorkoutHandoffProps) {
+  return (
+    <div className="flex flex-col gap-2 pt-1">
+      <p className="type-lot text-planned-ink">
+        workout {position} of {total}
+      </p>
+
+      {hasNext ? (
+        <Button onClick={onNext} size="block" type="button" variant="nav">
+          Review next Workout
+          <ArrowRight aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+        </Button>
+      ) : (
+        <p className="rounded-control bg-planned-wash px-4 py-3 type-body-sm text-planned-ink">
+          That is every Workout in this Routine. Anything you missed is still up in the
+          strip above.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -184,7 +241,8 @@ function ExerciseRow({
   const patch = (fields: Partial<RoutineFileExercise>) => onEdit(exerciseRef, fields);
 
   return (
-    <article className={cn(PANEL_CARD, flagged && 'border-missed')}>
+    <Card asChild className={cn(flagged && 'border-missed')} panel>
+      <article>
       <div className="flex min-h-12 w-full items-center gap-3">
         <Summary defaultUnit={defaultUnit} exercise={exercise} position={position} />
         {flagged && (
@@ -193,35 +251,41 @@ function ExerciseRow({
             fix
           </span>
         )}
-        <RowMenu
-          editorId={`${fieldId(base)}-editor`}
-          expanded={expanded}
-          name={exercise.name}
-          onEdit={() => onToggle(expanded ? null : exerciseRef)}
-          onRemove={() => setConfirmingDelete(true)}
-        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button aria-label={`Options for ${exercise.name}`} size="icon" variant="secondary">
+              <EllipsisVertical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onToggle(expanded ? null : exerciseRef)}>
+              <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              {expanded ? 'Close editor' : 'Edit'}
+            </DropdownMenuItem>
+            <DropdownMenuItem destructive onSelect={() => setConfirmingDelete(true)}>
+              <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              Remove
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {confirmingDelete && (
         <div className={cn(RULED, 'flex-row flex-wrap items-center gap-2')}>
           <p className="type-body-sm text-ink-2">Remove {exercise.name} from this Workout?</p>
           <div className="ml-auto flex items-center gap-2">
-            <button
-              className={button('quiet', 'compact')}
-              onClick={() => setConfirmingDelete(false)}
-              type="button"
-            >
+            <Button onClick={() => setConfirmingDelete(false)} size="compact" variant="quiet">
               Keep it
-            </button>
-            <button
+            </Button>
+            <Button
               aria-label={`Confirm removing ${exercise.name}`}
-              className={button('danger', 'compact')}
               onClick={() => onDelete(exerciseRef)}
-              type="button"
+              size="compact"
+              variant="danger"
             >
               <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               Remove it
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -302,97 +366,10 @@ function ExerciseRow({
 
         </div>
       )}
-    </article>
+      </article>
+    </Card>
   );
 }
-
-interface RowMenuProps {
-  readonly name: string;
-  readonly expanded: boolean;
-  /** The editor panel this menu opens, for `aria-controls`. */
-  readonly editorId: string;
-  readonly onEdit: () => void;
-  readonly onRemove: () => void;
-}
-
-/**
- * The row's two verbs, behind one dot-column.
- *
- * The row used to be one big disclosure with a chevron, which promised an
- * editor and delivered a panel that also held Remove and two reorder arrows —
- * four controls for a row that does two things. A menu says what those two
- * are, in words, and gives the closed row back its silence.
- *
- * Dismissal rides on focus rather than a document listener: the menu lives in
- * the wrapper, so focus leaving the wrapper is exactly the event that should
- * close it, and Escape bubbles to the same place.
- */
-function RowMenu({ name, expanded, editorId, onEdit, onRemove }: RowMenuProps) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div
-      className="relative shrink-0"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') setOpen(false);
-      }}
-    >
-      <button
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={`Options for ${name}`}
-        className={button('secondary', 'icon')}
-        onClick={() => setOpen(!open)}
-        type="button"
-      >
-        <EllipsisVertical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-      </button>
-
-      {open && (
-        <div
-          className="absolute right-0 top-full z-10 mt-2 flex w-44 flex-col gap-1 rounded-card bg-card p-2 shadow-lift"
-          role="menu"
-        >
-          <button
-            aria-controls={editorId}
-            aria-expanded={expanded}
-            className={MENU_ITEM}
-            onClick={() => {
-              setOpen(false);
-              onEdit();
-            }}
-            role="menuitem"
-            type="button"
-          >
-            <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            {expanded ? 'Close editor' : 'Edit'}
-          </button>
-          <button
-            className={cn(MENU_ITEM, 'text-missed-ink hover:bg-missed-wash')}
-            onClick={() => {
-              setOpen(false);
-              onRemove();
-            }}
-            role="menuitem"
-            type="button"
-          >
-            <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            Remove
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const MENU_ITEM = cn(
-  'flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left type-body-sm',
-  'hover:bg-well',
-  FOCUS_RING,
-);
 
 interface SummaryProps {
   readonly exercise: RoutineFileExercise;
@@ -444,15 +421,15 @@ function ProgressionRow({ error, id, onUseManual }: ProgressionRowProps) {
         {error}
       </p>
       <span className={LABEL}>progression</span>
-      <button
+      <Button
         aria-describedby={`${id}-error`}
-        className={button('secondary', 'compact')}
         id={id}
         onClick={onUseManual}
-        type="button"
+        size="compact"
+        variant="secondary"
       >
         Use manual progression
-      </button>
+      </Button>
     </div>
   );
 }

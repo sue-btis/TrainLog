@@ -14,6 +14,10 @@
 
 import { useState } from 'react';
 import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { deletePlacement, movePlacement } from '@/db';
 import {
   addDays,
@@ -36,15 +40,12 @@ import { longDate, monthName, plural } from '@/features/ui/format';
 import { DayCell, STATE_LABEL, STATE_ORDER } from '@/features/calendar/DayCell';
 import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import {
-  CARD,
   ICON_STROKE,
   LABEL,
   ROW,
   ROW_LIST,
   WELL,
-  button,
   chip,
-  field,
 } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -81,25 +82,27 @@ export function CalendarScreen() {
         </p>
       </ScreenHeader>
 
-      <section className={CARD}>
+      <Card>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             aria-label="Previous month"
-            className={button('nav', 'icon')}
             onClick={() => goToMonth(-1)}
+            size="icon"
             type="button"
+            variant="nav"
           >
             <ChevronLeft aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          </button>
+          </Button>
           <h2 className="flex-1 text-center type-title">{monthName(month)}</h2>
-          <button
+          <Button
             aria-label="Next month"
-            className={button('nav', 'icon')}
             onClick={() => goToMonth(1)}
+            size="icon"
             type="button"
+            variant="nav"
           >
             <ChevronRight aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          </button>
+          </Button>
         </div>
 
         <div aria-hidden="true" className="grid grid-cols-7 gap-1.5">
@@ -125,18 +128,20 @@ export function CalendarScreen() {
         </div>
 
         {firstOfMonth(today) !== month && (
-          <button
-            className={button('ghost', 'compact', 'self-center')}
+          <Button
+            className="self-center"
             onClick={() => {
               setSelected(null);
               setMonth(firstOfMonth(today));
             }}
+            size="compact"
             type="button"
+            variant="ghost"
           >
             Back to this month
-          </button>
+          </Button>
         )}
-      </section>
+      </Card>
 
       <Legend />
 
@@ -205,7 +210,7 @@ function DaySheet({ date, placements, sessions, workouts, onMoved }: DaySheetPro
   const nameOf = (workoutId: WorkoutId): string => workouts?.get(workoutId)?.name ?? '…';
 
   return (
-    <section className={CARD}>
+    <Card>
       <h2 className="type-title">{longDate(date)}</h2>
 
       {placements.length === 0 && sessions.length === 0 ? (
@@ -225,7 +230,7 @@ function DaySheet({ date, placements, sessions, workouts, onMoved }: DaySheetPro
           ))}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -248,11 +253,9 @@ function PlacementRow({ placement, name, onMoved }: PlacementRowProps) {
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <label className={LABEL} htmlFor={moveId}>
-            move to
-          </label>
-          <input
-            className={field(false, 'type-measure')}
+          <Label htmlFor={moveId}>move to</Label>
+          <Input
+            className="type-measure"
             id={moveId}
             onChange={(event) => {
               const next = event.target.value;
@@ -267,30 +270,29 @@ function PlacementRow({ placement, name, onMoved }: PlacementRowProps) {
 
         <div className="flex items-center gap-2">
           {confirming && (
-            <button
-              className={button('quiet', 'compact')}
+            <Button
               onClick={() => setConfirming(false)}
+              size="compact"
               type="button"
+              variant="quiet"
             >
               Keep it
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             aria-label={confirming ? `Confirm deleting the ${name} placement` : `Delete the ${name} placement`}
-            className={button(
-              'danger',
-              'compact',
-              confirming ? 'shadow-none' : undefined,
-            )}
+            className={confirming ? 'shadow-none' : undefined}
             onClick={() => {
               if (confirming) void deletePlacement(placement.id);
               else setConfirming(true);
             }}
+            size="compact"
             type="button"
+            variant="danger"
           >
             <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
             {confirming ? 'Delete it' : 'Delete'}
-          </button>
+          </Button>
         </div>
       </div>
 

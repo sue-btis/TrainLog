@@ -10,6 +10,8 @@
 
 import { Link, useParams } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
 import type { PlannedExercise, Weekday } from '@/domain/types';
 import {
@@ -21,13 +23,11 @@ import {
 } from '@/features/data/queries';
 import { plural, programmingLine, weekdayName } from '@/features/ui/format';
 import {
-  CARD,
   ICON_STROKE,
   LABEL,
   ROW,
   ROW_LIST,
   WELL,
-  button,
   chip,
 } from '@/features/ui/styles';
 
@@ -79,10 +79,12 @@ export function RoutineDetailScreen() {
 
 function BackLink() {
   return (
-    <Link className={button('ghost', 'compact', 'self-start')} to="/routines">
-      <ArrowLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-      Routines
-    </Link>
+    <Button asChild size="compact" variant="ghost" className="self-start">
+      <Link to="/routines">
+        <ArrowLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        Routines
+      </Link>
+    </Button>
   );
 }
 
@@ -97,7 +99,7 @@ function WorkoutCard({ workoutId, name, suggestedDays }: WorkoutCardProps) {
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
 
   return (
-    <section className={CARD}>
+    <Card>
       <div className="flex flex-col gap-2">
         <h2 className="type-title">{name}</h2>
         <p className={LABEL}>
@@ -121,7 +123,7 @@ function WorkoutCard({ workoutId, name, suggestedDays }: WorkoutCardProps) {
           ))}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 

@@ -16,6 +16,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Activity, Dumbbell, FileUp, Timer } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatLocalDate } from '@/domain/dates';
 import type { WorkoutId } from '@/domain/ids';
 import { estimateDuration, nextWorkoutInRotation } from '@/domain/scheduling';
@@ -33,16 +36,13 @@ import {
 import { longDate, plural, programmingLine, shortDate } from '@/features/ui/format';
 import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import {
-  CARD,
   ICON_STROKE,
   LABEL,
   ROW,
   ROW_LIST,
   WELL,
   alert,
-  button,
   chip,
-  tab,
 } from '@/features/ui/styles';
 
 export function TodayScreen() {
@@ -73,7 +73,7 @@ export function TodayScreen() {
               training screen exists, it can be finished from the harness.
             </p>
             <Link className="type-body-sm underline underline-offset-4" to="/harness">
-              Open the harness
+                Open the harness
             </Link>
           </div>
         </div>
@@ -100,24 +100,24 @@ export function TodayScreen() {
             {placed ? 'planned for today' : 'next in rotation'}
           </p>
 
-          {workouts.length > 1 && (
-            <div aria-label="Workouts" className="rail -mx-4 -my-1 flex gap-2 px-4 py-1" role="group">
-              {workouts.map((workout) => (
-                <button
-                  aria-pressed={workout.id === shown.id}
-                  className={tab(workout.id === shown.id)}
-                  key={workout.id}
-                  onClick={() => setPicked(workout.id)}
-                  type="button"
-                >
-                  {workout.name}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Radix owns the strip: arrow keys move between Workouts, and what
+              is shown below is the panel of the one that is selected. */}
+          <Tabs onValueChange={(value) => setPicked(value as WorkoutId)} value={shown.id}>
+            {workouts.length > 1 && (
+              <TabsList aria-label="Workouts">
+                {workouts.map((workout) => (
+                  <TabsTrigger key={workout.id} value={workout.id}>
+                    {workout.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            )}
 
-          <WorkoutCard workout={shown} />
-          <LastSession sessions={sessions} workoutId={shown.id} />
+            <TabsContent value={shown.id}>
+              <WorkoutCard workout={shown} />
+              <LastSession sessions={sessions} workoutId={shown.id} />
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </>
@@ -133,9 +133,11 @@ function NoRoutine() {
         TrainLog runs the programme you give it. Import a routine file and today will know
         what to train.
       </p>
-      <Link className={button('primary', 'block')} to="/import">
-        Import a routine
-      </Link>
+      <Button asChild size="block" variant="primary">
+        <Link to="/import">
+          Import a routine
+        </Link>
+      </Button>
     </section>
   );
 }
@@ -145,7 +147,7 @@ function WorkoutCard({ workout }: { readonly workout: Workout }) {
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
 
   return (
-    <section className={CARD}>
+    <Card>
       <div className="flex flex-wrap items-center gap-2">
         <span className={chip('planned')}>{plural(exercises.length, 'exercise')}</span>
         {exercises.length > 0 && (
@@ -173,7 +175,7 @@ function WorkoutCard({ workout }: { readonly workout: Workout }) {
           ))}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 

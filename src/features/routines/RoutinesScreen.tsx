@@ -19,12 +19,14 @@ import {
   archiveRoutine,
   deleteRoutine,
 } from '@/db';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import type { RoutineId } from '@/domain/ids';
 import type { Routine } from '@/domain/types';
 import { useRoutines } from '@/features/data/queries';
 import { plural, shortDate } from '@/features/ui/format';
 import { ScreenHeader } from '@/features/ui/ScreenHeader';
-import { CARD, ICON_STROKE, LABEL, WELL, alert, button, chip } from '@/features/ui/styles';
+import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
 import { formatLocalDate } from '@/domain/dates';
 
 export function RoutinesScreen() {
@@ -56,10 +58,12 @@ export function RoutinesScreen() {
         </p>
       </ScreenHeader>
 
-      <Link className={button('primary', 'block')} to="/import">
-        <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-        Import routine
-      </Link>
+      <Button asChild size="block" variant="primary">
+        <Link to="/import">
+          <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          Import routine
+        </Link>
+      </Button>
 
       {routines === undefined ? null : routines.length === 0 ? (
         <section className={WELL}>
@@ -98,7 +102,7 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
   const active = routine.status === 'active';
 
   return (
-    <section className={CARD}>
+    <Card>
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="type-title">{routine.name}</h2>
@@ -120,40 +124,39 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Link className={button('secondary', 'compact')} to={`/routines/${routine.id}`}>
-          View
-          <ChevronRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-        </Link>
+        <Button asChild size="compact" variant="secondary">
+          <Link to={`/routines/${routine.id}`}>
+            View
+            <ChevronRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          </Link>
+        </Button>
 
         {active ? (
-          <button className={button('secondary', 'compact')} onClick={onArchive} type="button">
+          <Button onClick={onArchive} size="compact" type="button" variant="secondary">
             <Archive aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
             Archive
-          </button>
+          </Button>
         ) : (
-          <button className={button('secondary', 'compact')} onClick={onActivate} type="button">
+          <Button onClick={onActivate} size="compact" type="button" variant="secondary">
             <Play aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
             Make active
-          </button>
+          </Button>
         )}
 
         <div className="ml-auto flex items-center gap-2">
           {confirming && (
-            <button
-              className={button('quiet', 'compact')}
+            <Button
               onClick={() => setConfirming(false)}
+              size="compact"
               type="button"
+              variant="quiet"
             >
               Keep it
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             aria-label={confirming ? `Confirm deleting ${routine.name}` : `Delete ${routine.name}`}
-            className={button(
-              'danger',
-              'compact',
-              confirming ? 'shadow-none' : undefined,
-            )}
+            className={confirming ? 'shadow-none' : undefined}
             onClick={() => {
               if (confirming) {
                 setConfirming(false);
@@ -162,11 +165,13 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
                 setConfirming(true);
               }
             }}
+            size="compact"
             type="button"
+            variant="danger"
           >
             <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
             {confirming ? 'Delete it' : 'Delete'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -176,6 +181,6 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
           touched
         </p>
       )}
-    </section>
+    </Card>
   );
 }

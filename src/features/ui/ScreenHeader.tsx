@@ -12,7 +12,8 @@
  */
 
 import type { ComponentType, ReactNode } from 'react';
-import { CARD, ICON_STROKE } from '@/features/ui/styles';
+import { Card } from '@/components/ui/card';
+import { ICON_STROKE } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 interface ScreenHeaderProps {
@@ -24,12 +25,19 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ icon: Icon, title, children }: ScreenHeaderProps) {
   return (
-    <header className={cn(CARD, 'flex-row gap-4', children ? 'items-start' : 'items-center')}>
-      <Icon aria-hidden="true" className="shrink-0 text-planned-ink" size={32} strokeWidth={ICON_STROKE} />
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="type-display">{title}</h1>
-        {children}
-      </div>
-    </header>
+    <Card asChild className={cn('flex-row gap-4', children ? 'items-start' : 'items-center')}>
+      <header>
+        <Icon
+          aria-hidden="true"
+          className="shrink-0 text-planned-ink"
+          size={32}
+          strokeWidth={ICON_STROKE}
+        />
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="type-display">{title}</h1>
+          {children}
+        </div>
+      </header>
+    </Card>
   );
 }

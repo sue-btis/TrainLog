@@ -458,6 +458,13 @@ the thumb already rests, and navigation is the last thing on the page.
 bottom edge, behind the glass nav. It exists so the glass has something to blur — glass over flat
 white is invisible, and an invisible material is a lie.
 
+A floating bar earns the same film a second way. A task screen's top bar does not reach any edge:
+board runs above and beside it, and the column scrolls *underneath* rather than up to it. What the
+blur is working on there is the content itself — cards, rules and ink sliding past behind the sheet
+— which is the Visible-Glass Rule satisfied by movement instead of by a bloom. The bloom does not
+transfer: mirrored to the top edge it lands at a different density behind a bar half the nav's
+height, so it reads as a third colour rather than as the nav's.
+
 Wide content — the progress chart in particular — scrolls inside its own `overflow-x: auto`
 container. The page body never scrolls horizontally at any width.
 
@@ -520,11 +527,12 @@ use a solid face with `--lift`.
 
 Everything is rounded, and the radius encodes what the thing is:
 
-- **Cells and chips** (`{rounded.cell}` / `{rounded.chip}`, 999px): domes and status pills. Fully
-  round, because a blister cell is round.
+- **Cells, chips and buttons** (`{rounded.cell}` / `{rounded.chip}`, 999px): domes, status pills and
+  everything you press. Fully round, because a blister cell is round — and a button is the same
+  kind of object, a whole thing lifted off the board rather than a panel with softened corners.
 - **Device frames** (`{rounded.frame}` 30px, `{rounded.frame-sm}` 22px below 560 px).
 - **Cards** (`{rounded.card}`, 20px): the board and its panels.
-- **Controls** (`{rounded.control}`, 14px): buttons, nav items, day cells, steppers, alerts.
+- **Controls** (`{rounded.control}`, 14px): nav items, day cells, tabs, steppers, alerts, menu rows.
 - **Fields** (`{rounded.field}`, 12px): inputs and recessed readouts, one step tighter than the
   control beside them.
 - **Details** (`{rounded.hair}` 6px, `{rounded.line}` 2px): inline code, legend rules.
@@ -942,7 +950,8 @@ than four.
 - **Do** pick the hue from the concept, not the emotion: blue = Planned, green = Actual,
   violet = Progression, red = Missed, amber = Live.
 - **Do** let a shadow mean "pressable" and its absence mean "already done".
-- **Do** put glass only over the colour bloom, where the blur is visible.
+- **Do** put glass only where the blur is visible: over the colour bloom, or over content that
+  scrolls beneath a floating bar.
 - **Do** make the active Set the largest object on screen and place it in the lower third.
 - **Do** keep every interactive control at or above 48 px, and set load numerals at weight 800 with
   tight tracking so they survive glare at arm's length.

@@ -15,6 +15,15 @@ import {
   saveFinishedSession,
   saveLoggedSet,
 } from '@/db';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import type { RoutineId, SessionId, WorkoutId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
 import { suggestLoad } from '@/domain/progression';
@@ -35,7 +44,7 @@ import {
   useSessionDetail,
   useWorkouts,
 } from '@/features/harness/queries';
-import { BUTTON, BUTTON_QUIET, CARD, INPUT, LABEL, PANEL, WELL } from '@/features/harness/styles';
+import { BUTTON, BUTTON_QUIET, LABEL, PANEL, WELL } from '@/features/harness/styles';
 
 type Entry = SessionHistory['exercises'][number];
 
@@ -69,21 +78,25 @@ export function SessionPanel({ routineId }: SessionPanelProps) {
     <section className={PANEL}>
       <h2 className="type-headline">2 — Perform a session</h2>
 
-      <label className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <span className={LABEL}>workout</span>
-        <select
-          className={INPUT}
-          value={workoutId ?? ''}
+        <Select
           disabled={session !== undefined}
-          onChange={(event) => setPicked(event.target.value as WorkoutId)}
+          onValueChange={(next) => setPicked(next as WorkoutId)}
+          value={workoutId ?? ''}
         >
-          {workouts.map((workout) => (
-            <option key={workout.id} value={workout.id}>
-              {workout.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          <SelectTrigger className="type-measure">
+            <SelectValue placeholder="no workout" />
+          </SelectTrigger>
+          <SelectContent>
+            {workouts.map((workout) => (
+              <SelectItem className="type-measure" key={workout.id} value={workout.id}>
+                {workout.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {session === undefined ? (
         <button
@@ -100,7 +113,7 @@ export function SessionPanel({ routineId }: SessionPanelProps) {
           Start session
         </button>
       ) : (
-        <div className={CARD}>
+        <Card>
           <span className={LABEL}>session in progress</span>
           <p className="type-measure text-ink-3">
             started {new Date(session.startedAt).toLocaleString()} · {exerciseSessions.length}{' '}
@@ -120,7 +133,7 @@ export function SessionPanel({ routineId }: SessionPanelProps) {
           >
             Finish session
           </button>
-        </div>
+        </Card>
       )}
 
       {failure !== null && <p className="type-measure text-missed-ink">{failure}</p>}
@@ -187,7 +200,7 @@ function ExerciseRow({ planned, name, sessionId, entry, onFailure }: ExerciseRow
   );
 
   return (
-    <div className={CARD}>
+    <Card>
       <p className="type-title">{name}</p>
       <p className="type-measure text-ink-3">
         {planned.sets} x {planned.minReps}-{planned.maxReps} reps
@@ -261,22 +274,22 @@ function ExerciseRow({ planned, name, sessionId, entry, onFailure }: ExerciseRow
             </span>
           ))}
           <div className="flex flex-wrap gap-2">
-            <input
-              className={INPUT}
+            <Input
+              className="type-measure w-24"
               inputMode="decimal"
               placeholder="weight"
               value={weight}
               onChange={(event) => setWeight(event.target.value)}
             />
-            <input
-              className={INPUT}
+            <Input
+              className="type-measure w-24"
               inputMode="numeric"
               placeholder="reps"
               value={reps}
               onChange={(event) => setReps(event.target.value)}
             />
-            <input
-              className={INPUT}
+            <Input
+              className="type-measure w-24"
               inputMode="numeric"
               placeholder="rir"
               value={rir}
@@ -302,6 +315,6 @@ function ExerciseRow({ planned, name, sessionId, entry, onFailure }: ExerciseRow
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
