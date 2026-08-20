@@ -14,7 +14,6 @@ import { db, resetDatabase } from '@/db/database';
 import { TrainLogDatabase } from '@/db/schema';
 import {
   SessionInProgressError,
-  createSession,
   createStartedWorkout,
   getInProgressSession,
   getLastPerformedWorkout,
@@ -82,7 +81,7 @@ beforeEach(async () => {
 describe('TST-021 — in-progress session recovery', () => {
   it('recovers the in-progress Session and every logged set from a fresh handle', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    await createSession(session);
+    await createStartedWorkout({ session, exerciseSessions: [] });
 
     const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
     await addExerciseSession(exercise);
@@ -119,7 +118,7 @@ describe('TST-021 — in-progress session recovery', () => {
 
   it('AC-056 — a logged set is readable from a second handle before the Session finishes', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    await createSession(session);
+    await createStartedWorkout({ session, exerciseSessions: [] });
     const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
     await addExerciseSession(exercise);
 
@@ -154,16 +153,22 @@ describe('TST-021 — in-progress session recovery', () => {
   });
 
   it('refuses a second in-progress Session (REQ-058)', async () => {
-    await createSession(startSession({ routineId, workoutId, startedAt: 1_000 }));
+    await createStartedWorkout({
+      session: startSession({ routineId, workoutId, startedAt: 1_000 }),
+      exerciseSessions: [],
+    });
     await expect(
-      createSession(startSession({ routineId, workoutId, startedAt: 2_000 })),
+      createStartedWorkout({
+        session: startSession({ routineId, workoutId, startedAt: 2_000 }),
+        exerciseSessions: [],
+      }),
     ).rejects.toBeInstanceOf(SessionInProgressError);
     expect(await db.sessions.count()).toBe(1);
   });
 
   it('finishing frees the in-progress slot and persists status with completedAt', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    await createSession(session);
+    await createStartedWorkout({ session, exerciseSessions: [] });
     const skipped = skipExercise(
       startUnplannedExercise({ sessionId: session.id, exerciseId: squat, order: 0 }),
     );

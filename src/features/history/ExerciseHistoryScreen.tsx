@@ -17,7 +17,7 @@
  */
 
 import { useParams } from 'react-router';
-import { Dumbbell } from 'lucide-react';
+import { ChevronDown, Dumbbell } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { formatLocalDate } from '@/domain/dates';
 import { summarizeExercise, type ExerciseSummary } from '@/domain/history';
@@ -26,7 +26,9 @@ import type { SessionHistory } from '@/domain/progression';
 import type { CompletedSet } from '@/domain/types';
 import { useExerciseHistory, useExerciseNames } from '@/features/data/queries';
 import { longDate, plural, shortDate } from '@/features/ui/format';
-import { LABEL, ROW, ROW_LIST, RULED, WELL, chip } from '@/features/ui/styles';
+import { SetPill } from '@/features/ui/SetPill';
+import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
+import { cn } from '@/lib/utils';
 
 export function ExerciseHistoryScreen() {
   const { exerciseId } = useParams<{ exerciseId: ExerciseId }>();
@@ -106,41 +108,81 @@ function Figure({ label, value }: { readonly label: string; readonly value: stri
   );
 }
 
-/** Every session, newest first, with its sets as §11.10 lists them. */
+/**
+ * Every session, newest first. The day is the row; the sets are behind it.
+ *
+ * §11.10 asks for the sets, not for all of them at once: a lifter scanning a
+ * year of squats is looking for a date and a load, and twelve rows of five sets
+ * each buries both. Collapsed, a row answers "when, and how heavy" — the
+ * session's heaviest and lightest set. Opening one gives the sets in full.
+ *
+ * `<details>` because the browser already does this: disclosure state, keyboard
+ * operation and the accessible name come free, and none of it is ours to keep
+ * working.
+ */
 function Sessions({ entries }: { readonly entries: readonly SessionHistory[] }) {
   return (
     <section className={RULED}>
       <span className={LABEL}>every session</span>
 
-      <div className={ROW_LIST}>
-        {entries.map((entry) => {
-          const sets = entry.exercises.flatMap((exercise) => exercise.sets);
-          return (
-            <article className={ROW} key={entry.session.id}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="type-title">
-                  {longDate(formatLocalDate(new Date(entry.session.startedAt)))}
-                </span>
-                {entry.session.status !== 'completed' && (
-                  <span className={chip(entry.session.status === 'partial' ? 'neutral' : 'planned')}>
-                    {entry.session.status.replace('_', ' ')}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {sets.map((set) => (
-                  <span className="type-measure text-ink" key={set.id}>
-                    {set.weight} {set.unit} × {set.reps}
-                    <span className="text-ink-3"> @{set.rir}</span>
-                  </span>
-                ))}
-              </div>
-            </article>
-          );
-        })}
+      {/* Cards, not ruled rows: each session here says what gym mode's previous
+          panel says — a day and the two ends of it — and one card per session is
+          the same shape repeated rather than a second way of drawing it. */}
+      <div className="flex flex-col gap-3">
+        {entries.map((entry) => (
+          <SessionRow entry={entry} key={entry.session.id} />
+        ))}
       </div>
     </section>
+  );
+}
+
+function SessionRow({ entry }: { readonly entry: SessionHistory }) {
+  const sets = entry.exercises.flatMap((exercise) => exercise.sets);
+  // The same derivation the figures above use, over one session instead of all
+  // of them — comparing on `weightKg`, which is the only load that compares
+  // across units (§11.7).
+  const { heaviest, lightest } = summarizeExercise([entry]);
+
+  return (
+    <details className={cn(WELL, 'group')}>
+      <summary className="flex cursor-pointer list-none flex-col gap-2 [&::-webkit-details-marker]:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="type-measure text-ink-2">
+            <ChevronDown
+              aria-hidden="true"
+              className="mr-1.5 inline text-ink-3 transition-transform group-open:rotate-180"
+              size={14}
+              strokeWidth={ICON_STROKE}
+            />
+            {longDate(formatLocalDate(new Date(entry.session.startedAt)))}
+          </span>
+          {entry.session.status !== 'completed' && (
+            <span className={chip(entry.session.status === 'partial' ? 'neutral' : 'planned')}>
+              {entry.session.status.replace('_', ' ')}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <SetPill label="heaviest" set={heaviest} />
+          {/* One set is both, and saying so twice reads as two different sets. */}
+          {sets.length > 1 && <SetPill label="lightest" set={lightest} />}
+        </div>
+      </summary>
+
+      <ol className="mt-3 flex flex-col items-start gap-1.5">
+        {sets.map((set, index) => (
+          <li className={chip('neutral')} key={set.id}>
+            <span className="text-ink-3">{index + 1}</span>
+            <span className="text-ink">
+              {set.weight} {set.unit} × {set.reps}
+            </span>
+            <span className="text-ink-3">RIR {set.rir}</span>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 

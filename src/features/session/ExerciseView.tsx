@@ -12,10 +12,9 @@
  */
 
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { ArrowRight, CheckCircle2, History, Plus } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { CompletedSetId, ExerciseId } from '@/domain/ids';
+import type { CompletedSetId } from '@/domain/ids';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import type { LoadSuggestion } from '@/domain/progression';
 import { suggestLoad } from '@/domain/progression';
@@ -24,8 +23,7 @@ import { SetEditor } from '@/features/session/SetEditor';
 import { SetLogger, type SetValues } from '@/features/session/SetLogger';
 import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
 import { range } from '@/features/ui/format';
-import { ICON_STROKE, LABEL, RULED, WELL, chip, dome } from '@/features/ui/styles';
-import { cn } from '@/lib/utils';
+import { ICON_STROKE, RULED, chip, dome } from '@/features/ui/styles';
 
 /** The plate granularity of an exercise, where its rule declares one (§29). */
 const DEFAULT_STEP = 2.5;
@@ -130,12 +128,6 @@ export function ExerciseView({
         </div>
       </header>
 
-      <Previous
-        exerciseId={exerciseSession.exerciseId}
-        sets={previousSets}
-        suggestion={suggestion}
-      />
-
       <DomeStrip
         canAdd={editedSet === null && !entering}
         entering={entering}
@@ -189,57 +181,6 @@ export function ExerciseView({
           />
         )}
       </div>
-    </section>
-  );
-}
-
-/**
- * §11.8 — what happened last time, which the PRD calls one of the product's
- * main functions. Sessions of any status count: this is "what you did", not
- * what progression feeds on.
- */
-function Previous({
-  exerciseId,
-  sets,
-  suggestion,
-}: {
-  readonly exerciseId: ExerciseId;
-  readonly sets: readonly CompletedSet[];
-  readonly suggestion: LoadSuggestion | null;
-}) {
-  return (
-    <section className={WELL}>
-      <div className="flex items-center justify-between gap-3">
-        {/* The card shows one session — the last one. Everything before it is a
-            tap away rather than crowded in here (§11.10, §21). */}
-        <Link
-          className={cn(LABEL, 'underline decoration-rule underline-offset-4')}
-          to={`/exercises/${exerciseId}`}
-        >
-          <History aria-hidden="true" className="mr-1.5 inline" size={13} strokeWidth={ICON_STROKE} />
-          previous · all history
-        </Link>
-        {suggestion !== null && (
-          <span className={chip(suggestion.targetMet ? 'actual' : 'neutral')}>
-            {suggestion.targetMet ? 'target met' : 'repeat'} · {suggestion.weight} {suggestion.unit}
-          </span>
-        )}
-      </div>
-
-      {sets.length === 0 ? (
-        <p className="type-body-sm text-ink-2">
-          First time on this exercise. Whatever you log becomes the baseline.
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {sets.map((set) => (
-            <span className="type-measure text-ink" key={set.id}>
-              {set.weight} {set.unit} × {set.reps}
-              <span className="text-ink-3"> @{set.rir}</span>
-            </span>
-          ))}
-        </div>
-      )}
     </section>
   );
 }

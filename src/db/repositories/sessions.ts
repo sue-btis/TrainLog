@@ -44,19 +44,6 @@ export function getInProgressSession(): Promise<Session | undefined> {
 }
 
 /**
- * Persists a Session produced by `startSession`, refusing a second concurrent
- * one (REQ-058). One transaction, so the at-most-one invariant has no window in
- * which it is false. Index: status.
- */
-export async function createSession(session: Session): Promise<void> {
-  await db.transaction('rw', db.sessions, async () => {
-    const open = await db.sessions.where('status').equals('in_progress').first();
-    if (open !== undefined && open.id !== session.id) throw new SessionInProgressError(open.id);
-    await db.sessions.add(session);
-  });
-}
-
-/**
  * R-2 — persists what `startWorkout` produced: the Session and one
  * ExerciseSession per planned exercise, in a single transaction.
  *
@@ -67,9 +54,10 @@ export async function createSession(session: Session): Promise<void> {
  * inside the same transaction, so the at-most-one invariant still has no window
  * in which it is false.
  *
- * This is what the Today screen calls. `createSession` above writes a Session
- * alone and now has no production caller — it survives as the narrow primitive
- * the repository tests build fixtures from. Index: status.
+ * This is the only way a Session is written. A second entry point that stored a
+ * Session without its exercises would be a second way to get the at-most-one
+ * invariant and DEC-009 wrong; a Workout with no exercises goes through here
+ * too, with an empty list. Index: status.
  */
 export async function createStartedWorkout(started: {
   readonly session: Session;

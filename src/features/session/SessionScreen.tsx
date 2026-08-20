@@ -61,6 +61,7 @@ import type { Unit } from '@/domain/units';
 import { ExercisePicker } from '@/features/session/ExercisePicker';
 import { ExerciseReorder } from '@/features/session/ExerciseReorder';
 import { ExerciseView } from '@/features/session/ExerciseView';
+import { PreviousPanel } from '@/features/session/PreviousPanel';
 import { RestTimer } from '@/features/session/RestTimer';
 import type { SetValues } from '@/features/session/SetLogger';
 import { useWakeLock } from '@/features/session/useWakeLock';
@@ -364,6 +365,11 @@ export function SessionScreen() {
         onFinish={finish}
         pending={pending}
       />
+
+      {/* Last time's numbers are reference, not the set in front of you — they
+          sit under the finish control rather than between the heading and the
+          logger (§21). */}
+      {entry !== undefined && <PreviousPanel exerciseSession={entry.exerciseSession} />}
     </Frame>
   );
 }

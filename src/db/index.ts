@@ -51,7 +51,6 @@ export {
 
 export {
   SessionInProgressError,
-  createSession,
   createStartedWorkout,
   getInProgressSession,
   getLastPerformedWorkout,

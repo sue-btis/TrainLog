@@ -113,12 +113,10 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
         const errorId = `${fieldId(workoutPath(index))}-days-error`;
 
         return (
-          <Card asChild className="focus-visible:outline-none">
-            <section
-              id={fieldId(workoutPath(index))}
-              key={`${workout.name}-${index}`}
-              tabIndex={-1}
-            >
+          // The key belongs on `Card`, the outermost element this map returns.
+          // On the `<section>` inside it, React never sees it and warns.
+          <Card asChild className="focus-visible:outline-none" key={`${workout.name}-${index}`}>
+            <section id={fieldId(workoutPath(index))} tabIndex={-1}>
             <div className="flex flex-col gap-1">
               <h2 className="type-title">{workout.name}</h2>
               <p className="type-measure-sm text-ink-3">
