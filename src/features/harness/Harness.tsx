@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import type { RoutineId } from '@/domain/ids';
 import { SessionPanel } from '@/features/harness/SessionPanel';
+import { TopBar } from '@/features/shell/TopBar';
 import { useRoutines } from '@/features/harness/queries';
 import { LABEL } from '@/features/harness/styles';
 import { COLUMN, ICON_STROKE, SCREEN } from '@/features/ui/styles';
@@ -32,9 +33,15 @@ export function Harness() {
 
   return (
     <main className={SCREEN}>
+      <TopBar
+        back={{ to: '/today' }}
+        backLabel="Back to Today"
+        icon={FlaskConical}
+        title="Session harness"
+      />
+
       <div className={COLUMN}>
         <header className="flex flex-col gap-2">
-          <h1 className="type-display">Session harness</h1>
           <p className="type-caption text-ink-3">
             Drives the execution flow of PRD §47 end to end against IndexedDB.
           </p>

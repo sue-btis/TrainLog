@@ -13,7 +13,7 @@
  */
 
 import { useState } from 'react';
-import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { CalendarOff, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,6 @@ import {
 } from '@/features/data/queries';
 import { longDate, monthName, plural } from '@/features/ui/format';
 import { DayCell, STATE_LABEL, STATE_ORDER } from '@/features/calendar/DayCell';
-import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import {
   ICON_STROKE,
   LABEL,
@@ -76,11 +75,9 @@ export function CalendarScreen() {
 
   return (
     <>
-      <ScreenHeader icon={CalendarDays} title="Calendar">
-        <p className="type-body-sm text-ink-2">
-          What you planned and what you did. A day nobody planned is rest, not a failure.
-        </p>
-      </ScreenHeader>
+      <p className="type-lede text-ink-2">
+        What you planned and what you did. A day nobody planned is rest, not a failure.
+      </p>
 
       <Card>
         <div className="flex items-center gap-2">

@@ -15,7 +15,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Activity, Dumbbell, FileUp, Timer } from 'lucide-react';
+import { Activity, FileUp, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,7 +34,6 @@ import {
   useWorkouts,
 } from '@/features/data/queries';
 import { longDate, plural, programmingLine, shortDate } from '@/features/ui/format';
-import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import {
   ICON_STROKE,
   LABEL,
@@ -79,10 +78,10 @@ export function TodayScreen() {
         </div>
       )}
 
-      <ScreenHeader icon={Dumbbell} title="Today">
-        <p className="type-body-sm text-ink-2">{longDate(today)}</p>
+      <div className="flex flex-col gap-1">
+        <p className="type-lede text-ink-2">{longDate(today)}</p>
         {routine !== undefined && <p className="type-lot text-ink-3">{routine.name}</p>}
-      </ScreenHeader>
+      </div>
 
       {routine === undefined ? (
         <NoRoutine />
@@ -95,7 +94,7 @@ export function TodayScreen() {
         </section>
       ) : (
         <>
-          <h1 className="type-display">{shown.name}</h1>
+          <h2 className="type-display">{shown.name}</h2>
           <p className="type-measure text-ink-3">
             {placed ? 'planned for today' : 'next in rotation'}
           </p>

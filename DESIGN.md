@@ -5,7 +5,6 @@ colors:
   board: "#f0f5f5"
   card: "#FEFEFD"
   panel: "#F3F8F8"
-  field: "#FEFEFD"
   well: "#EAF2F2"
   glass-fill: "#FEFEFD8C"
   shade: "#7E9EA0"
@@ -228,7 +227,7 @@ components:
     rounded: "{rounded.control}"
     height: "48px"
   input:
-    backgroundColor: "{colors.field}"
+    backgroundColor: "{colors.well}"
     textColor: "{colors.ink}"
     rounded: "{rounded.field}"
     padding: "14px 12px"
@@ -366,10 +365,11 @@ lighter base hue is for strokes, rings and chart series where nothing sits on to
   full step below the card so a near-white face separates from it on value alone — the previous
   palette put four surfaces within 1.13 contrast of each other, which meant nothing could be told
   from anything and every control needed a ring to be found.
-- **Card** (`{colors.card}`) and **Field** (`{colors.field}`) are the same near-white face: one
-  paint for everything that sits on the board. **Panel** (`{colors.panel}`) survives only for
-  neutral chips, **Well** (`{colors.well}`) only as a quiet tint for what is inert — a rest day, a
-  disabled control.
+- **Card** (`{colors.card}`): one near-white paint for everything that sits on the board.
+  **Panel** (`{colors.panel}`) survives only for neutral chips. **Well** (`{colors.well}`) is the
+  tint for what is inert or receiving — a rest day, a disabled control, a recessed readout, and
+  every form field: a field is a cavity something goes into, and painting it card-white said the
+  opposite.
 - **Glass Fill** (`{colors.glass-fill}`): the translucent sheet, used with `blur(20px)
   saturate(1.8)`, only over colour.
 - **Shade** (`{colors.shade}`): the shadow hue, drawn from the board's own family so a drop reads
@@ -592,7 +592,7 @@ size it is set at — the reason no size here declares it by hand. Both families
 @theme {
   /* surfaces */
   --color-board: #D9E6E7;          --color-card: #FEFEFD;
-  --color-panel: #F3F8F8;          --color-field: #FEFEFD;
+  --color-panel: #F3F8F8;
   --color-well: #EAF2F2;           --color-glass-fill: #FEFEFD8C;
   --color-rule: #7E9EA03D;         --color-scrim: #00000038;
 
@@ -895,7 +895,8 @@ inside another are form controls, because a field is a cavity something goes int
 
 ### Inputs / Fields
 
-Solid near-white, flat, with a hairline in `{colors.rule}`. Focus adds a
+Filled with `{colors.well}`, flat, with a hairline in `{colors.rule}`. The tint is what finds the
+control: on a card, a field painted the card's own white had only its hairline to exist by. Focus adds a
 3 px `{colors.planned-wash}` halo with a 1 px `{colors.planned}` ring. Invalid adds a 1 px
 `{colors.missed}` ring and an error line below that names both the problem and the fix ("Min reps
 (12) is above max reps (8). Lower it to 8 or below to accept the import."), wired with

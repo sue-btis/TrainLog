@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Archive, ChevronRight, FileUp, Play, ScrollText, Trash2, TriangleAlert } from 'lucide-react';
+import { Archive, ChevronRight, FileUp, Play, Trash2, TriangleAlert } from 'lucide-react';
 import {
   RoutineHasSessionsError,
   activateRoutine,
@@ -25,7 +25,6 @@ import type { RoutineId } from '@/domain/ids';
 import type { Routine } from '@/domain/types';
 import { useRoutines } from '@/features/data/queries';
 import { plural, shortDate } from '@/features/ui/format';
-import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
 import { formatLocalDate } from '@/domain/dates';
 
@@ -51,12 +50,10 @@ export function RoutinesScreen() {
 
   return (
     <>
-      <ScreenHeader icon={ScrollText} title="Routines">
-        <p className="type-body-sm text-ink-2">
-          Every programme you have imported. One is active at a time; the rest wait,
-          archived, with their history intact.
-        </p>
-      </ScreenHeader>
+      <p className="type-lede text-ink-2">
+        Every programme you have imported. One is active at a time; the rest wait,
+        archived, with their history intact.
+      </p>
 
       <Button asChild size="block" variant="primary">
         <Link to="/import">

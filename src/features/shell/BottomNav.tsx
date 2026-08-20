@@ -11,15 +11,9 @@
  */
 
 import { NavLink } from 'react-router';
-import { CalendarDays, Dumbbell, ScrollText } from 'lucide-react';
+import { SECTIONS } from '@/features/shell/sections';
 import { ICON_STROKE } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
-
-const TABS = [
-  { to: '/today', label: 'Today', Icon: Dumbbell },
-  { to: '/calendar', label: 'Calendar', Icon: CalendarDays },
-  { to: '/routines', label: 'Routines', Icon: ScrollText },
-] as const;
 
 export function BottomNav() {
   return (
@@ -28,7 +22,7 @@ export function BottomNav() {
 
       <div className="glass relative border-t border-rule">
         <div className="mx-auto flex w-full max-w-lg gap-2 px-4 py-2">
-          {TABS.map(({ to, label, Icon }) => (
+          {SECTIONS.map(({ to, label, Icon }) => (
             <NavLink
               className={({ isActive }) =>
                 cn(

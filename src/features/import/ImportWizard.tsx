@@ -17,7 +17,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { Check, FileUp, FlaskConical } from 'lucide-react';
+import { CalendarDays, Check, FileUp, FlaskConical, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
@@ -201,6 +201,7 @@ export function ImportWizard() {
           state.phase === 'editing' ? { onBack: () => setLeaving(true) } : { to: '/today' }
         }
         backLabel={state.phase === 'editing' ? 'Leave this import' : 'Back to today'}
+        icon={iconOf(state)}
         title={titleOf(state)}
       />
 
@@ -273,6 +274,13 @@ function titleOf(state: WizardState): string {
   if (state.phase === 'choosing') return 'Import a routine';
   if (state.phase === 'accepted') return 'Imported';
   return state.step === 1 ? 'Review the exercises' : 'Days and weeks';
+}
+
+/** And its four drawings, so the bar shows the step as well as naming it. */
+function iconOf(state: WizardState) {
+  if (state.phase === 'choosing') return FileUp;
+  if (state.phase === 'accepted') return Check;
+  return state.step === 1 ? ListChecks : CalendarDays;
 }
 
 interface AcceptedProps {

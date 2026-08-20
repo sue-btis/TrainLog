@@ -8,9 +8,7 @@
  * which is the user's and lives on its own screen.
  */
 
-import { Link, useParams } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useParams } from 'react-router';
 import { Card } from '@/components/ui/card';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
 import type { PlannedExercise, Weekday } from '@/domain/types';
@@ -23,7 +21,6 @@ import {
 } from '@/features/data/queries';
 import { plural, programmingLine, weekdayName } from '@/features/ui/format';
 import {
-  ICON_STROKE,
   LABEL,
   ROW,
   ROW_LIST,
@@ -42,28 +39,23 @@ export function RoutineDetailScreen() {
 
   if (routine === null) {
     return (
-      <>
-        <BackLink />
-        <section className={WELL}>
-          <p className="type-title">No such routine</p>
-          <p className="type-body-sm text-ink-2">
-            It may have been deleted. Everything you have imported is on the routines
-            screen.
-          </p>
-        </section>
-      </>
+      <section className={WELL}>
+        <p className="type-title">No such routine</p>
+        <p className="type-body-sm text-ink-2">
+          It may have been deleted. Everything you have imported is on the routines
+          screen.
+        </p>
+      </section>
     );
   }
 
   return (
     <>
-      <BackLink />
-
       <header className="flex flex-col gap-3">
         <span className={chip(routine.status === 'active' ? 'actual' : 'neutral', 'self-start')}>
           {routine.status}
         </span>
-        <h1 className="type-display">{routine.name}</h1>
+        <h2 className="type-display">{routine.name}</h2>
         <p className="type-measure-sm text-ink-3">
           {plural(routine.weeks, 'week')} · {plural(workouts.length, 'workout')} ·{' '}
           {plural(placements.length, 'session')} placed
@@ -74,17 +66,6 @@ export function RoutineDetailScreen() {
         <WorkoutCard key={workout.id} name={workout.name} suggestedDays={workout.suggestedDays} workoutId={workout.id} />
       ))}
     </>
-  );
-}
-
-function BackLink() {
-  return (
-    <Button asChild size="compact" variant="ghost" className="self-start">
-      <Link to="/routines">
-        <ArrowLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-        Routines
-      </Link>
-    </Button>
   );
 }
 

@@ -167,8 +167,13 @@ export const MENU_ITEM = cn(
 
 /* ── Fields ────────────────────────────────────────────────────────────── */
 
-/** A field is a flat white plane with a hairline — no longer a carved cavity. */
-export const FIELD_BASE = `w-full min-h-12 rounded-field bg-field text-ink ring-1 ring-rule px-3 ${FOCUS_RING}`;
+/**
+ * A field takes the well: DESIGN.md already called it "a cavity something goes
+ * into", and a white plane on a white card was that sentence unpainted. The
+ * hairline stays — it is what the invalid ring replaces — but the tint is what
+ * finds the control now, the same tint the weeks readout wears.
+ */
+export const FIELD_BASE = `w-full min-h-12 rounded-field bg-well text-ink ring-1 ring-rule px-3 ${FOCUS_RING}`;
 
 /** Invalid adds a ring in Errata Red — the hue that owns a validation error. */
 export function field(invalid: boolean, extra?: string): string {

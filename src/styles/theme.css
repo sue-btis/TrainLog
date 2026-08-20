@@ -59,7 +59,7 @@
      same paint. The old set spanned 1.03–1.13 in contrast, which is why nothing
      separated from anything and every control needed a ring to be findable. */
   --color-board: #f0f5f5;          --color-card: #FEFEFD;
-  --color-panel: #F3F8F8;          --color-field: #FEFEFD;
+  --color-panel: #F3F8F8;
   --color-well: #EAF2F2;           --color-glass-fill: #FEFEFD8C;
   --color-rule: #7E9EA03D;         --color-scrim: #00000038;
 
