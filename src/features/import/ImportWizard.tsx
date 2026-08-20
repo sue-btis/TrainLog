@@ -38,6 +38,7 @@ import { ActionBar } from '@/features/import/ActionBar';
 import { ExercisesStep } from '@/features/import/ExercisesStep';
 import { FileStep } from '@/features/import/FileStep';
 import { ScheduleStep } from '@/features/import/ScheduleStep';
+import { BottomNav } from '@/features/shell/BottomNav';
 import {
   fieldId,
   indexIssues,
@@ -56,8 +57,8 @@ import {
   COLUMN,
   ICON_STROKE,
   LABEL,
+  RULED,
   SCREEN,
-  WELL,
   button,
   chip,
 } from '@/features/ui/styles';
@@ -197,7 +198,7 @@ export function ImportWizard() {
 
   return (
     <main className={SCREEN}>
-      <div className={cn(COLUMN, state.phase === 'editing' && 'pb-48')} ref={column}>
+      <div className={cn(COLUMN, state.phase === 'editing' ? 'pb-48' : 'pb-32')} ref={column}>
         {state.phase === 'choosing' && (
           <FileStep
             errors={state.errors}
@@ -237,12 +238,19 @@ export function ImportWizard() {
         )}
       </div>
 
+      {state.phase !== 'editing' && <BottomNav />}
+
       {state.phase === 'editing' && (
         <ActionBar
           accepting={state.accepting}
           failure={state.failure}
           issues={issues}
           onAccept={accept}
+          onCancel={() => {
+            setActiveWorkout(0);
+            setOpenRef(null);
+            dispatch({ type: 'restart' });
+          }}
           onJump={jumpToIssue}
           onStep={goToStep}
           step={state.step}
@@ -273,7 +281,7 @@ function Accepted({ summary, onAnother }: AcceptedProps) {
       </header>
 
       <section className={CARD}>
-        <div className={WELL}>
+        <div className="flex flex-col gap-3">
           <span className={LABEL}>stored</span>
           <dl className="grid grid-cols-3 gap-3">
             <Figure label="workouts" value={String(summary.workouts)} />
@@ -287,14 +295,16 @@ function Accepted({ summary, onAnother }: AcceptedProps) {
           </p>
         </div>
 
-        <button className={button('primary', 'block')} onClick={onAnother} type="button">
-          <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Import another routine
-        </button>
-        <Link className={button('ghost', 'block')} to="/harness">
-          <FlaskConical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Open the session harness
-        </Link>
+        <div className={RULED}>
+          <button className={button('primary', 'block')} onClick={onAnother} type="button">
+            <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            Import another routine
+          </button>
+          <Link className={button('ghost', 'block')} to="/harness">
+            <FlaskConical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            Open the session harness
+          </Link>
+        </div>
       </section>
     </>
   );

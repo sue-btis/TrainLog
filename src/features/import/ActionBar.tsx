@@ -19,6 +19,7 @@ import {
   ChevronDown,
   LoaderCircle,
   TriangleAlert,
+  X,
 } from 'lucide-react';
 import type { SemanticIssue } from '@/domain/routine-file';
 import { stepOfIssue } from '@/features/import/issues';
@@ -28,6 +29,7 @@ import { cn } from '@/lib/utils';
 
 interface ActionBarProps {
   readonly step: WizardStep;
+  readonly onCancel: () => void;
   readonly issues: readonly SemanticIssue[];
   readonly accepting: boolean;
   readonly failure: string | null;
@@ -41,12 +43,55 @@ export function ActionBar({
   issues,
   accepting,
   failure,
+  onCancel,
   onStep,
   onAccept,
   onJump,
 }: ActionBarProps) {
   const [listOpen, setListOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const blocked = issues.length > 0;
+
+  // Leaving mid-import throws away every edit and nothing is stored yet, so the
+  // question is asked before it happens — and it takes over the bar rather than
+  // hiding in a corner of it.
+  if (cancelling) {
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-10">
+        <div aria-hidden="true" className="bloom pointer-events-none absolute inset-x-0 bottom-0 h-40" />
+        <div className="glass relative border-t border-rule">
+          <div className="mx-auto flex w-full max-w-lg flex-col gap-3 px-4 py-3">
+            <div className="flex flex-col gap-1">
+              <p className="type-title">Discard this import?</p>
+              <p className="type-body-sm text-ink-2">
+                Nothing has been stored yet, so every correction you made here goes with it.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className={button('quiet', 'compact')}
+                onClick={() => setCancelling(false)}
+                type="button"
+              >
+                Keep editing
+              </button>
+              <button
+                className={button('danger', 'compact', 'ml-auto')}
+                onClick={() => {
+                  setCancelling(false);
+                  onCancel();
+                }}
+                type="button"
+              >
+                <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                Discard it
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-10">
@@ -116,15 +161,22 @@ export function ActionBar({
             </>
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Discard this import"
+              className={button('quiet', 'icon')}
+              onClick={() => setCancelling(true)}
+              type="button"
+            >
+              <X aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            </button>
+
             <div className="flex items-center gap-2">
               <span aria-hidden="true" className="flex gap-1">
                 <span className="h-1.5 w-6 rounded-line bg-planned-ink" />
                 <span className={cn('h-1.5 w-6 rounded-line', step === 2 ? 'bg-planned-ink' : 'bg-well')} />
               </span>
-              <span className="type-label text-ink-3">
-                step {step} of 2 · {step === 1 ? 'exercises' : 'days + weeks'}
-              </span>
+              <span className="type-label text-ink-3">{step} of 2</span>
             </div>
 
             <div className="ml-auto flex items-center gap-2">

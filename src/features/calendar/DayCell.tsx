@@ -1,9 +1,10 @@
 /**
  * One day in the month grid (§11.3).
  *
- * Two rules govern this component. Depth carries meaning — a recorded day is
- * sunk, a planned day is a raised dome with the planned ring, a rest day is a
- * cavity — and state is never carried by colour alone: `completed` and `missed`
+ * Two rules govern this component. Depth carries meaning — a planned day is
+ * raised because it is still ahead of you, and a recorded or rest day is flat
+ * because it is settled — and state is never carried by colour alone:
+ * `completed` and `missed`
  * are the pair a colour-blind lifter must still tell apart at arm's length, so
  * each takes a glyph, and every cell names its state in its accessible label.
  *
@@ -40,13 +41,13 @@ export const STATE_LABEL: Record<DayState, string> = {
 };
 
 const STATE_STYLE: Record<DayState, string> = {
-  // A dome carrying the planned ring: marked, not yet filled — it has not happened.
+  // Raised means "you can still act on this"; flat means it already happened.
   planned: 'bg-card text-planned-ink shadow-dome ring-2 ring-planned-wash ring-inset',
-  completed: 'bg-actual-ink text-on-fill inset-shadow-sunk',
-  partial: 'bg-actual-ink text-on-fill inset-shadow-sunk',
+  completed: 'bg-actual-ink text-on-fill',
+  partial: 'bg-actual-ink text-on-fill',
   in_progress: 'bg-live text-on-live shadow-dome-lift',
-  missed: 'bg-missed-ink text-on-fill inset-shadow-sunk',
-  rest: 'bg-well text-ink-3 inset-shadow-pressed',
+  missed: 'bg-missed-ink text-on-fill',
+  rest: 'bg-well text-ink-3',
 };
 
 interface DayCellProps {

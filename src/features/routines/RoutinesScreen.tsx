@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Archive, ChevronRight, FileUp, Play, Trash2, TriangleAlert } from 'lucide-react';
+import { Archive, ChevronRight, FileUp, Play, ScrollText, Trash2, TriangleAlert } from 'lucide-react';
 import {
   RoutineHasSessionsError,
   activateRoutine,
@@ -23,6 +23,7 @@ import type { RoutineId } from '@/domain/ids';
 import type { Routine } from '@/domain/types';
 import { useRoutines } from '@/features/data/queries';
 import { plural, shortDate } from '@/features/ui/format';
+import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import { CARD, ICON_STROKE, LABEL, WELL, alert, button, chip } from '@/features/ui/styles';
 import { formatLocalDate } from '@/domain/dates';
 
@@ -48,13 +49,12 @@ export function RoutinesScreen() {
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <h1 className="type-display">Routines</h1>
-        <p className="type-lede text-ink-2">
+      <ScreenHeader icon={ScrollText} title="Routines">
+        <p className="type-body-sm text-ink-2">
           Every programme you have imported. One is active at a time; the rest wait,
           archived, with their history intact.
         </p>
-      </header>
+      </ScreenHeader>
 
       <Link className={button('primary', 'block')} to="/import">
         <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
@@ -140,7 +140,7 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
         <div className="ml-auto flex items-center gap-2">
           {confirming && (
             <button
-              className={button('ghost', 'compact')}
+              className={button('quiet', 'compact')}
               onClick={() => setConfirming(false)}
               type="button"
             >
@@ -149,7 +149,11 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
           )}
           <button
             aria-label={confirming ? `Confirm deleting ${routine.name}` : `Delete ${routine.name}`}
-            className={button(confirming ? 'danger' : 'secondary', 'compact')}
+            className={button(
+              'danger',
+              'compact',
+              confirming ? 'shadow-none' : undefined,
+            )}
             onClick={() => {
               if (confirming) {
                 setConfirming(false);

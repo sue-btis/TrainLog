@@ -24,7 +24,8 @@ import {
   CARD,
   ICON_STROKE,
   LABEL,
-  PANEL_CARD,
+  ROW,
+  ROW_LIST,
   WELL,
   button,
   chip,
@@ -107,18 +108,18 @@ function WorkoutCard({ workoutId, name, suggestedDays }: WorkoutCardProps) {
       </div>
 
       {exercises.length === 0 ? (
-        <div className={WELL}>
-          <p className="type-body-sm text-ink-2">This Workout has no exercises.</p>
-        </div>
+        <p className="type-body-sm text-ink-2">This Workout has no exercises.</p>
       ) : (
-        exercises.map((exercise, index) => (
-          <ExerciseRow
-            exercise={exercise}
-            key={exercise.id}
-            name={names?.get(exercise.exerciseId) ?? '…'}
-            position={index + 1}
-          />
-        ))
+        <div className={ROW_LIST}>
+          {exercises.map((exercise, index) => (
+            <ExerciseRow
+              exercise={exercise}
+              key={exercise.id}
+              name={names?.get(exercise.exerciseId) ?? '…'}
+              position={index + 1}
+            />
+          ))}
+        </div>
       )}
     </section>
   );
@@ -132,7 +133,7 @@ interface ExerciseRowProps {
 
 function ExerciseRow({ exercise, name, position }: ExerciseRowProps) {
   return (
-    <article className={PANEL_CARD}>
+    <article className={ROW}>
       <div className="flex items-start gap-3">
         <span className="type-measure-sm text-ink-3">{position}</span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ListChecks, Trash2, TriangleAlert } from 'lucide-react';
 import type {
   ExerciseRef,
   MoveDirection,
@@ -30,11 +30,14 @@ import {
   workoutPath,
   type IssueIndex,
 } from '@/features/import/issues';
+import { plural } from '@/features/ui/format';
+import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import {
   FOCUS_RING,
   ICON_STROKE,
   LABEL,
   PANEL_CARD,
+  RULED,
   WELL,
   button,
   chip,
@@ -77,12 +80,13 @@ export function ExercisesStep({
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <h1 className="type-display">Review the exercises</h1>
-        <p className="type-measure text-ink-3">
-          {file.routine.name} · {workouts.length} {workouts.length === 1 ? 'Workout' : 'Workouts'}
-        </p>
-      </header>
+      {/* Two lines under the title, not one: a long routine name plus a count
+          wraps mid-phrase at 390px. The name is prose and takes the UI face;
+          the count is data and takes the mono provenance line. */}
+      <ScreenHeader icon={ListChecks} title="Review the exercises">
+        <p className="type-body-sm text-ink-2">{file.routine.name}</p>
+        <p className="type-lot text-ink-3">{plural(workouts.length, 'workout')}</p>
+      </ScreenHeader>
 
       {workouts.length > 1 && (
         <div
@@ -235,8 +239,8 @@ function ExerciseRow({
       )}
 
       {expanded && (
-        <div className="flex flex-col gap-3" id={`${fieldId(base)}-editor`}>
-          <div className={WELL}>
+        <div className={RULED} id={`${fieldId(base)}-editor`}>
+          <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <NumberField
                 error={errorFor(`${base}.sets`)}
@@ -304,7 +308,6 @@ function ExerciseRow({
 
           <ProgressionRow
             error={errorFor(`${base}.progression.type`)}
-            exercise={exercise}
             id={fieldId(`${base}.progression.type`)}
             onUseManual={() => patch({ progression: { type: 'manual' } })}
           />
@@ -312,7 +315,7 @@ function ExerciseRow({
           <div className="flex flex-wrap items-center gap-2">
             <button
               aria-label={`Move ${exercise.name} up`}
-              className={button('secondary', 'icon')}
+              className={button('nav', 'icon')}
               disabled={isFirst}
               onClick={() => onMove(exerciseRef, -1)}
               type="button"
@@ -321,7 +324,7 @@ function ExerciseRow({
             </button>
             <button
               aria-label={`Move ${exercise.name} down`}
-              className={button('secondary', 'icon')}
+              className={button('nav', 'icon')}
               disabled={isLast}
               onClick={() => onMove(exerciseRef, 1)}
               type="button"
@@ -332,7 +335,7 @@ function ExerciseRow({
             <div className="ml-auto flex items-center gap-2">
               {confirmingDelete && (
                 <button
-                  className={button('ghost', 'compact')}
+                  className={button('quiet', 'compact')}
                   onClick={() => setConfirmingDelete(false)}
                   type="button"
                 >
@@ -345,7 +348,14 @@ function ExerciseRow({
                     ? `Confirm removing ${exercise.name}`
                     : `Remove ${exercise.name}`
                 }
-                className={button(confirmingDelete ? 'danger' : 'secondary', 'compact')}
+                className={button(
+                  'danger',
+                  'compact',
+                  // Armed: the same red, pressed into the card. Depth carries
+                  // the escalation because the hue is already spent naming it
+                  // destructive at rest.
+                  confirmingDelete ? 'shadow-none' : undefined,
+                )}
                 onClick={() => {
                   if (confirmingDelete) onDelete(exerciseRef);
                   else setConfirmingDelete(true);
@@ -369,13 +379,20 @@ interface SummaryProps {
   readonly defaultUnit: Unit;
 }
 
-/** What the row says when it is closed: the exercise, as the programme states it. */
+/**
+ * What the row says when it is closed: the exercise, as the programme states it.
+ *
+ * The progression sits between the name and the targets because that is what it
+ * is — not a target for today but the rule that decides the next one, so it
+ * reads as provenance under the title rather than as another number in the row.
+ */
 function Summary({ exercise, position, defaultUnit }: SummaryProps) {
   return (
     <>
       <span className="type-measure-sm text-ink-3">{position}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="type-title truncate">{exercise.name}</span>
+        <span className="type-lot text-ink-3">{progressionLine(exercise)}</span>
         <span className="type-measure-sm text-ink-3">
           {programmingLine(exercise, defaultUnit)}
         </span>
@@ -385,7 +402,6 @@ function Summary({ exercise, position, defaultUnit }: SummaryProps) {
 }
 
 interface ProgressionRowProps {
-  readonly exercise: RoutineFileExercise;
   readonly error: string | null;
   /** The repair button's id, so the action bar can jump to this issue. */
   readonly id: string;
@@ -398,29 +414,24 @@ interface ProgressionRowProps {
  * to be corrected in the wizard. An unrecognized type has exactly two honest
  * outcomes: run the exercise on manual progression, or remove it.
  */
-function ProgressionRow({ exercise, error, id, onUseManual }: ProgressionRowProps) {
+function ProgressionRow({ error, id, onUseManual }: ProgressionRowProps) {
+  if (error === null) return null; // the summary already states the rule
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className={LABEL}>progression</span>
-        <span className="type-measure-sm text-ink-2">{progressionLine(exercise)}</span>
-      </div>
-      {error !== null && (
-        <>
-          <p className="type-caption order-last w-full text-missed-ink" id={`${id}-error`}>
-            {error}
-          </p>
-          <button
-            aria-describedby={`${id}-error`}
-            className={button('secondary', 'compact')}
-            id={id}
-            onClick={onUseManual}
-            type="button"
-          >
-            Use manual progression
-          </button>
-        </>
-      )}
+      <p className="type-caption order-last w-full text-missed-ink" id={`${id}-error`}>
+        {error}
+      </p>
+      <span className={LABEL}>progression</span>
+      <button
+        aria-describedby={`${id}-error`}
+        className={button('secondary', 'compact')}
+        id={id}
+        onClick={onUseManual}
+        type="button"
+      >
+        Use manual progression
+      </button>
     </div>
   );
 }

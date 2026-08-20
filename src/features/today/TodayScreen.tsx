@@ -15,7 +15,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Activity, FileUp, Timer } from 'lucide-react';
+import { Activity, Dumbbell, FileUp, Timer } from 'lucide-react';
 import { formatLocalDate } from '@/domain/dates';
 import type { WorkoutId } from '@/domain/ids';
 import { estimateDuration, nextWorkoutInRotation } from '@/domain/scheduling';
@@ -31,11 +31,13 @@ import {
   useWorkouts,
 } from '@/features/data/queries';
 import { longDate, plural, programmingLine, shortDate } from '@/features/ui/format';
+import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import {
   CARD,
   ICON_STROKE,
   LABEL,
-  PANEL_CARD,
+  ROW,
+  ROW_LIST,
   WELL,
   alert,
   button,
@@ -77,10 +79,10 @@ export function TodayScreen() {
         </div>
       )}
 
-      <header className="flex flex-col gap-1">
-        <p className={LABEL}>{longDate(today)}</p>
-        {routine !== undefined && <p className="type-measure-sm text-ink-3">{routine.name}</p>}
-      </header>
+      <ScreenHeader icon={Dumbbell} title="Today">
+        <p className="type-body-sm text-ink-2">{longDate(today)}</p>
+        {routine !== undefined && <p className="type-lot text-ink-3">{routine.name}</p>}
+      </ScreenHeader>
 
       {routine === undefined ? (
         <NoRoutine />
@@ -155,21 +157,21 @@ function WorkoutCard({ workout }: { readonly workout: Workout }) {
       </div>
 
       {exercises.length === 0 ? (
-        <div className={WELL}>
-          <p className="type-body-sm text-ink-2">This Workout has no exercises.</p>
-        </div>
+        <p className="type-body-sm text-ink-2">This Workout has no exercises.</p>
       ) : (
-        exercises.map((exercise, index) => (
-          <article className={PANEL_CARD} key={exercise.id}>
-            <div className="flex items-start gap-3">
-              <span className="type-measure-sm text-ink-3">{index + 1}</span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="type-title">{names?.get(exercise.exerciseId) ?? '…'}</span>
-                <span className="type-measure-sm text-ink-3">{programmingLine(exercise)}</span>
+        <div className={ROW_LIST}>
+          {exercises.map((exercise, index) => (
+            <article className={ROW} key={exercise.id}>
+              <div className="flex items-start gap-3">
+                <span className="type-measure-sm text-ink-3">{index + 1}</span>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="type-title">{names?.get(exercise.exerciseId) ?? '…'}</span>
+                  <span className="type-measure-sm text-ink-3">{programmingLine(exercise)}</span>
+                </div>
               </div>
-            </div>
-          </article>
-        ))
+            </article>
+          ))}
+        </div>
       )}
     </section>
   );

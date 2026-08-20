@@ -13,7 +13,7 @@
  */
 
 import { useState } from 'react';
-import { CalendarOff, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { deletePlacement, movePlacement } from '@/db';
 import {
   addDays,
@@ -34,10 +34,13 @@ import {
 } from '@/features/data/queries';
 import { longDate, monthName, plural } from '@/features/ui/format';
 import { DayCell, STATE_LABEL, STATE_ORDER } from '@/features/calendar/DayCell';
+import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import {
   CARD,
   ICON_STROKE,
   LABEL,
+  ROW,
+  ROW_LIST,
   WELL,
   button,
   chip,
@@ -72,18 +75,17 @@ export function CalendarScreen() {
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <h1 className="type-display">Calendar</h1>
-        <p className="type-lede text-ink-2">
+      <ScreenHeader icon={CalendarDays} title="Calendar">
+        <p className="type-body-sm text-ink-2">
           What you planned and what you did. A day nobody planned is rest, not a failure.
         </p>
-      </header>
+      </ScreenHeader>
 
       <section className={CARD}>
         <div className="flex items-center gap-2">
           <button
             aria-label="Previous month"
-            className={button('secondary', 'icon')}
+            className={button('nav', 'icon')}
             onClick={() => goToMonth(-1)}
             type="button"
           >
@@ -92,7 +94,7 @@ export function CalendarScreen() {
           <h2 className="flex-1 text-center type-title">{monthName(month)}</h2>
           <button
             aria-label="Next month"
-            className={button('secondary', 'icon')}
+            className={button('nav', 'icon')}
             onClick={() => goToMonth(1)}
             type="button"
           >
@@ -207,13 +209,9 @@ function DaySheet({ date, placements, sessions, workouts, onMoved }: DaySheetPro
       <h2 className="type-title">{longDate(date)}</h2>
 
       {placements.length === 0 && sessions.length === 0 ? (
-        <div className={WELL}>
-          <p className="type-body-sm text-ink-2">
-            Nothing planned, nothing recorded. A rest day.
-          </p>
-        </div>
+        <p className="type-body-sm text-ink-2">Nothing planned, nothing recorded. A rest day.</p>
       ) : (
-        <>
+        <div className={ROW_LIST}>
           {placements.map((placement) => (
             <PlacementRow
               key={placement.id}
@@ -225,7 +223,7 @@ function DaySheet({ date, placements, sessions, workouts, onMoved }: DaySheetPro
           {sessions.map((session) => (
             <SessionRow key={session.id} name={nameOf(session.workoutId)} session={session} />
           ))}
-        </>
+        </div>
       )}
     </section>
   );
@@ -242,7 +240,7 @@ function PlacementRow({ placement, name, onMoved }: PlacementRowProps) {
   const moveId = `move-${placement.id}`;
 
   return (
-    <article className={WELL}>
+    <article className={cn(ROW, 'gap-3')}>
       <div className="flex items-center gap-2">
         <span className={chip('planned')}>planned</span>
         <span className="min-w-0 flex-1 truncate type-title">{name}</span>
@@ -270,7 +268,7 @@ function PlacementRow({ placement, name, onMoved }: PlacementRowProps) {
         <div className="flex items-center gap-2">
           {confirming && (
             <button
-              className={button('ghost', 'compact')}
+              className={button('quiet', 'compact')}
               onClick={() => setConfirming(false)}
               type="button"
             >
@@ -279,7 +277,11 @@ function PlacementRow({ placement, name, onMoved }: PlacementRowProps) {
           )}
           <button
             aria-label={confirming ? `Confirm deleting the ${name} placement` : `Delete the ${name} placement`}
-            className={button(confirming ? 'danger' : 'secondary', 'compact')}
+            className={button(
+              'danger',
+              'compact',
+              confirming ? 'shadow-none' : undefined,
+            )}
             onClick={() => {
               if (confirming) void deletePlacement(placement.id);
               else setConfirming(true);
@@ -305,7 +307,7 @@ function SessionRow({ session, name }: { readonly session: Session; readonly nam
     session.status === 'completed' ? 'actual' : session.status === 'partial' ? 'missed' : 'neutral';
 
   return (
-    <article className={cn(WELL)}>
+    <article className={ROW}>
       <div className="flex items-center gap-2">
         <span className={chip(tone)}>{session.status.replace('_', ' ')}</span>
         <span className="min-w-0 flex-1 truncate type-title">{name}</span>

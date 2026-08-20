@@ -104,6 +104,31 @@ screenshots time out and nobody has looked at the rendered page.
 - `src/features/ui/format.ts` added for the shared date and programming
   formatters.
 
+### Phone access, added on request after implementation
+
+The change owner asked to open the app on a real phone. That touched three files
+this spec fences — `package.json`, `vite.config.ts` and `.claude/launch.json` —
+under their explicit authority, and is recorded here rather than folded silently
+into the change:
+
+- `@vitejs/plugin-basic-ssl@2.3.0` added as a **devDependency**. It configures
+  the dev server only and never ships; `pnpm build` output is unchanged.
+- `vite.config.ts` became a function of `mode`. `pnpm dev` is unchanged — plain
+  HTTP, loopback only. `pnpm dev:phone` (`vite --mode phone`) binds every
+  interface and serves HTTPS.
+- `dev:phone` script, and a matching `trainlog-phone` entry in `launch.json`.
+  The `design-preview` and `trainlog` entries are untouched.
+
+HTTPS is a requirement rather than a preference: `newId()` is
+`crypto.randomUUID()`, which exists only in a secure context. Over plain
+`http://<lan-ip>` every screen renders and every write that generates an id
+throws. Verified: `pnpm dev` serves `http://localhost:5173` with
+`isSecureContext === true`; `pnpm dev:phone` serves
+`https://192.168.100.223:5173` returning the app. The certificate is
+self-signed, so the in-app browser refuses it — which is why HTTPS is gated
+behind a mode rather than made the default, so automated verification keeps
+working on `pnpm dev`.
+
 ## Known Follow-ups
 
 - `ScheduleStep.tsx` in the import wizard still carries a private `longDate`

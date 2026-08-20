@@ -28,16 +28,34 @@ export const COLUMN = 'relative mx-auto flex w-full max-w-lg flex-col gap-4 px-4
 
 /* ── Surfaces ──────────────────────────────────────────────────────────── */
 
-/** A card on the board. Cards never nest — a region inside one is a `WELL`. */
-export const CARD =
-  'bg-card text-ink rounded-card border border-rule shadow-lift p-5 flex flex-col gap-4';
+/**
+ * A card on the board: a solid near-white face with a soft drop under it. No
+ * border — with the board a full step darker, the shadow separates it, and a
+ * hairline on top of that reads as a second outline.
+ */
+export const CARD = 'bg-card text-ink rounded-card shadow-lift p-5 flex flex-col gap-4';
 
-/** The quiet support surface, for a row in a list of many. */
-export const PANEL_CARD =
-  'bg-panel text-ink rounded-card border border-rule p-4 flex flex-col gap-3';
+/** A row that is its own object on the board — same face, a shallower drop. */
+export const PANEL_CARD = 'bg-card text-ink rounded-card shadow-dome p-4 flex flex-col gap-3';
 
-/** A cavity in the board: readouts, groups of fields, empty states. */
-export const WELL = 'bg-well rounded-field inset-shadow-pressed p-4 flex flex-col gap-3';
+/**
+ * An inert region on the board: an empty state, a readout, something settled.
+ * Same face as a card and no shadow at all — flat means there is nothing here
+ * to press. It never sits inside a card; board → card → well would be three
+ * stacked surfaces for what one can hold, which is the nested-card mistake
+ * wearing a different name.
+ */
+export const WELL = 'bg-card text-ink rounded-card p-4 flex flex-col gap-3';
+
+/**
+ * How a card holds a list. Rows are separated by a hairline and by space, never
+ * by a second surface (DESIGN.md: cards never nest).
+ */
+export const ROW_LIST = 'flex flex-col divide-y divide-rule';
+export const ROW = 'flex flex-col gap-1.5 py-4 first:pt-0 last:pb-0';
+
+/** A block inside a card set off from what precedes it, without a new surface. */
+export const RULED = 'flex flex-col gap-3 border-t border-rule pt-4';
 
 /* ── Type ──────────────────────────────────────────────────────────────── */
 
@@ -61,9 +79,8 @@ export const PRESS =
 const BUTTON_BASE =
   `inline-flex items-center justify-center gap-2 min-h-12 rounded-control type-title ${PRESS} ${FOCUS_RING} disabled:pointer-events-none`;
 
-/** Disabled sinks into the board rather than fading out (DESIGN.md Buttons). */
-const BUTTON_DISABLED =
-  'disabled:bg-well disabled:text-ink-3 disabled:shadow-none disabled:inset-shadow-pressed';
+/** Disabled goes flat rather than fading out: no shadow means nothing to press. */
+const BUTTON_DISABLED = 'disabled:bg-well disabled:text-ink-3 disabled:shadow-none';
 
 const BUTTON_VARIANT = {
   /** Green, because the primary action is always "record what happened". */
@@ -72,6 +89,25 @@ const BUTTON_VARIANT = {
   secondary: `bg-card text-ink shadow-dome hover:shadow-dome-lift hover:-translate-y-0.5 ${BUTTON_DISABLED}`,
   ghost: 'bg-transparent text-planned-ink hover:bg-planned-wash disabled:text-ink-3',
   danger: `bg-missed-ink text-on-fill shadow-lift hover:bg-missed-deep ${BUTTON_DISABLED}`,
+  /**
+   * Navigation, not action: reordering, paging a month. Instrument Blue is
+   * already this system's navigation hue — the active nav item and the focus
+   * ring are both blue — so a light wash of it reads as "move", never as
+   * "record".
+   *
+   * The wash alone is only 1.13:1 against the panel, so the boundary is carried
+   * by the ring at 4.97:1, which is what makes the control findable. This is
+   * the visible cousin of glass: on a flat white board a real backdrop-filter
+   * has nothing to blur (the Visible-Glass Rule), so the light tinted face and
+   * the soft dome pair do the work instead.
+   */
+  nav: `bg-planned-wash text-planned-ink ring-1 ring-planned shadow-dome hover:bg-card hover:shadow-dome-lift hover:-translate-y-0.5 ${BUTTON_DISABLED}`,
+  /**
+   * The way out of a destructive confirm. It needs a body of its own so it is
+   * not a hole in the card, and it must stay subordinate to the red beside it,
+   * so it takes the neutral cavity colour with a muted ring rather than a hue.
+   */
+  quiet: `bg-well text-ink ring-1 ring-ink-3 shadow-dome hover:bg-card ${BUTTON_DISABLED}`,
 } as const;
 
 const BUTTON_SIZE = {
@@ -104,7 +140,7 @@ export function tab(active: boolean, extra?: string): string {
     PRESS,
     FOCUS_RING,
     active
-      ? 'bg-planned-ink text-on-fill inset-shadow-sunk'
+      ? 'bg-planned-ink text-on-fill shadow-none'
       : 'bg-card text-ink-2 shadow-dome hover:shadow-dome-lift',
     extra,
   );
@@ -112,8 +148,8 @@ export function tab(active: boolean, extra?: string): string {
 
 /* ── Fields ────────────────────────────────────────────────────────────── */
 
-/** A field is a cavity something goes into: white, recessed, no border. */
-const FIELD_BASE = `w-full min-h-12 rounded-field bg-field text-ink inset-shadow-pressed px-3 ${FOCUS_RING}`;
+/** A field is a flat white plane with a hairline — no longer a carved cavity. */
+const FIELD_BASE = `w-full min-h-12 rounded-field bg-field text-ink ring-1 ring-rule px-3 ${FOCUS_RING}`;
 
 /** Invalid adds a ring in Errata Red — the hue that owns a validation error. */
 export function field(invalid: boolean, extra?: string): string {

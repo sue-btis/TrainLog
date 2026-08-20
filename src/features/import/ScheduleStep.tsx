@@ -10,13 +10,14 @@
  * run at Accept, so what is previewed is what gets written.
  */
 
-import { Minus, Plus } from 'lucide-react';
+import { CalendarDays, Minus, Plus } from 'lucide-react';
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
 import type { RoutineFile, SemanticIssue } from '@/domain/routine-file';
 import { generatePlacements } from '@/domain/scheduling';
 import type { Weekday, Workout } from '@/domain/types';
 import { describeIssue, fieldId, workoutPath } from '@/features/import/issues';
+import { ScreenHeader } from '@/features/ui/ScreenHeader';
 import { MAX_WEEKS, MIN_WEEKS } from '@/features/import/state';
 import {
   CARD,
@@ -56,13 +57,11 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <h1 className="type-display">Days and weeks</h1>
-        <p className="type-lede text-ink-2">
-          These are the days your file suggested. Change them if your week looks different,
-          then decide how long the programme runs.
+      <ScreenHeader icon={CalendarDays} title="Days and weeks">
+        <p className="type-body-sm text-ink-2">
+          These are the days your file suggested. Change them if your week looks different.
         </p>
-      </header>
+      </ScreenHeader>
 
       <section className={CARD}>
         <div className="flex items-center justify-between gap-4">
@@ -82,7 +81,7 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
             </button>
             <output
               aria-label={`${weeks} weeks`}
-              className="min-w-14 rounded-field bg-well px-3 py-2 text-center type-readout inset-shadow-pressed"
+              className="min-w-14 rounded-field bg-well px-3 py-2 text-center type-readout"
             >
               {weeks}
             </output>
@@ -147,9 +146,9 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
                       PRESS,
                       FOCUS_RING,
                       conflicted
-                        ? 'bg-missed-ink text-on-fill inset-shadow-sunk'
+                        ? 'bg-missed-ink text-on-fill'
                         : on
-                          ? 'bg-planned-ink text-on-fill inset-shadow-sunk'
+                          ? 'bg-planned-ink text-on-fill'
                           : 'bg-card text-ink-3 shadow-dome hover:shadow-dome-lift',
                     )}
                     key={day}
