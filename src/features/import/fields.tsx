@@ -9,7 +9,16 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { LABEL, field } from '@/features/ui/styles';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 interface FieldFrameProps {
@@ -24,9 +33,7 @@ interface FieldFrameProps {
 function FieldFrame({ id, label, error, className, children }: FieldFrameProps) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <label className={LABEL} htmlFor={id}>
-        {label}
-      </label>
+      <Label htmlFor={id}>{label}</Label>
       {children}
       {error !== null && (
         <p className="type-caption text-missed-ink" id={`${id}-error`}>
@@ -72,11 +79,12 @@ export function NumberField({
 
   return (
     <FieldFrame id={id} label={label} error={error} className={className}>
-      <input
+      <Input
         aria-describedby={error === null ? undefined : `${id}-error`}
         aria-invalid={error !== null}
-        className={field(error !== null, 'type-measure')}
+        className="type-measure"
         id={id}
+        invalid={error !== null}
         inputMode="numeric"
         onBlur={() => setDraft(null)}
         onChange={(event) => change(event.target.value)}
@@ -106,18 +114,18 @@ export function SelectField<T extends string>({
 }: SelectFieldProps<T>) {
   return (
     <FieldFrame id={id} label={label} error={null} className={className}>
-      <select
-        className={field(false, 'type-measure')}
-        id={id}
-        onChange={(event) => onCommit(event.target.value as T)}
-        value={value}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <Select onValueChange={(next) => onCommit(next as T)} value={value}>
+        <SelectTrigger className="type-measure" id={id}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem className="type-measure" key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </FieldFrame>
   );
 }
@@ -139,8 +147,8 @@ export function NotesField({ id, label, value, onCommit }: NotesFieldProps) {
 
   return (
     <FieldFrame id={id} label={label} error={null}>
-      <textarea
-        className={field(false, 'type-body-sm py-3 leading-relaxed')}
+      <Textarea
+        className="type-body-sm leading-relaxed"
         id={id}
         onBlur={() => setDraft(null)}
         onChange={(event) => {

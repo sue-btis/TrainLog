@@ -11,6 +11,8 @@
  */
 
 import { Minus, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
 import type { RoutineFile, SemanticIssue } from '@/domain/routine-file';
@@ -19,13 +21,11 @@ import type { Weekday, Workout } from '@/domain/types';
 import { describeIssue, fieldId, workoutPath } from '@/features/import/issues';
 import { MAX_WEEKS, MIN_WEEKS } from '@/features/import/state';
 import {
-  CARD,
   FOCUS_RING,
   ICON_STROKE,
   LABEL,
   PRESS,
   WELL,
-  button,
   chip,
 } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -56,48 +56,46 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <h1 className="type-display">Days and weeks</h1>
-        <p className="type-lede text-ink-2">
-          These are the days your file suggested. Change them if your week looks different,
-          then decide how long the programme runs.
-        </p>
-      </header>
+      <p className="type-lede text-ink-2">
+        These are the days your file suggested. Change them if your week looks different.
+      </p>
 
-      <section className={CARD}>
+      <Card>
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
             <span className={LABEL}>weeks</span>
             <span className="type-body-sm text-ink-2">How long this Routine runs.</span>
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <Button
               aria-label="One week fewer"
-              className={button('secondary', 'icon')}
               disabled={weeks <= MIN_WEEKS}
               onClick={() => onWeeksBy(-1)}
+              size="icon"
               type="button"
+              variant="secondary"
             >
               <Minus aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            </button>
+            </Button>
             <output
               aria-label={`${weeks} weeks`}
-              className="min-w-14 rounded-field bg-well px-3 py-2 text-center type-readout inset-shadow-pressed"
+              className="min-w-14 rounded-field bg-well px-3 py-2 text-center type-readout"
             >
               {weeks}
             </output>
-            <button
+            <Button
               aria-label="One week more"
-              className={button('secondary', 'icon')}
               disabled={weeks >= MAX_WEEKS}
               onClick={() => onWeeksBy(1)}
+              size="icon"
               type="button"
+              variant="secondary"
             >
               <Plus aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            </button>
+            </Button>
           </div>
         </div>
-      </section>
+      </Card>
 
       {file.routine.workouts.map((workout, index) => {
         // A day this Workout claims that another one claims too — the clash of
@@ -115,12 +113,12 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
         const errorId = `${fieldId(workoutPath(index))}-days-error`;
 
         return (
-          <section
-            className={cn(CARD, 'focus-visible:outline-none')}
-            id={fieldId(workoutPath(index))}
-            key={`${workout.name}-${index}`}
-            tabIndex={-1}
-          >
+          <Card asChild className="focus-visible:outline-none">
+            <section
+              id={fieldId(workoutPath(index))}
+              key={`${workout.name}-${index}`}
+              tabIndex={-1}
+            >
             <div className="flex flex-col gap-1">
               <h2 className="type-title">{workout.name}</h2>
               <p className="type-measure-sm text-ink-3">
@@ -147,9 +145,9 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
                       PRESS,
                       FOCUS_RING,
                       conflicted
-                        ? 'bg-missed-ink text-on-fill inset-shadow-sunk'
+                        ? 'bg-missed-ink text-on-fill'
                         : on
-                          ? 'bg-planned-ink text-on-fill inset-shadow-sunk'
+                          ? 'bg-planned-ink text-on-fill'
                           : 'bg-card text-ink-3 shadow-dome hover:shadow-dome-lift',
                     )}
                     key={day}
@@ -174,7 +172,8 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
                 still put it on the calendar yourself later.
               </p>
             )}
-          </section>
+            </section>
+          </Card>
         );
       })}
 

@@ -10,12 +10,21 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FlaskConical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { RoutineId } from '@/domain/ids';
 import { SessionPanel } from '@/features/harness/SessionPanel';
+import { TopBar } from '@/features/shell/TopBar';
 import { useRoutines } from '@/features/harness/queries';
-import { INPUT, LABEL } from '@/features/harness/styles';
-import { COLUMN, ICON_STROKE, SCREEN, button } from '@/features/ui/styles';
+import { LABEL } from '@/features/harness/styles';
+import { COLUMN, ICON_STROKE, SCREEN } from '@/features/ui/styles';
 
 export function Harness() {
   const routines = useRoutines() ?? [];
@@ -24,31 +33,42 @@ export function Harness() {
 
   return (
     <main className={SCREEN}>
+      <TopBar
+        back={{ to: '/today' }}
+        backLabel="Back to Today"
+        icon={FlaskConical}
+        title="Session harness"
+      />
+
       <div className={COLUMN}>
         <header className="flex flex-col gap-2">
-          <h1 className="type-display">Session harness</h1>
           <p className="type-caption text-ink-3">
             Drives the execution flow of PRD §47 end to end against IndexedDB.
           </p>
-          <Link className={button('ghost', 'compact', 'self-start')} to="/import">
-            <ArrowLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            Import a routine
-          </Link>
-          <label className="flex flex-col gap-1">
+          <Button asChild size="compact" variant="ghost" className="self-start">
+            <Link to="/import">
+              <ArrowLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              Import a routine
+            </Link>
+          </Button>
+          <div className="flex flex-col gap-1">
             <span className={LABEL}>routine</span>
-            <select
-              className={INPUT}
-              onChange={(event) => setPicked(event.target.value as RoutineId)}
+            <Select
+              onValueChange={(next) => setPicked(next as RoutineId)}
               value={routineId ?? ''}
             >
-              {routines.length === 0 && <option value="">no routine imported yet</option>}
-              {routines.map((routine) => (
-                <option key={routine.id} value={routine.id}>
-                  {routine.name} · {routine.status}
-                </option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger className="type-measure">
+                <SelectValue placeholder="no routine imported yet" />
+              </SelectTrigger>
+              <SelectContent>
+                {routines.map((routine) => (
+                  <SelectItem className="type-measure" key={routine.id} value={routine.id}>
+                    {routine.name} · {routine.status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </header>
 
         <SessionPanel routineId={routineId} />

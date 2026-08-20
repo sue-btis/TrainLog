@@ -100,12 +100,16 @@ Load-bearing decisions are recorded in [docs/adr/](./docs/adr/).
   establish them — and must not imply any that were not created.
 - Existing written voice (README, CONTEXT, AGENTS) is terse, concrete and declarative, and
   is the only established voice reference.
-- **Pinned aesthetic preference (user, standing):** whitish palette, neumorphic soft mass,
+- **Pinned aesthetic preference (user, standing):** whitish palette, soft mass with real depth,
   some glass, rounded forms, colourful, animated. Binding on future visual work.
+  **Amended 2026-08-20:** the concave half of neumorphism is rejected. Nothing is carved into the
+  board; objects sit *on* it under a single soft drop. Surfaces are near-white on a board a full
+  step darker — never a stack of near-identical greys.
 - **Committed visual world:** Dose Card — a whitish board, a clear film, and convex domes you press
-  one at a time. Soft-UI depth (paired cool/white shadows), frosted glass containers, fully rounded
+  one at a time. Soft depth from a single drop in the board's own hue, frosted glass containers, fully rounded
   cells, and a five-hue semantic set where colour names a state: blue Planned, green Actual, violet
-  Progression, red Missed, amber Live. Recorded in [DESIGN.md](./DESIGN.md); first built surface is
+  Progression, red Missed, amber Live. Depth has two positions only: raised is pressable, flat is
+  settled. Recorded in [DESIGN.md](./DESIGN.md); first built surface is
   `design/preview.html`. **Supersedes Cloud Quarry** (chamfered cut-edges, blue-only), which the
   user replaced on 2026-08-18 as incompatible with the rounded, multi-colour brief.
 - **The glossary outranks the world.** CONTEXT.md governs all user-facing language; the

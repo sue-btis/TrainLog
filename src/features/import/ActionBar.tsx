@@ -1,6 +1,10 @@
 /**
- * The wizard's action bar: where the user is, what is in the way, and the one
- * thing to do next.
+ * The wizard's action bar: what is in the way, and the one thing to do next.
+ *
+ * Leaving is not one of those things, so the way out is a quiet link at the top
+ * of the column, where every other screen in this app puts Back. The bar still
+ * owns the question it raises — a discard is destructive and the answer belongs
+ * in the thumb zone — but it no longer carries a red X next to Next.
  *
  * It is fixed in the thumb zone because the app is operated one-handed, and it
  * carries the outstanding semantic issues because a long Step 1 otherwise
@@ -19,15 +23,21 @@ import {
   ChevronDown,
   LoaderCircle,
   TriangleAlert,
+  X,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { SemanticIssue } from '@/domain/routine-file';
 import { stepOfIssue } from '@/features/import/issues';
 import type { WizardStep } from '@/features/import/state';
-import { FOCUS_RING, ICON_STROKE, alert, button } from '@/features/ui/styles';
+import { FOCUS_RING, ICON_STROKE, alert } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 interface ActionBarProps {
   readonly step: WizardStep;
+  /** Raised by the column's Leave link; answered here. */
+  readonly confirmingCancel: boolean;
+  readonly onConfirmCancel: (asking: boolean) => void;
+  readonly onCancel: () => void;
   readonly issues: readonly SemanticIssue[];
   readonly accepting: boolean;
   readonly failure: string | null;
@@ -41,12 +51,56 @@ export function ActionBar({
   issues,
   accepting,
   failure,
+  confirmingCancel,
+  onConfirmCancel,
+  onCancel,
   onStep,
   onAccept,
   onJump,
 }: ActionBarProps) {
   const [listOpen, setListOpen] = useState(false);
   const blocked = issues.length > 0;
+
+  // Leaving mid-import throws away every edit and nothing is stored yet, so the
+  // question is asked before it happens — and it takes over the bar rather than
+  // hiding in a corner of it.
+  if (confirmingCancel) {
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-10">
+        <div aria-hidden="true" className="bloom pointer-events-none absolute inset-x-0 bottom-0 h-40" />
+        <div className="glass relative border-t border-rule">
+          <div className="mx-auto flex w-full max-w-lg flex-col gap-3 px-4 py-3">
+            <div className="flex flex-col gap-1">
+              <p className="type-title">Discard this import?</p>
+              <p className="type-body-sm text-ink-2">
+                Nothing has been stored yet, so every correction you made here goes with it.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => onConfirmCancel(false)}
+                size="compact"
+                type="button"
+                variant="quiet"
+              >
+                Keep editing
+              </Button>
+              <Button
+                className="ml-auto"
+                onClick={onCancel}
+                size="compact"
+                type="button"
+                variant="danger"
+              >
+                <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+                Discard it
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-10">
@@ -116,43 +170,36 @@ export function ActionBar({
             </>
           )}
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span aria-hidden="true" className="flex gap-1">
-                <span className="h-1.5 w-6 rounded-line bg-planned-ink" />
-                <span className={cn('h-1.5 w-6 rounded-line', step === 2 ? 'bg-planned-ink' : 'bg-well')} />
-              </span>
-              <span className="type-label text-ink-3">
-                step {step} of 2 · {step === 1 ? 'exercises' : 'days + weeks'}
-              </span>
-            </div>
-
+          <div className="flex items-center gap-2">
             <div className="ml-auto flex items-center gap-2">
               {step === 2 && (
-                <button
-                  className={button('secondary', 'control')}
+                <Button
                   onClick={() => onStep(1)}
+                  size="control"
                   type="button"
+                  variant="secondary"
                 >
                   <ArrowLeft aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
                   Back
-                </button>
+                </Button>
               )}
               {step === 1 ? (
-                <button
-                  className={button('primary', 'control')}
+                <Button
                   onClick={() => onStep(2)}
+                  size="control"
                   type="button"
+                  variant="primary"
                 >
                   Next
                   <ArrowRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-                </button>
+                </Button>
               ) : (
-                <button
-                  className={button('primary', 'control')}
+                <Button
                   disabled={blocked || accepting}
                   onClick={onAccept}
+                  size="control"
                   type="button"
+                  variant="primary"
                 >
                   {accepting ? (
                     <LoaderCircle aria-hidden="true" className="animate-spin" size={18} strokeWidth={ICON_STROKE} />
@@ -160,7 +207,7 @@ export function ActionBar({
                     <Check aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
                   )}
                   {accepting ? 'Importing' : 'Accept'}
-                </button>
+                </Button>
               )}
             </div>
           </div>

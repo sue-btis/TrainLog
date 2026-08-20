@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { parseLocalDate, toLocalDate, type LocalDate } from '@/domain/dates';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
-import type { Placement, Session, Weekday, Workout } from '@/domain/types';
+import type {
+  Placement,
+  PlannedExercise,
+  Session,
+  Weekday,
+  Workout,
+} from '@/domain/types';
 import {
+  DEFAULT_REST_SECONDS,
+  ROUNDING_MINUTES,
+  WORK_SECONDS_PER_SET,
+  dayState,
+  estimateDuration,
   generatePlacements,
   isMissed,
   nextWorkoutInRotation,
@@ -138,5 +149,117 @@ describe('isMissed (TST-009, REQ-044)', () => {
 
     expect(isMissed(target, sessions, today)).toBe(true);
     expect(JSON.stringify({ target, sessions })).toBe(before);
+  });
+});
+
+describe('dayState (R-40, §11.3)', () => {
+  const day = toLocalDate('2026-09-09');
+  const today = toLocalDate('2026-09-16');
+
+  const placementOn = (date: string): Placement => ({
+    id: toId('placement-' + date),
+    routineId,
+    workoutId: toId<WorkoutId>('push'),
+    date: toLocalDate(date),
+  });
+
+  const sessionOn = (date: string, status: Session['status']): Session => ({
+    ...session('push', noonOn(date)),
+    status,
+  });
+
+  it('reads a day nothing claimed as rest (AC-40)', () => {
+    expect(dayState([], [], day, today)).toBe('rest');
+  });
+
+  it('reads a future placement with no session as planned (AC-40)', () => {
+    const future = toLocalDate('2026-09-23');
+    expect(dayState([placementOn('2026-09-23')], [], future, today)).toBe('planned');
+  });
+
+  it('reads a past placement with no session as missed (AC-40)', () => {
+    expect(dayState([placementOn('2026-09-09')], [], day, today)).toBe('missed');
+  });
+
+  it('never reads today itself as missed (AC-41)', () => {
+    expect(dayState([placementOn('2026-09-16')], [], today, today)).toBe('planned');
+  });
+
+  it('reads a completed session as completed, planned or not (AC-40)', () => {
+    expect(dayState([placementOn('2026-09-09')], [sessionOn('2026-09-09', 'completed')], day, today)).toBe(
+      'completed',
+    );
+    expect(dayState([], [sessionOn('2026-09-09', 'completed')], day, today)).toBe('completed');
+  });
+
+  it('reads a partial session as partial (AC-40)', () => {
+    expect(dayState([placementOn('2026-09-09')], [sessionOn('2026-09-09', 'partial')], day, today)).toBe(
+      'partial',
+    );
+  });
+
+  it('lets an open session outrank everything else on the day (AC-40)', () => {
+    const sessions = [sessionOn('2026-09-09', 'completed'), sessionOn('2026-09-09', 'in_progress')];
+    expect(dayState([placementOn('2026-09-09')], sessions, day, today)).toBe('in_progress');
+  });
+
+  it('lets a partial session outrank a completed one on the same day', () => {
+    const sessions = [sessionOn('2026-09-09', 'completed'), sessionOn('2026-09-09', 'partial')];
+    expect(dayState([], sessions, day, today)).toBe('partial');
+  });
+
+  it('ignores placements and sessions belonging to other days', () => {
+    const elsewhere = [placementOn('2026-09-10')];
+    const sessions = [sessionOn('2026-09-10', 'completed')];
+    expect(dayState(elsewhere, sessions, day, today)).toBe('rest');
+  });
+
+  it('writes nothing (AC-42)', () => {
+    const placements = [placementOn('2026-09-09')];
+    const sessions = [sessionOn('2026-09-09', 'completed')];
+    const before = JSON.stringify({ placements, sessions });
+    dayState(placements, sessions, day, today);
+    expect(JSON.stringify({ placements, sessions })).toBe(before);
+  });
+});
+
+describe('estimateDuration (R-41, §11.4, D2)', () => {
+  const planned = (sets: number, restSeconds: number | null): PlannedExercise => ({
+    id: toId('planned-' + String(sets) + '-' + String(restSeconds)),
+    workoutId: toId<WorkoutId>('push'),
+    exerciseId: toId('front-squat'),
+    sets,
+    minReps: 4,
+    maxReps: 6,
+    minRir: null,
+    maxRir: null,
+    restSeconds,
+    unit: 'kg',
+    focus: null,
+    notes: [],
+    order: 0,
+    progression: { type: 'manual' },
+  });
+
+  it('estimates nothing for a Workout with no exercises', () => {
+    expect(estimateDuration([])).toBe(0);
+  });
+
+  it('sums sets x (rest + work), rounded to five minutes (AC-43)', () => {
+    // 4 x 255s = 1020s, 3 x 195s = 585s, 1605s = 26.75 min -> 25
+    expect(estimateDuration([planned(4, 210), planned(3, 150)])).toBe(25);
+  });
+
+  it('assumes the default rest when an exercise declares none (AC-44)', () => {
+    // 4 x (90 + 45) = 540s = 9 min -> 10
+    expect(estimateDuration([planned(4, null)])).toBe(10);
+    expect(DEFAULT_REST_SECONDS).toBe(90);
+    expect(WORK_SECONDS_PER_SET).toBe(45);
+    expect(ROUNDING_MINUTES).toBe(5);
+  });
+
+  it('rounds a short Workout to the nearest five minutes, not down to zero', () => {
+    // 2 x (60 + 45) = 210s = 3.5 min -> 5
+    expect(estimateDuration([planned(2, 60)])).toBe(5);
   });
 });

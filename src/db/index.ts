@@ -29,8 +29,10 @@ export {
 } from '@/db/repositories/plannedExercises';
 
 export {
+  deletePlacement,
   listPlacementsBetween,
   listPlacementsByRoutine,
+  movePlacement,
 } from '@/db/repositories/placements';
 
 export {
@@ -51,7 +53,9 @@ export {
   SessionInProgressError,
   createSession,
   getInProgressSession,
+  getLastPerformedWorkout,
   getSession,
+  listSessionsBetween,
   listSessionsByRoutine,
   saveFinishedSession,
 } from '@/db/repositories/sessions';

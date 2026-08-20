@@ -12,13 +12,8 @@
  */
 
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, Trash2, TriangleAlert } from 'lucide-react';
-import type {
-  ExerciseRef,
-  MoveDirection,
-  RoutineFile,
-  RoutineFileExercise,
-} from '@/domain/routine-file';
+import { ArrowRight, EllipsisVertical, Pencil, Trash2, TriangleAlert } from 'lucide-react';
+import type { ExerciseRef, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import type { Unit } from '@/domain/types';
 import { NotesField, NumberField, SelectField } from '@/features/import/fields';
 import {
@@ -30,16 +25,17 @@ import {
   workoutPath,
   type IssueIndex,
 } from '@/features/import/issues';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
-  FOCUS_RING,
-  ICON_STROKE,
-  LABEL,
-  PANEL_CARD,
-  WELL,
-  button,
-  chip,
-  tab,
-} from '@/features/ui/styles';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { plural } from '@/features/ui/format';
+import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 const UNIT_OPTIONS = [
@@ -57,7 +53,6 @@ interface ExercisesStepProps {
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
   readonly onDelete: (ref: ExerciseRef) => void;
-  readonly onMove: (ref: ExerciseRef, direction: MoveDirection) => void;
 }
 
 export function ExercisesStep({
@@ -70,91 +65,143 @@ export function ExercisesStep({
   onToggle,
   onEdit,
   onDelete,
-  onMove,
 }: ExercisesStepProps) {
   const workouts = file.routine.workouts;
   const current = workouts[activeWorkout];
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <h1 className="type-display">Review the exercises</h1>
-        <p className="type-measure text-ink-3">
-          {file.routine.name} · {workouts.length} {workouts.length === 1 ? 'Workout' : 'Workouts'}
-        </p>
-      </header>
+      {/* Two lines, not one: a long routine name plus a count wraps mid-phrase
+          at 390px. The name is prose and takes the UI face; the count is data
+          and takes the mono provenance line. The step's own title is in the bar
+          above, so neither is repeated here. */}
+      <div className="flex flex-col gap-1">
+        <p className="type-lede text-ink-2">{file.routine.name}</p>
+        <p className="type-lot text-ink-3">{plural(workouts.length, 'workout')}</p>
+      </div>
 
-      {workouts.length > 1 && (
-        <div
-          aria-label="Workouts"
-          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
-          role="group"
-        >
-          {workouts.map((workout, index) => (
-            <button
-              aria-pressed={index === activeWorkout}
-              className={tab(index === activeWorkout)}
-              key={`${workout.name}-${index}`}
-              onClick={() => onActiveWorkout(index)}
-              type="button"
-            >
-              {workout.name}
-              {hasIssuesUnder(issues, workoutPath(index)) && (
-                <span
-                  aria-label="has a problem"
-                  className={cn(
-                    'size-2 rounded-cell',
-                    index === activeWorkout ? 'bg-on-fill' : 'bg-missed',
-                  )}
-                  role="img"
+      {/* Radix owns the strip: arrow keys move between Workouts and the panel
+          below follows, which the two hand-rolled strips never did. The list is
+          dropped for a single Workout — one tab is a label, not a choice. */}
+      <Tabs
+        onValueChange={(value) => onActiveWorkout(Number(value))}
+        value={String(activeWorkout)}
+      >
+        {workouts.length > 1 && (
+          <TabsList aria-label="Workouts">
+            {workouts.map((workout, index) => (
+              <TabsTrigger key={`${workout.name}-${index}`} value={String(index)}>
+                {workout.name}
+                {hasIssuesUnder(issues, workoutPath(index)) && (
+                  <span
+                    aria-label="has a problem"
+                    className="size-2 rounded-cell bg-missed data-[state=active]:bg-on-fill"
+                    role="img"
+                  />
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
+
+        {current === undefined ? (
+          <div className={WELL}>
+            <p className="type-title">This routine declares no Workouts</p>
+            <p className="type-body-sm text-ink-2">
+              Add at least one Workout to the file and choose it again.
+            </p>
+          </div>
+        ) : (
+          <TabsContent value={String(activeWorkout)}>
+            {workouts.length === 1 && <h2 className="type-headline">{current.name}</h2>}
+
+            {current.exercises.length === 0 ? (
+              <div className={WELL}>
+                <p className="type-title">{current.name} has no exercises left</p>
+                <p className="type-body-sm text-ink-2">
+                  You removed all of them. That is allowed — the Workout will simply record
+                  nothing. To put one back, choose the file again.
+                </p>
+              </div>
+            ) : (
+              current.exercises.map((exercise, index) => (
+                <ExerciseRow
+                  defaultUnit={defaultUnit}
+                  exercise={exercise}
+                  exerciseRef={{ workout: activeWorkout, exercise: index }}
+                  issues={issues}
+                  key={`${exercise.name}-${index}`}
+                  onDelete={onDelete}
+                  onEdit={onEdit}
+                  onToggle={onToggle}
+                  open={openRef?.workout === activeWorkout && openRef.exercise === index}
+                  position={index + 1}
                 />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+              ))
+            )}
 
-      {current === undefined ? (
-        <div className={WELL}>
-          <p className="type-title">This routine declares no Workouts</p>
-          <p className="type-body-sm text-ink-2">
-            Add at least one Workout to the file and choose it again.
-          </p>
-        </div>
-      ) : (
-        <>
-          {workouts.length === 1 && <h2 className="type-headline">{current.name}</h2>}
-
-          {current.exercises.length === 0 ? (
-            <div className={WELL}>
-              <p className="type-title">{current.name} has no exercises left</p>
-              <p className="type-body-sm text-ink-2">
-                You removed all of them. That is allowed — the Workout will simply record
-                nothing. To put one back, choose the file again.
-              </p>
-            </div>
-          ) : (
-            current.exercises.map((exercise, index) => (
-              <ExerciseRow
-                defaultUnit={defaultUnit}
-                exercise={exercise}
-                exerciseRef={{ workout: activeWorkout, exercise: index }}
-                isFirst={index === 0}
-                isLast={index === current.exercises.length - 1}
-                issues={issues}
-                key={`${exercise.name}-${index}`}
-                onDelete={onDelete}
-                onEdit={onEdit}
-                onMove={onMove}
-                onToggle={onToggle}
-                open={openRef?.workout === activeWorkout && openRef.exercise === index}
-                position={index + 1}
+            {workouts.length > 1 && (
+              <WorkoutHandoff
+                hasNext={activeWorkout + 1 < workouts.length}
+                onNext={() => onActiveWorkout(activeWorkout + 1)}
+                position={activeWorkout + 1}
+                total={workouts.length}
               />
-            ))
-          )}
-        </>
-      )}
+            )}
+          </TabsContent>
+        )}
+      </Tabs>
     </>
+  );
+}
+
+interface WorkoutHandoffProps {
+  readonly position: number;
+  readonly total: number;
+  readonly hasNext: boolean;
+  readonly onNext: () => void;
+}
+
+/**
+ * The end of a Workout's list, and the way into the next one.
+ *
+ * A tab strip is a poor invitation: it says the other Workouts exist, once, at
+ * the top, and then scrolls away above six exercises. By the time the lifter
+ * reaches the bottom of Push they have no reason to remember Pull is waiting —
+ * so the list itself hands them over, at the moment they have finished reading
+ * and are looking for what is next.
+ *
+ * The count is stated in words rather than left to the strip, because "1 of 3"
+ * is what makes an unopened Workout feel outstanding rather than optional. The
+ * button does not name the Workout it goes to: a routine file may call it
+ * anything, and "Review D2 / GPP (deload)" is a worse promise than "next".
+ *
+ * It is blue, and white nowhere: every exercise above it is a raised white card,
+ * so a sixth white dome at the bottom of the stack reads as one more of them.
+ * Instrument Blue is already this system's navigation hue — the active nav item
+ * and the focus ring are both blue — and moving between Workouts is navigation,
+ * not another edit. The washed face says the same thing the colour does: this
+ * row is about the list, not in it.
+ */
+function WorkoutHandoff({ position, total, hasNext, onNext }: WorkoutHandoffProps) {
+  return (
+    <div className="flex flex-col gap-2 pt-1">
+      <p className="type-lot text-planned-ink">
+        workout {position} of {total}
+      </p>
+
+      {hasNext ? (
+        <Button onClick={onNext} size="block" type="button" variant="nav">
+          Review next Workout
+          <ArrowRight aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+        </Button>
+      ) : (
+        <p className="rounded-control bg-planned-wash px-4 py-3 type-body-sm text-planned-ink">
+          That is every Workout in this Routine. Anything you missed is still up in the
+          strip above.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -162,30 +209,24 @@ interface ExerciseRowProps {
   readonly exercise: RoutineFileExercise;
   readonly exerciseRef: ExerciseRef;
   readonly position: number;
-  readonly isFirst: boolean;
-  readonly isLast: boolean;
   readonly open: boolean;
   readonly defaultUnit: Unit;
   readonly issues: IssueIndex;
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
   readonly onDelete: (ref: ExerciseRef) => void;
-  readonly onMove: (ref: ExerciseRef, direction: MoveDirection) => void;
 }
 
 function ExerciseRow({
   exercise,
   exerciseRef,
   position,
-  isFirst,
-  isLast,
   open,
   defaultUnit,
   issues,
   onToggle,
   onEdit,
   onDelete,
-  onMove,
 }: ExerciseRowProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const base = exercisePath(exerciseRef.workout, exerciseRef.exercise);
@@ -200,43 +241,58 @@ function ExerciseRow({
   const patch = (fields: Partial<RoutineFileExercise>) => onEdit(exerciseRef, fields);
 
   return (
-    <article className={cn(PANEL_CARD, flagged && 'border-missed')}>
-      {flagged ? (
-        <div className="flex min-h-12 w-full items-center gap-3">
-          <Summary
-            defaultUnit={defaultUnit}
-            exercise={exercise}
-            position={position}
-          />
+    <Card asChild className={cn(flagged && 'border-missed')} panel>
+      <article>
+      <div className="flex min-h-12 w-full items-center gap-3">
+        <Summary defaultUnit={defaultUnit} exercise={exercise} position={position} />
+        {flagged && (
           <span className={chip('missed')}>
             <TriangleAlert aria-hidden="true" size={12} strokeWidth={ICON_STROKE} />
             fix
           </span>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button aria-label={`Options for ${exercise.name}`} size="icon" variant="secondary">
+              <EllipsisVertical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onToggle(expanded ? null : exerciseRef)}>
+              <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              {expanded ? 'Close editor' : 'Edit'}
+            </DropdownMenuItem>
+            <DropdownMenuItem destructive onSelect={() => setConfirmingDelete(true)}>
+              <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              Remove
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {confirmingDelete && (
+        <div className={cn(RULED, 'flex-row flex-wrap items-center gap-2')}>
+          <p className="type-body-sm text-ink-2">Remove {exercise.name} from this Workout?</p>
+          <div className="ml-auto flex items-center gap-2">
+            <Button onClick={() => setConfirmingDelete(false)} size="compact" variant="quiet">
+              Keep it
+            </Button>
+            <Button
+              aria-label={`Confirm removing ${exercise.name}`}
+              onClick={() => onDelete(exerciseRef)}
+              size="compact"
+              variant="danger"
+            >
+              <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              Remove it
+            </Button>
+          </div>
         </div>
-      ) : (
-        <button
-          aria-controls={`${fieldId(base)}-editor`}
-          aria-expanded={expanded}
-          className={cn('flex min-h-12 w-full items-center gap-3 rounded-field text-left', FOCUS_RING)}
-          onClick={() => onToggle(expanded ? null : exerciseRef)}
-          type="button"
-        >
-          <Summary defaultUnit={defaultUnit} exercise={exercise} position={position} />
-          <ChevronDown
-            aria-hidden="true"
-            className={cn(
-              'shrink-0 text-ink-3 transition-transform duration-[110ms] ease-snap',
-              expanded && 'rotate-180',
-            )}
-            size={20}
-            strokeWidth={ICON_STROKE}
-          />
-        </button>
       )}
 
       {expanded && (
-        <div className="flex flex-col gap-3" id={`${fieldId(base)}-editor`}>
-          <div className={WELL}>
+        <div className={RULED} id={`${fieldId(base)}-editor`}>
+          <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <NumberField
                 error={errorFor(`${base}.sets`)}
@@ -304,62 +360,14 @@ function ExerciseRow({
 
           <ProgressionRow
             error={errorFor(`${base}.progression.type`)}
-            exercise={exercise}
             id={fieldId(`${base}.progression.type`)}
             onUseManual={() => patch({ progression: { type: 'manual' } })}
           />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              aria-label={`Move ${exercise.name} up`}
-              className={button('secondary', 'icon')}
-              disabled={isFirst}
-              onClick={() => onMove(exerciseRef, -1)}
-              type="button"
-            >
-              <ArrowUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            </button>
-            <button
-              aria-label={`Move ${exercise.name} down`}
-              className={button('secondary', 'icon')}
-              disabled={isLast}
-              onClick={() => onMove(exerciseRef, 1)}
-              type="button"
-            >
-              <ArrowDown aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            </button>
-
-            <div className="ml-auto flex items-center gap-2">
-              {confirmingDelete && (
-                <button
-                  className={button('ghost', 'compact')}
-                  onClick={() => setConfirmingDelete(false)}
-                  type="button"
-                >
-                  Keep it
-                </button>
-              )}
-              <button
-                aria-label={
-                  confirmingDelete
-                    ? `Confirm removing ${exercise.name}`
-                    : `Remove ${exercise.name}`
-                }
-                className={button(confirmingDelete ? 'danger' : 'secondary', 'compact')}
-                onClick={() => {
-                  if (confirmingDelete) onDelete(exerciseRef);
-                  else setConfirmingDelete(true);
-                }}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-                {confirmingDelete ? 'Remove it' : 'Remove'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
-    </article>
+      </article>
+    </Card>
   );
 }
 
@@ -369,13 +377,20 @@ interface SummaryProps {
   readonly defaultUnit: Unit;
 }
 
-/** What the row says when it is closed: the exercise, as the programme states it. */
+/**
+ * What the row says when it is closed: the exercise, as the programme states it.
+ *
+ * The progression sits between the name and the targets because that is what it
+ * is — not a target for today but the rule that decides the next one, so it
+ * reads as provenance under the title rather than as another number in the row.
+ */
 function Summary({ exercise, position, defaultUnit }: SummaryProps) {
   return (
     <>
       <span className="type-measure-sm text-ink-3">{position}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="type-title truncate">{exercise.name}</span>
+        <span className="type-lot text-ink-3">{progressionLine(exercise)}</span>
         <span className="type-measure-sm text-ink-3">
           {programmingLine(exercise, defaultUnit)}
         </span>
@@ -385,7 +400,6 @@ function Summary({ exercise, position, defaultUnit }: SummaryProps) {
 }
 
 interface ProgressionRowProps {
-  readonly exercise: RoutineFileExercise;
   readonly error: string | null;
   /** The repair button's id, so the action bar can jump to this issue. */
   readonly id: string;
@@ -398,29 +412,24 @@ interface ProgressionRowProps {
  * to be corrected in the wizard. An unrecognized type has exactly two honest
  * outcomes: run the exercise on manual progression, or remove it.
  */
-function ProgressionRow({ exercise, error, id, onUseManual }: ProgressionRowProps) {
+function ProgressionRow({ error, id, onUseManual }: ProgressionRowProps) {
+  if (error === null) return null; // the summary already states the rule
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className={LABEL}>progression</span>
-        <span className="type-measure-sm text-ink-2">{progressionLine(exercise)}</span>
-      </div>
-      {error !== null && (
-        <>
-          <p className="type-caption order-last w-full text-missed-ink" id={`${id}-error`}>
-            {error}
-          </p>
-          <button
-            aria-describedby={`${id}-error`}
-            className={button('secondary', 'compact')}
-            id={id}
-            onClick={onUseManual}
-            type="button"
-          >
-            Use manual progression
-          </button>
-        </>
-      )}
+      <p className="type-caption order-last w-full text-missed-ink" id={`${id}-error`}>
+        {error}
+      </p>
+      <span className={LABEL}>progression</span>
+      <Button
+        aria-describedby={`${id}-error`}
+        id={id}
+        onClick={onUseManual}
+        size="compact"
+        variant="secondary"
+      >
+        Use manual progression
+      </Button>
     </div>
   );
 }

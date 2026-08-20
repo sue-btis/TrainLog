@@ -17,18 +17,18 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { Check, FileUp, FlaskConical } from 'lucide-react';
+import { CalendarDays, Check, FileUp, FlaskConical, ListChecks } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
 import { formatLocalDate } from '@/domain/dates';
 import {
   deleteExercise,
   editExercise,
-  moveExercise,
   routineFileToDomain,
   parseRoutineFile,
   validateRoutineFile,
   type ExerciseRef,
-  type MoveDirection,
   type RoutineFileExercise,
   type SemanticIssue,
 } from '@/domain/routine-file';
@@ -38,6 +38,8 @@ import { ActionBar } from '@/features/import/ActionBar';
 import { ExercisesStep } from '@/features/import/ExercisesStep';
 import { FileStep } from '@/features/import/FileStep';
 import { ScheduleStep } from '@/features/import/ScheduleStep';
+import { BottomNav } from '@/features/shell/BottomNav';
+import { TopBar } from '@/features/shell/TopBar';
 import {
   fieldId,
   indexIssues,
@@ -49,16 +51,15 @@ import {
   INITIAL_STATE,
   reduceWizard,
   type AcceptedSummary,
+  type WizardState,
   type WizardStep,
 } from '@/features/import/state';
 import {
-  CARD,
   COLUMN,
   ICON_STROKE,
   LABEL,
+  RULED,
   SCREEN,
-  WELL,
-  button,
   chip,
 } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,8 @@ import { cn } from '@/lib/utils';
 export function ImportWizard() {
   const [state, dispatch] = useReducer(reduceWizard, INITIAL_STATE);
   const [activeWorkout, setActiveWorkout] = useState(0);
+  /** Raised by the Leave link, answered in the action bar (DEC: see ActionBar). */
+  const [leaving, setLeaving] = useState(false);
   const [openRef, setOpenRef] = useState<ExerciseRef | null>(null);
   const column = useRef<HTMLDivElement>(null);
   /** The control an action-bar jump asked for, focused once it has rendered. */
@@ -184,12 +187,6 @@ export function ImportWizard() {
       setOpenRef(null);
       dispatch({ type: 'edited', file: deleteExercise(file, ref) });
     },
-    move: (ref: ExerciseRef, direction: MoveDirection) => {
-      if (!file) return;
-      // The open row follows the exercise the user is moving.
-      setOpenRef({ ...ref, exercise: ref.exercise + direction });
-      dispatch({ type: 'edited', file: moveExercise(file, ref, direction) });
-    },
     toggleDay: (workout: number, day: Weekday) =>
       dispatch({ type: 'toggleDay', workout, day }),
     weeksBy: (delta: number) => dispatch({ type: 'weeksBy', delta }),
@@ -197,7 +194,18 @@ export function ImportWizard() {
 
   return (
     <main className={SCREEN}>
-      <div className={cn(COLUMN, state.phase === 'editing' && 'pb-48')} ref={column}>
+      {/* Editing owns the bottom, so the way out is up here. The other two
+          phases keep the nav below and only need the bar to name the task. */}
+      <TopBar
+        back={
+          state.phase === 'editing' ? { onBack: () => setLeaving(true) } : { to: '/today' }
+        }
+        backLabel={state.phase === 'editing' ? 'Leave this import' : 'Back to today'}
+        icon={iconOf(state)}
+        title={titleOf(state)}
+      />
+
+      <div className={cn(COLUMN, state.phase === 'editing' ? 'pb-48' : 'pb-32')} ref={column}>
         {state.phase === 'choosing' && (
           <FileStep
             errors={state.errors}
@@ -216,7 +224,6 @@ export function ImportWizard() {
             onActiveWorkout={setActiveWorkout}
             onDelete={edit.remove}
             onEdit={edit.exercise}
-            onMove={edit.move}
             onToggle={setOpenRef}
             openRef={openRef}
           />
@@ -237,12 +244,22 @@ export function ImportWizard() {
         )}
       </div>
 
+      {state.phase !== 'editing' && <BottomNav />}
+
       {state.phase === 'editing' && (
         <ActionBar
           accepting={state.accepting}
+          confirmingCancel={leaving}
           failure={state.failure}
           issues={issues}
           onAccept={accept}
+          onCancel={() => {
+            setActiveWorkout(0);
+            setOpenRef(null);
+            setLeaving(false);
+            dispatch({ type: 'restart' });
+          }}
+          onConfirmCancel={setLeaving}
           onJump={jumpToIssue}
           onStep={goToStep}
           step={state.step}
@@ -250,6 +267,20 @@ export function ImportWizard() {
       )}
     </main>
   );
+}
+
+/** The step names the bar carries. The wizard is one screen with four titles. */
+function titleOf(state: WizardState): string {
+  if (state.phase === 'choosing') return 'Import a routine';
+  if (state.phase === 'accepted') return 'Imported';
+  return state.step === 1 ? 'Review the exercises' : 'Days and weeks';
+}
+
+/** And its four drawings, so the bar shows the step as well as naming it. */
+function iconOf(state: WizardState) {
+  if (state.phase === 'choosing') return FileUp;
+  if (state.phase === 'accepted') return Check;
+  return state.step === 1 ? ListChecks : CalendarDays;
 }
 
 interface AcceptedProps {
@@ -265,15 +296,15 @@ function Accepted({ summary, onAnother }: AcceptedProps) {
           <Check aria-hidden="true" size={12} strokeWidth={ICON_STROKE} />
           imported
         </span>
-        <h1 className="type-display">{summary.routineName}</h1>
+        <h2 className="type-display">{summary.routineName}</h2>
         <p className="type-lede text-ink-2">
           This is now your active Routine. Any Routine you were running before has been
           archived — its history is untouched.
         </p>
       </header>
 
-      <section className={CARD}>
-        <div className={WELL}>
+      <Card>
+        <div className="flex flex-col gap-3">
           <span className={LABEL}>stored</span>
           <dl className="grid grid-cols-3 gap-3">
             <Figure label="workouts" value={String(summary.workouts)} />
@@ -287,15 +318,19 @@ function Accepted({ summary, onAnother }: AcceptedProps) {
           </p>
         </div>
 
-        <button className={button('primary', 'block')} onClick={onAnother} type="button">
-          <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Import another routine
-        </button>
-        <Link className={button('ghost', 'block')} to="/harness">
-          <FlaskConical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Open the session harness
-        </Link>
-      </section>
+        <div className={RULED}>
+          <Button onClick={onAnother} size="block" type="button" variant="primary">
+            <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+            Import another routine
+          </Button>
+          <Button asChild size="block" variant="ghost">
+            <Link to="/harness">
+              <FlaskConical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+              Open the session harness
+            </Link>
+          </Button>
+        </div>
+      </Card>
     </>
   );
 }
