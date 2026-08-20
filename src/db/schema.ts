@@ -66,7 +66,7 @@ export const SCHEMA_VERSION = 1;
  * this list.
  *
  *   routines.status              listRoutinesByStatus / getActiveRoutine —
- *                                the routine list of §11.2 and the harness's
+ *                                the routine list of §11.2 and Today's
  *                                "which routine is active" read.
  *   workouts.routineId           listWorkoutsByRoutine — every read of a
  *                                Routine's Workouts, and the cascade behind

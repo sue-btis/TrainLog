@@ -8,7 +8,7 @@
  * which is the user's and lives on its own screen.
  */
 
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { Card } from '@/components/ui/card';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
 import type { PlannedExercise, Weekday } from '@/domain/types';
@@ -120,7 +120,14 @@ function ExerciseRow({ exercise, name, position }: ExerciseRowProps) {
       <div className="flex items-start gap-3">
         <span className="type-measure-sm text-ink-3">{position}</span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="type-title">{name}</span>
+          {/* The name is the way into what this exercise has actually done
+              (§11.10) — the programming beside it is only what was asked for. */}
+          <Link
+            className="type-title underline decoration-rule underline-offset-4"
+            to={`/exercises/${exercise.exerciseId}`}
+          >
+            {name}
+          </Link>
           <span className="type-measure-sm text-ink-3">{programmingLine(exercise)}</span>
           {exercise.focus !== null && (
             <span className="type-caption text-ink-2">{exercise.focus}</span>

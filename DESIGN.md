@@ -903,7 +903,19 @@ control: on a card, a field painted the card's own white had only its hairline t
 `aria-invalid` and `aria-describedby`.
 
 The set logger's weight/reps/RIR readouts use `{colors.well}`, flat, the value in Readout
-type and the unit as a smaller inline span. Adjustment is by ±2.5 stepper domes, not keyboard entry.
+type and the unit named in the Label above it.
+
+**Adjustment is by ±stepper domes first, and by typing second.** The steppers are the default path
+and the one the scene is designed around: one hand occupied, phone on a bench, and a numeric keypad
+over the bottom half of the screen is a bad thing to put between a lifter and the button they came
+to press. The step is the exercise's own increment where its rule declares one, not a fixed 2.5.
+
+The readouts are nonetheless real inputs, because steppers alone cost too much at the edges — going
+from 20 to 90 is 28 presses, and the first set of an exercise is when the jump is largest. The
+readout *is* the input rather than a second control beside it, so the two edit one value and cannot
+disagree. Typing commits on blur and on Enter; anything that is not a non-negative number falls back
+to the last good value rather than raising an error nobody can read mid-set. The cavity carries the
+focus halo on behalf of the borderless input inside it.
 
 ### Rest timer
 

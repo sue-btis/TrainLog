@@ -14,7 +14,7 @@ import { db, resetDatabase } from '@/db/database';
 import { TrainLogDatabase } from '@/db/schema';
 import {
   SessionInProgressError,
-  createSession,
+  createStartedWorkout,
   getInProgressSession,
   getLastPerformedWorkout,
   getSession,
@@ -25,6 +25,7 @@ import {
   addExerciseSession,
   listExerciseSessionsBySession,
   saveExerciseSession,
+  saveExerciseSessions,
 } from '@/db/repositories/exerciseSessions';
 import {
   listCompletedSetsByExerciseSession,
@@ -34,10 +35,12 @@ import { getSessionDetail } from '@/db/repositories/history';
 import {
   finishSession,
   logSet,
+  moveExerciseSession,
   skipExercise,
   startPlannedExercise,
   startSession,
   startUnplannedExercise,
+  startWorkout,
 } from '@/domain/session';
 import { parseLocalDate, toLocalDate } from '@/domain/dates';
 import { toId } from '@/domain/ids';
@@ -78,7 +81,7 @@ beforeEach(async () => {
 describe('TST-021 — in-progress session recovery', () => {
   it('recovers the in-progress Session and every logged set from a fresh handle', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    await createSession(session);
+    await createStartedWorkout({ session, exerciseSessions: [] });
 
     const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
     await addExerciseSession(exercise);
@@ -115,7 +118,7 @@ describe('TST-021 — in-progress session recovery', () => {
 
   it('AC-056 — a logged set is readable from a second handle before the Session finishes', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    await createSession(session);
+    await createStartedWorkout({ session, exerciseSessions: [] });
     const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
     await addExerciseSession(exercise);
 
@@ -150,16 +153,22 @@ describe('TST-021 — in-progress session recovery', () => {
   });
 
   it('refuses a second in-progress Session (REQ-058)', async () => {
-    await createSession(startSession({ routineId, workoutId, startedAt: 1_000 }));
+    await createStartedWorkout({
+      session: startSession({ routineId, workoutId, startedAt: 1_000 }),
+      exerciseSessions: [],
+    });
     await expect(
-      createSession(startSession({ routineId, workoutId, startedAt: 2_000 })),
+      createStartedWorkout({
+        session: startSession({ routineId, workoutId, startedAt: 2_000 }),
+        exerciseSessions: [],
+      }),
     ).rejects.toBeInstanceOf(SessionInProgressError);
     expect(await db.sessions.count()).toBe(1);
   });
 
   it('finishing frees the in-progress slot and persists status with completedAt', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    await createSession(session);
+    await createStartedWorkout({ session, exerciseSessions: [] });
     const skipped = skipExercise(
       startUnplannedExercise({ sessionId: session.id, exerciseId: squat, order: 0 }),
     );
@@ -231,5 +240,154 @@ describe('session range reads (R-43, R-44)', () => {
   it('names no workout when the routine has no sessions (AC-47)', async () => {
     await resetDatabase();
     expect(await getLastPerformedWorkout(routineId)).toBeNull();
+  });
+});
+
+/* ── Gym mode: starting a Workout (R-2, R-3, R-10) ─────────────────────── */
+
+function plannedAt(order: number, id: string): PlannedExercise {
+  return { ...planned, id: toId<PlannedExerciseId>(id), order };
+}
+
+describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
+  it('writes the Session and every ExerciseSession together, in order (AC-3)', async () => {
+    const started = startWorkout({
+      routineId,
+      workoutId,
+      planned: [plannedAt(1, 'pe-b'), plannedAt(0, 'pe-a')],
+      startedAt: 1_000,
+    });
+
+    await createStartedWorkout(started);
+
+    db.close();
+    await db.open();
+
+    expect(await getInProgressSession()).toEqual(started.session);
+
+    const stored = await listExerciseSessionsBySession(started.session.id);
+    expect(stored.map((it) => it.plannedExerciseId)).toEqual(['pe-a', 'pe-b']);
+    expect(stored.map((it) => it.order)).toEqual([0, 1]);
+    expect(stored.every((it) => it.status === 'pending')).toBe(true);
+  });
+
+  it('stores the snapshotted targets, not a reference to the template (AC-4)', async () => {
+    const started = startWorkout({
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a')],
+      startedAt: 1_000,
+    });
+
+    await createStartedWorkout(started);
+
+    const [stored] = await listExerciseSessionsBySession(started.session.id);
+    expect(stored).toMatchObject({
+      plannedSets: 4,
+      plannedMinReps: 4,
+      plannedMaxReps: 6,
+      plannedRestSeconds: 180,
+      plannedProgression: { type: 'double_progression', increment: 2.5 },
+    });
+  });
+
+  it('refuses a second concurrent Session and writes nothing (AC-6, REQ-058)', async () => {
+    const first = startWorkout({
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a')],
+      startedAt: 1_000,
+    });
+    await createStartedWorkout(first);
+
+    const second = startWorkout({
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-b')],
+      startedAt: 2_000,
+    });
+
+    await expect(createStartedWorkout(second)).rejects.toThrow(SessionInProgressError);
+
+    expect(await getSession(second.session.id)).toBeUndefined();
+    expect(await listExerciseSessionsBySession(second.session.id)).toEqual([]);
+    expect((await getInProgressSession())?.id).toBe(first.session.id);
+  });
+
+  it('leaves neither the Session nor any exercise behind when a write fails (AC-5)', async () => {
+    const started = startWorkout({
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a'), plannedAt(1, 'pe-b')],
+      startedAt: 1_000,
+    });
+
+    // A duplicate primary key inside the bulk write: the transaction must take
+    // the Session down with it rather than leaving a headless exercise or a
+    // Session whose exercises are half written.
+    const collided = {
+      ...started,
+      exerciseSessions: [
+        started.exerciseSessions[0]!,
+        { ...started.exerciseSessions[1]!, id: started.exerciseSessions[0]!.id },
+      ],
+    };
+
+    await expect(createStartedWorkout(collided)).rejects.toThrow();
+
+    expect(await getInProgressSession()).toBeUndefined();
+    expect(await getSession(started.session.id)).toBeUndefined();
+    expect(await listExerciseSessionsBySession(started.session.id)).toEqual([]);
+  });
+
+  it('starts a Workout that has no exercises', async () => {
+    const started = startWorkout({ routineId, workoutId, planned: [], startedAt: 1_000 });
+
+    await createStartedWorkout(started);
+
+    expect((await getInProgressSession())?.id).toBe(started.session.id);
+    expect(await listExerciseSessionsBySession(started.session.id)).toEqual([]);
+  });
+});
+
+describe('saveExerciseSessions (R-10, AC-20)', () => {
+  it('persists a reorder without touching the PlannedExercises behind it', async () => {
+    const started = startWorkout({
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a'), plannedAt(1, 'pe-b'), plannedAt(2, 'pe-c')],
+      startedAt: 1_000,
+    });
+    await createStartedWorkout(started);
+
+    const before = await listExerciseSessionsBySession(started.session.id);
+    const moved = moveExerciseSession(before, before[2]!.id, 1);
+    await saveExerciseSessions(moved);
+
+    db.close();
+    await db.open();
+
+    const after = await listExerciseSessionsBySession(started.session.id);
+    expect(after.map((it) => it.plannedExerciseId)).toEqual(['pe-a', 'pe-c', 'pe-b']);
+    expect(after.map((it) => it.order)).toEqual([0, 1, 2]);
+
+    // The templates are untouched — nothing was written to them at all.
+    expect(await db.plannedExercises.count()).toBe(0);
+  });
+
+  it('writes nothing for an empty list, rather than opening a transaction', async () => {
+    const started = startWorkout({
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a')],
+      startedAt: 1_000,
+    });
+    await createStartedWorkout(started);
+
+    await saveExerciseSessions([]);
+
+    const after = await listExerciseSessionsBySession(started.session.id);
+    expect(after).toHaveLength(1);
+    expect(after[0]?.order).toBe(0);
   });
 });

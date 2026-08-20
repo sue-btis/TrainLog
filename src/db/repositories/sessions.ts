@@ -44,15 +44,34 @@ export function getInProgressSession(): Promise<Session | undefined> {
 }
 
 /**
- * Persists a Session produced by `startSession`, refusing a second concurrent
- * one (REQ-058). One transaction, so the at-most-one invariant has no window in
- * which it is false. Index: status.
+ * R-2 — persists what `startWorkout` produced: the Session and one
+ * ExerciseSession per planned exercise, in a single transaction.
+ *
+ * One transaction because the two are one fact. A Session written without its
+ * exercises would be an `in_progress` session that `deriveSessionStatus` reads
+ * as `completed` the moment it is finished (DEC-009); exercises written without
+ * their Session would be rows nothing can reach. The REQ-058 refusal happens
+ * inside the same transaction, so the at-most-one invariant still has no window
+ * in which it is false.
+ *
+ * This is the only way a Session is written. A second entry point that stored a
+ * Session without its exercises would be a second way to get the at-most-one
+ * invariant and DEC-009 wrong; a Workout with no exercises goes through here
+ * too, with an empty list. Index: status.
  */
-export async function createSession(session: Session): Promise<void> {
-  await db.transaction('rw', db.sessions, async () => {
+export async function createStartedWorkout(started: {
+  readonly session: Session;
+  readonly exerciseSessions: readonly ExerciseSession[];
+}): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.exerciseSessions], async () => {
     const open = await db.sessions.where('status').equals('in_progress').first();
-    if (open !== undefined && open.id !== session.id) throw new SessionInProgressError(open.id);
-    await db.sessions.add(session);
+    if (open !== undefined && open.id !== started.session.id) {
+      throw new SessionInProgressError(open.id);
+    }
+    await db.sessions.add(started.session);
+    if (started.exerciseSessions.length > 0) {
+      await db.exerciseSessions.bulkAdd([...started.exerciseSessions]);
+    }
   });
 }
 

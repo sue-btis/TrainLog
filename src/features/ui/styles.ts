@@ -211,3 +211,101 @@ export function alert(tone: 'missed' | 'planned' = 'missed', extra?: string): st
 
 /** The one place an icon's stroke weight is decided (DESIGN.md). */
 export const ICON_STROKE = 1.75;
+
+/* ── Gym mode ──────────────────────────────────────────────────────────── */
+
+/**
+ * The Dome — one dome is one Set (DESIGN.md §Components).
+ *
+ * The only component that carries all five hues, so it is the one place where
+ * state and colour are bound together, and it is bound once. A circle, because
+ * a set is a whole object; 96px when live so it is the largest thing on screen;
+ * `animate-breathe` while it waits to be performed. `logged` and `missed` are
+ * flat and inert — what happened cannot be pressed again.
+ */
+const DOME_STATE = {
+  planned: 'bg-card text-planned-ink shadow-dome ring-2 ring-planned-wash',
+  live: 'bg-live text-on-live shadow-dome-lift animate-breathe',
+  logged: 'bg-actual-ink text-on-fill shadow-none',
+  suggested: 'bg-progress text-on-fill shadow-dome-lift',
+  missed: 'bg-missed-ink text-on-fill shadow-none',
+  locked: 'bg-well text-ink-3 shadow-none',
+  /**
+   * Not a Set — the offer of one. It is the only dome drawn as an outline
+   * rather than a body, because there is nothing there yet: a solid circle
+   * would claim a set exists. Dashed says "this could be one".
+   */
+  add: 'bg-transparent text-ink-3 border-2 border-dashed border-rule hover:border-planned hover:text-planned-ink shadow-none',
+} as const;
+
+const DOME_SIZE = {
+  compact: 'size-[60px] type-body-sm',
+  default: 'size-[76px] type-title',
+  live: 'size-[96px] type-readout',
+} as const;
+
+export type DomeState = keyof typeof DOME_STATE;
+export type DomeSize = keyof typeof DOME_SIZE;
+
+export function dome(state: DomeState, size: DomeSize = 'default', extra?: string): string {
+  return cn(
+    'inline-flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-cell leading-none',
+    PRESS,
+    FOCUS_RING,
+    'disabled:pointer-events-none',
+    DOME_STATE[state],
+    DOME_SIZE[size],
+    extra,
+  );
+}
+
+/**
+ * The stepper beside a readout: a small dome carrying one glyph. It adjusts a
+ * value rather than recording one, so it takes the navigation face the month
+ * pager already wears, not the green of "record what happened".
+ */
+export const STEPPER = cn(
+  'inline-flex size-12 shrink-0 items-center justify-center rounded-cell',
+  'bg-planned-wash text-planned-ink ring-1 ring-planned shadow-dome',
+  'hover:bg-card hover:shadow-dome-lift',
+  'disabled:bg-well disabled:text-ink-3 disabled:shadow-none disabled:ring-rule disabled:pointer-events-none',
+  PRESS,
+  FOCUS_RING,
+);
+
+/**
+ * A weight / reps / RIR readout: the cavity the value sits in, flat, with the
+ * number in Readout type and the unit named in the label above it
+ * (DESIGN.md §Inputs).
+ *
+ * It holds a real input. DESIGN.md says adjustment is by steppers and not by
+ * keyboard, and steppers are still the default path — but stepping 20 to 90 is
+ * 28 presses, so the readout takes typing too. The two edit one value; see
+ * `SetLogger`.
+ */
+export const READOUT = cn(
+  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well px-2 py-3',
+  // The value inside is typed into as well as stepped, so the cavity takes the
+  // focus halo on behalf of the borderless input it holds.
+  'focus-within:ring-1 focus-within:ring-planned focus-within:shadow-[0_0_0_3px_var(--color-planned-wash)]',
+);
+
+/**
+ * The number itself inside a readout: an input wearing the readout's face
+ * rather than a field of its own, so typing and stepping are visibly the same
+ * control rather than two that disagree.
+ */
+export const READOUT_INPUT =
+  'w-full min-w-0 bg-transparent text-center type-readout text-ink outline-none';
+
+/**
+ * The rest timer: the one full-bleed coloured surface in the product. The
+ * darker `live-ink` rather than `live`, so white Clock type clears it
+ * (DESIGN.md §Rest timer).
+ */
+export const TIMER_SHELL = 'relative overflow-hidden rounded-card bg-live-ink p-5 text-on-fill shadow-lift';
+
+/** The track along its bottom edge, and the rail that scales down inside it. */
+export const TIMER_TRACK = 'absolute inset-x-0 bottom-0 h-1.5 bg-scrim';
+export const TIMER_RAIL =
+  'h-full origin-left bg-live-rail transition-transform duration-1000 ease-linear';

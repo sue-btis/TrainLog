@@ -12,10 +12,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
-import {
-  createSession,
-  saveFinishedSession,
-} from '@/db/repositories/sessions';
+import { createStartedWorkout, saveFinishedSession } from '@/db/repositories/sessions';
 import {
   addExerciseSession,
   listExerciseSessionsBySession,
@@ -105,7 +102,7 @@ async function performSession(
     workoutId: workout.id,
     startedAt,
   });
-  await createSession(session);
+  await createStartedWorkout({ session, exerciseSessions: [] });
 
   for (const [order, planned] of (await listPlannedExercisesByWorkout(workout.id)).entries()) {
     let exercise = startPlannedExercise({ sessionId: session.id, planned, order });
