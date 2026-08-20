@@ -12,13 +12,8 @@
  */
 
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, ListChecks, Trash2, TriangleAlert } from 'lucide-react';
-import type {
-  ExerciseRef,
-  MoveDirection,
-  RoutineFile,
-  RoutineFileExercise,
-} from '@/domain/routine-file';
+import { EllipsisVertical, ListChecks, Pencil, Trash2, TriangleAlert } from 'lucide-react';
+import type { ExerciseRef, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import type { Unit } from '@/domain/types';
 import { NotesField, NumberField, SelectField } from '@/features/import/fields';
 import {
@@ -60,7 +55,6 @@ interface ExercisesStepProps {
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
   readonly onDelete: (ref: ExerciseRef) => void;
-  readonly onMove: (ref: ExerciseRef, direction: MoveDirection) => void;
 }
 
 export function ExercisesStep({
@@ -73,7 +67,6 @@ export function ExercisesStep({
   onToggle,
   onEdit,
   onDelete,
-  onMove,
 }: ExercisesStepProps) {
   const workouts = file.routine.workouts;
   const current = workouts[activeWorkout];
@@ -89,11 +82,7 @@ export function ExercisesStep({
       </ScreenHeader>
 
       {workouts.length > 1 && (
-        <div
-          aria-label="Workouts"
-          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
-          role="group"
-        >
+        <div aria-label="Workouts" className="rail -mx-4 -my-1 flex gap-2 px-4 py-1" role="group">
           {workouts.map((workout, index) => (
             <button
               aria-pressed={index === activeWorkout}
@@ -143,13 +132,10 @@ export function ExercisesStep({
                 defaultUnit={defaultUnit}
                 exercise={exercise}
                 exerciseRef={{ workout: activeWorkout, exercise: index }}
-                isFirst={index === 0}
-                isLast={index === current.exercises.length - 1}
                 issues={issues}
                 key={`${exercise.name}-${index}`}
                 onDelete={onDelete}
                 onEdit={onEdit}
-                onMove={onMove}
                 onToggle={onToggle}
                 open={openRef?.workout === activeWorkout && openRef.exercise === index}
                 position={index + 1}
@@ -166,30 +152,24 @@ interface ExerciseRowProps {
   readonly exercise: RoutineFileExercise;
   readonly exerciseRef: ExerciseRef;
   readonly position: number;
-  readonly isFirst: boolean;
-  readonly isLast: boolean;
   readonly open: boolean;
   readonly defaultUnit: Unit;
   readonly issues: IssueIndex;
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
   readonly onDelete: (ref: ExerciseRef) => void;
-  readonly onMove: (ref: ExerciseRef, direction: MoveDirection) => void;
 }
 
 function ExerciseRow({
   exercise,
   exerciseRef,
   position,
-  isFirst,
-  isLast,
   open,
   defaultUnit,
   issues,
   onToggle,
   onEdit,
   onDelete,
-  onMove,
 }: ExerciseRowProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const base = exercisePath(exerciseRef.workout, exerciseRef.exercise);
@@ -205,37 +185,45 @@ function ExerciseRow({
 
   return (
     <article className={cn(PANEL_CARD, flagged && 'border-missed')}>
-      {flagged ? (
-        <div className="flex min-h-12 w-full items-center gap-3">
-          <Summary
-            defaultUnit={defaultUnit}
-            exercise={exercise}
-            position={position}
-          />
+      <div className="flex min-h-12 w-full items-center gap-3">
+        <Summary defaultUnit={defaultUnit} exercise={exercise} position={position} />
+        {flagged && (
           <span className={chip('missed')}>
             <TriangleAlert aria-hidden="true" size={12} strokeWidth={ICON_STROKE} />
             fix
           </span>
+        )}
+        <RowMenu
+          editorId={`${fieldId(base)}-editor`}
+          expanded={expanded}
+          name={exercise.name}
+          onEdit={() => onToggle(expanded ? null : exerciseRef)}
+          onRemove={() => setConfirmingDelete(true)}
+        />
+      </div>
+
+      {confirmingDelete && (
+        <div className={cn(RULED, 'flex-row flex-wrap items-center gap-2')}>
+          <p className="type-body-sm text-ink-2">Remove {exercise.name} from this Workout?</p>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              className={button('quiet', 'compact')}
+              onClick={() => setConfirmingDelete(false)}
+              type="button"
+            >
+              Keep it
+            </button>
+            <button
+              aria-label={`Confirm removing ${exercise.name}`}
+              className={button('danger', 'compact')}
+              onClick={() => onDelete(exerciseRef)}
+              type="button"
+            >
+              <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              Remove it
+            </button>
+          </div>
         </div>
-      ) : (
-        <button
-          aria-controls={`${fieldId(base)}-editor`}
-          aria-expanded={expanded}
-          className={cn('flex min-h-12 w-full items-center gap-3 rounded-field text-left', FOCUS_RING)}
-          onClick={() => onToggle(expanded ? null : exerciseRef)}
-          type="button"
-        >
-          <Summary defaultUnit={defaultUnit} exercise={exercise} position={position} />
-          <ChevronDown
-            aria-hidden="true"
-            className={cn(
-              'shrink-0 text-ink-3 transition-transform duration-[110ms] ease-snap',
-              expanded && 'rotate-180',
-            )}
-            size={20}
-            strokeWidth={ICON_STROKE}
-          />
-        </button>
       )}
 
       {expanded && (
@@ -312,66 +300,99 @@ function ExerciseRow({
             onUseManual={() => patch({ progression: { type: 'manual' } })}
           />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              aria-label={`Move ${exercise.name} up`}
-              className={button('nav', 'icon')}
-              disabled={isFirst}
-              onClick={() => onMove(exerciseRef, -1)}
-              type="button"
-            >
-              <ArrowUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            </button>
-            <button
-              aria-label={`Move ${exercise.name} down`}
-              className={button('nav', 'icon')}
-              disabled={isLast}
-              onClick={() => onMove(exerciseRef, 1)}
-              type="button"
-            >
-              <ArrowDown aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            </button>
-
-            <div className="ml-auto flex items-center gap-2">
-              {confirmingDelete && (
-                <button
-                  className={button('quiet', 'compact')}
-                  onClick={() => setConfirmingDelete(false)}
-                  type="button"
-                >
-                  Keep it
-                </button>
-              )}
-              <button
-                aria-label={
-                  confirmingDelete
-                    ? `Confirm removing ${exercise.name}`
-                    : `Remove ${exercise.name}`
-                }
-                className={button(
-                  'danger',
-                  'compact',
-                  // Armed: the same red, pressed into the card. Depth carries
-                  // the escalation because the hue is already spent naming it
-                  // destructive at rest.
-                  confirmingDelete ? 'shadow-none' : undefined,
-                )}
-                onClick={() => {
-                  if (confirmingDelete) onDelete(exerciseRef);
-                  else setConfirmingDelete(true);
-                }}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-                {confirmingDelete ? 'Remove it' : 'Remove'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </article>
   );
 }
+
+interface RowMenuProps {
+  readonly name: string;
+  readonly expanded: boolean;
+  /** The editor panel this menu opens, for `aria-controls`. */
+  readonly editorId: string;
+  readonly onEdit: () => void;
+  readonly onRemove: () => void;
+}
+
+/**
+ * The row's two verbs, behind one dot-column.
+ *
+ * The row used to be one big disclosure with a chevron, which promised an
+ * editor and delivered a panel that also held Remove and two reorder arrows —
+ * four controls for a row that does two things. A menu says what those two
+ * are, in words, and gives the closed row back its silence.
+ *
+ * Dismissal rides on focus rather than a document listener: the menu lives in
+ * the wrapper, so focus leaving the wrapper is exactly the event that should
+ * close it, and Escape bubbles to the same place.
+ */
+function RowMenu({ name, expanded, editorId, onEdit, onRemove }: RowMenuProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      className="relative shrink-0"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
+    >
+      <button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={`Options for ${name}`}
+        className={button('secondary', 'icon')}
+        onClick={() => setOpen(!open)}
+        type="button"
+      >
+        <EllipsisVertical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full z-10 mt-2 flex w-44 flex-col gap-1 rounded-card bg-card p-2 shadow-lift"
+          role="menu"
+        >
+          <button
+            aria-controls={editorId}
+            aria-expanded={expanded}
+            className={MENU_ITEM}
+            onClick={() => {
+              setOpen(false);
+              onEdit();
+            }}
+            role="menuitem"
+            type="button"
+          >
+            <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            {expanded ? 'Close editor' : 'Edit'}
+          </button>
+          <button
+            className={cn(MENU_ITEM, 'text-missed-ink hover:bg-missed-wash')}
+            onClick={() => {
+              setOpen(false);
+              onRemove();
+            }}
+            role="menuitem"
+            type="button"
+          >
+            <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            Remove
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MENU_ITEM = cn(
+  'flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left type-body-sm',
+  'hover:bg-well',
+  FOCUS_RING,
+);
 
 interface SummaryProps {
   readonly exercise: RoutineFileExercise;

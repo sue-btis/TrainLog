@@ -101,7 +101,7 @@ export function TodayScreen() {
           </p>
 
           {workouts.length > 1 && (
-            <div aria-label="Workouts" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group">
+            <div aria-label="Workouts" className="rail -mx-4 -my-1 flex gap-2 px-4 py-1" role="group">
               {workouts.map((workout) => (
                 <button
                   aria-pressed={workout.id === shown.id}

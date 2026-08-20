@@ -23,12 +23,10 @@ import { formatLocalDate } from '@/domain/dates';
 import {
   deleteExercise,
   editExercise,
-  moveExercise,
   routineFileToDomain,
   parseRoutineFile,
   validateRoutineFile,
   type ExerciseRef,
-  type MoveDirection,
   type RoutineFileExercise,
   type SemanticIssue,
 } from '@/domain/routine-file';
@@ -185,12 +183,6 @@ export function ImportWizard() {
       setOpenRef(null);
       dispatch({ type: 'edited', file: deleteExercise(file, ref) });
     },
-    move: (ref: ExerciseRef, direction: MoveDirection) => {
-      if (!file) return;
-      // The open row follows the exercise the user is moving.
-      setOpenRef({ ...ref, exercise: ref.exercise + direction });
-      dispatch({ type: 'edited', file: moveExercise(file, ref, direction) });
-    },
     toggleDay: (workout: number, day: Weekday) =>
       dispatch({ type: 'toggleDay', workout, day }),
     weeksBy: (delta: number) => dispatch({ type: 'weeksBy', delta }),
@@ -217,7 +209,6 @@ export function ImportWizard() {
             onActiveWorkout={setActiveWorkout}
             onDelete={edit.remove}
             onEdit={edit.exercise}
-            onMove={edit.move}
             onToggle={setOpenRef}
             openRef={openRef}
           />

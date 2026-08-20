@@ -1,6 +1,7 @@
 /**
- * The wizard's action bar: where the user is, what is in the way, and the one
- * thing to do next.
+ * The wizard's action bar: what is in the way, and the one thing to do next.
+ * Where the user is stands under the step's header instead (`StepProgress`) —
+ * the bar is for pressing, not for reading.
  *
  * It is fixed in the thumb zone because the app is operated one-handed, and it
  * carries the outstanding semantic issues because a long Step 1 otherwise
@@ -170,14 +171,6 @@ export function ActionBar({
             >
               <X aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
             </button>
-
-            <div className="flex items-center gap-2">
-              <span aria-hidden="true" className="flex gap-1">
-                <span className="h-1.5 w-6 rounded-line bg-planned-ink" />
-                <span className={cn('h-1.5 w-6 rounded-line', step === 2 ? 'bg-planned-ink' : 'bg-well')} />
-              </span>
-              <span className="type-label text-ink-3">{step} of 2</span>
-            </div>
 
             <div className="ml-auto flex items-center gap-2">
               {step === 2 && (

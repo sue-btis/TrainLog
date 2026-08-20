@@ -158,6 +158,16 @@
   box-shadow: var(--inset-shadow-glass), var(--shadow-glass);
 }
 
+/* A strip of controls that runs past the screen edge. The scrollbar is a
+   desktop artefact on a surface that is dragged with a thumb, and it drew a
+   grey line under the Workout tabs; the tab cut off at the edge is the hint. */
+
+@utility rail {
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
 /* ── Type scale — one utility per named style, properties carried together ── */
 
 @utility type-load {
