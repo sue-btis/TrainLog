@@ -1020,13 +1020,14 @@ Todo se traza en kilogramos, incluso para un ejercicio registrado en libras
 Esta pantalla es la **forma** del registro; §11.10 es el registro — cada sesión
 y cada serie, en palabras. No hay lista de sesiones aquí.
 
-Posteriormente:
+Posteriormente, con los nombres que usa §39 — esta lista y aquella son la
+misma, y escrita de dos formas se construye dos veces:
 
 - estimated 1RM;
-- weekly volume;
-- muscle volume;
-- adherence;
-- PR timeline.
+- PR detection;
+- workout volume;
+- workout adherence;
+- muscle volume.
 
 ---
 
@@ -2388,22 +2389,57 @@ primer ítem de V1.0 — `features/exercises/ExerciseCatalogScreen.tsx`, ruta
 
 # 39. V1.0
 
-Después del MVP:
+Después del MVP. Mismo convenio que §38: ✅ hecho · 🟡 parcial · ⬜ pendiente.
+Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit.
 
-- advanced charts;
-- estimated 1RM;
-- PR detection;
-- workout volume;
-- muscle volume;
-- calendar statistics;
-- workout adherence;
-- routine editor;
-- exercise management;
-- deload support;
-- supersets;
-- warm-up sets;
-- drop sets;
-- custom progression strategies.
+Cuatro grupos, en orden de ejecución. El corte que importa está entre B y C:
+los ocho primeros no tocan la base de datos, y del 9 en adelante todos la tocan
+— schema, migración y `BACKUP_VERSION`.
+
+## A — Métricas derivadas
+
+Funciones puras sobre el historial, más la pantalla de §11.11. Sin datos nuevos,
+sin schema, sin migración. Cada una es un cambio pequeño e independiente.
+
+| # | Ítem | Estado | Nota |
+| --- | --- | --- | --- |
+| 1 | estimated 1RM | ⬜ | Una fórmula sobre `weightKg` y repeticiones. |
+| 2 | PR detection | ⬜ | `summarizeExercise` ya calcula `bestSet` y `heaviest`; un PR es esa cifra contra la anterior. |
+| 3 | workout volume | ⬜ | El volumen por sesión ya existe en el MVP; falta agregarlo por semana. |
+| 4 | workout adherence | ⬜ | Un `Placement` pasado sin `Session` ya se deriva (ADR 0001). |
+| 5 | calendar statistics | ⬜ | Mismo insumo que adherence, otra pantalla. |
+| 6 | advanced charts | ⬜ | Última del grupo: es el contenedor de 1–5, no un requisito propio. Sigue rigiendo §11.11 — un gráfico con conmutador de métrica, nunca un segundo eje Y. |
+
+## B — Identidad del ejercicio
+
+| # | Ítem | Estado | Nota |
+| --- | --- | --- | --- |
+| 7 | exercise management | ⬜ | Crear, renombrar, borrar. Arrastra §26: un emparejamiento por nombre mal resuelto parte un historial en dos. La pantalla de §11.12 ya existe; le faltan las acciones. |
+| 8 | muscle volume | ⬜ | **Depende del 7.** Agrupa por `category`, y hoy un archivo de rutina escribe ahí lo que quiera — el schema no lo valida. Medir sobre vocabulario sucio da cifras falsas. |
+
+## C — Modelo de ejecución
+
+Aquí empieza el coste real: cada uno cambia qué es una serie, o qué es un
+ejercicio dentro de una sesión.
+
+| # | Ítem | Estado | Nota |
+| --- | --- | --- | --- |
+| 9 | warm-up sets | ⬜ | Una serie que no cuenta para progresión: un campo en `CompletedSet` y una regla en §29. El más barato del grupo. |
+| 10 | supersets | ⬜ | `ExerciseSession` tiene `order`, no agrupación. Es estructura nueva. |
+| 11 | drop sets | ⬜ | Series encadenadas dentro de una serie. Mismo tipo de cambio que 10. |
+| 12 | deload support | ⬜ | Toca progresión y planificación a la vez. |
+
+## D — Invariantes que hay que revocar
+
+No se empiezan sin una decisión de producto escrita antes.
+
+| # | Ítem | Estado | Decisión previa |
+| --- | --- | --- | --- |
+| 13 | custom progression strategies | ⬜ | §27–29 sólo definen `manual` y `double_progression`. Abrirlo es definir un contrato de estrategias. |
+| 14 | routine editor | ⬜ | No es una funcionalidad, es revocar **«Routines are immutable once accepted»**, que sostiene el snapshot de ADR 0002. Hay que decidir primero qué ocurre con las sesiones ya registradas contra la versión anterior. |
+
+Exercise Catalog como pantalla (§11.12) salió de esta lista al construirse; fue
+el primer ítem de V1.0. Ver `docs/changes/2026-08-21-exercise-catalog/`.
 
 ---
 
