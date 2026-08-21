@@ -150,9 +150,56 @@ None.
 
 ## Independent Verification Readiness
 
-**Ready**, with one item outstanding at the time of writing: `pnpm exec stryker
-run` is still executing. The first run scored 77.27 against a `break` of 80, but
-that run was invalid — the `mutate` glob matched the `.test.ts` files, so Stryker
-was mutating test code. Implementation scores in that run were `csv.ts` 100.00
-and `schema.ts` 78.15. The glob now excludes tests and the re-run is in flight;
-its result belongs in `verification.md`.
+**Ready.** Every required check has run:
+
+| Check | Result |
+|---|---|
+| `pnpm test` | 334 tests, 23 files, green (baseline was 257) |
+| `pnpm typecheck` | Clean, both tsconfigs |
+| `pnpm lint` | Clean |
+| `pnpm build` | Succeeds; `dist/sw.js`, 23 precache entries |
+| `pnpm exec stryker run` | **91.04**, above the `break: 80`; exit 0 |
+
+### Mutation testing found two real defects in the tests
+
+The first run was invalid — the `mutate` glob matched `.test.ts` files, so
+Stryker was mutating test code and scored 77.27. With the glob corrected to
+exclude tests the score was 89.55, with `schema.ts` at 78.15 and **six
+no-coverage mutants**. The spec required survivors in the validation path to be
+treated as defects rather than noise, so they were read rather than waved
+through. Two were:
+
+1. **`rejects text that is not JSON` passed for the wrong reason.** It routed
+   its input through a helper that calls `JSON.stringify`, so
+   `'not a backup'` became the valid JSON string `'"not a backup"'`. The
+   `JSON.parse` catch block was never executed by any test — which is exactly
+   what the six no-coverage mutants were reporting. Now calls `parseBackup`
+   directly on raw text.
+2. **`JSON.parse` can return a value with no properties** — `null`, `true`,
+   `42`, `[]`. Reading `.version` off `null` throws rather than refusing, and
+   nothing tested that the optional chain guarding it was load-bearing. Now
+   covered for all five shapes.
+
+Three further gaps were pinned: duplicates must be reported *before* the
+reference pass runs (the early return was untested for its actual purpose), and
+the unplanned member of the ExerciseSession union must still validate its own
+fields. Ten tests added; **no production code changed** — the implementation was
+already correct, the tests simply were not holding it in place.
+
+After: **91.04**, `schema.ts` 81.93, `csv.ts` 100.00, **no-coverage 0**.
+
+### Remaining survivors, assessed
+
+`csv.ts` has none. `schema.ts` has 43, of which 39 mutate error-message prose.
+The other four are `schema.ts:89` (a `typeof value === 'string'` guard that
+`isLocalDate` makes redundant, since its regex coerces), `schema.ts:270` (symbol
+path segments, which Zod does not emit), `schema.ts:464` (a non-numeric
+`version` takes a different branch but is refused either way) and
+`schema.ts:219` (a path that is prefixed downstream regardless).
+
+**None of them can make the validator accept a document it should refuse** —
+which was the bar the spec set. Asserting exact error wording would raise the
+number while making the tests brittle and the validator no safer.
+
+Every operator-level survivor elsewhere in the report (`scheduling`, `session`,
+`history`) is in pre-existing code outside this change's write set.

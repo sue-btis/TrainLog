@@ -163,8 +163,34 @@ describe('parseBackup', () => {
     expect(document.settings.defaultUnit).toBe('kg');
   });
 
+  // Raw text, deliberately *not* through `parse`: `JSON.stringify('not a
+  // backup')` is valid JSON, so routing this through the helper would exercise
+  // the object schema and never reach the JSON failure it claims to test.
   it('rejects text that is not JSON', () => {
-    expect(refusedPaths('not a backup')).toEqual(['']);
+    const result = parseBackup('not a backup');
+    if (result.ok) throw new Error('Expected the document to be refused');
+    expect(result.errors.map((error) => formatPath(error.path))).toEqual(['']);
+    expect(result.errors[0]?.message).toMatch(/JSON/i);
+  });
+
+  // `JSON.parse` accepts these and yields a value with no properties. Reading
+  // `.version` off them must refuse, not throw — the file picker hands this
+  // function whatever the lifter chose.
+  it.each(['null', 'true', '42', '"a string"', '[]'])('refuses %s without throwing', (text) => {
+    const result = parseBackup(text);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a version that is not a number', () => {
+    expect(refusedPaths(withKey('version', '1'))).toEqual(['version']);
+  });
+
+  it('rejects a date that is not a string', () => {
+    expect(refusedPaths(withKey('placements', [{ ...PLACEMENT, date: 20260817 }]))).toEqual([
+      'placements[0].date',
+    ]);
   });
 
   // AC-4a — §18: a newer document is refused rather than partially read.
@@ -364,6 +390,34 @@ describe('parseBackup referential integrity', () => {
     const twice = withKey('routines', [ROUTINE, ROUTINE]);
     expect(refusedPaths(twice)).toEqual(['routines[1].id']);
     expect(refusedBecause(twice)).toContain('r1');
+  });
+
+  it('reports duplicates alone, before resolving any reference', () => {
+    // With two rows sharing an id, every lookup against that table is
+    // ambiguous — so the reference pass is not run at all and the dangling
+    // `workoutId` below stays unreported until the duplicate is fixed.
+    const both = {
+      ...validDocument(),
+      routines: [ROUTINE, ROUTINE],
+      workouts: [{ ...WORKOUT, workoutId: 'gone', routineId: 'gone' }],
+    };
+    expect(refusedPaths(both)).toEqual(['routines[1].id']);
+  });
+
+  // The unplanned member of the union still has to validate its own fields.
+  it('rejects an unplanned ExerciseSession whose own fields are malformed', () => {
+    const malformed = withKey('exerciseSessions', [
+      PLANNED_ES,
+      { ...UNPLANNED_ES, order: 'first' },
+    ]);
+    expect(refusedPaths(malformed).length).toBeGreaterThan(0);
+  });
+
+  it('rejects an unplanned ExerciseSession missing a required field', () => {
+    const incomplete: Record<string, unknown> = { ...UNPLANNED_ES };
+    delete incomplete.sessionId;
+    expect(refusedPaths(withKey('exerciseSessions', [PLANNED_ES, incomplete])).length)
+      .toBeGreaterThan(0);
   });
 
   it('does not run referential checks when the shape already failed', () => {
