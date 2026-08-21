@@ -30,7 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exerciseSeries, summarizeExercise } from '@/domain/history';
 import type { ExerciseId } from '@/domain/ids';
 import { useExerciseHistory, useExerciseNames, usePerformedExercises } from '@/features/data/queries';
-import { ExerciseChart, METRICS, type Metric } from '@/features/progress/ExerciseChart';
+import { ExerciseChart, METRICS, round, type Metric } from '@/features/progress/ExerciseChart';
+import { shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
 import { ICON_STROKE, LABEL, WELL } from '@/features/ui/styles';
 
@@ -149,6 +150,12 @@ function ExerciseProgress({
 
   const summary = summarizeExercise(history);
 
+  // The maximum, not the last point flagged `isRecord`: the first session never
+  // carries that flag — it has nothing to beat — so a one-session history would
+  // name no day at all. A tie keeps the earlier point, which is the day the
+  // estimate was reached, and the same strictly-greater rule the flag applies.
+  const best = points.reduce((a, b) => (b.estimatedOneRepMaxKg > a.estimatedOneRepMaxKg ? b : a));
+
   return (
     <section className={WELL}>
       <div className="flex flex-wrap items-center gap-2">
@@ -156,6 +163,18 @@ function ExerciseProgress({
         <Link className="type-body-sm text-ink-2 underline" to={`/exercises/${exerciseId}`}>
           Full history
         </Link>
+      </div>
+
+      {/* §39 A·1 said once in words: the strongest this exercise has shown, and
+          when. It is not the pill above it — `bestSet` ranks by load, and load
+          is not what the estimate ranks by (105 × 1 estimates under 100 × 5) —
+          but it is derived from the same points the chart draws, so §11.10's
+          `ExerciseSummary` is left exactly as that screen renders it. The day
+          is in the axis's own notation, so it is findable on the line below. */}
+      <div className="flex flex-col gap-1">
+        <span className={LABEL}>best estimated 1RM</span>
+        <span className="type-readout text-ink">{round(best.estimatedOneRepMaxKg)} kg</span>
+        <span className="type-measure text-ink-3">{shortDate(best.date)}</span>
       </div>
 
       {/* Radix owns the strip: arrow keys move between metrics, and the chart

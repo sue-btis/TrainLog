@@ -49,6 +49,25 @@ function better(a: CompletedSet, b: CompletedSet): CompletedSet {
   return a.reps >= b.reps ? a : b;
 }
 
+/**
+ * Epley over reps *and* RIR: `weightKg x (1 + (reps + rir) / 30)`.
+ *
+ * The RIR term is the point. §30 stores RIR as a real result and says the
+ * historical value must not be discarded; a set stopped two reps short of
+ * failure demonstrates the capacity of a set two reps longer, and reading reps
+ * alone would understate every disciplined session the same way.
+ *
+ * Read off `weightKg`, like every comparison in this module (§11.7): a 225 lb
+ * set estimates from 102 kg, not from 225.
+ *
+ * Not capped at high repetitions. Epley is known to overstate above roughly ten
+ * reps, and a cap is a product decision nobody has taken — the consequence is
+ * recorded in this change's spec rather than papered over here.
+ */
+export function estimateOneRepMaxKg(performed: CompletedSet): number {
+  return performed.weightKg * (1 + (performed.reps + performed.rir) / 30);
+}
+
 const EMPTY: ExerciseSummary = {
   sessions: 0,
   workingWeight: null,
@@ -121,6 +140,19 @@ export interface ExercisePoint {
   readonly reps: number;
   /** `Σ weightKg × reps` — the work moved. */
   readonly volumeKg: number;
+  /**
+   * The best `estimateOneRepMaxKg` of the session — across every set, not the
+   * estimate of the set `better()` returns. `better()` chooses by load, so it
+   * hands back a heavy double on a day a lighter set demonstrated more; taking
+   * the estimate from it would throw that day's real showing away.
+   */
+  readonly estimatedOneRepMaxKg: number;
+  /**
+   * Whether this session's estimate beats every earlier one — strictly, so a
+   * repeat is not a record, and never for the first session, which has nothing
+   * to beat. Marking every opening session would make the mark mean nothing.
+   */
+  readonly isRecord: boolean;
 }
 
 /**
@@ -140,7 +172,7 @@ export interface ExercisePoint {
  * than reversed.
  */
 export function exerciseSeries(history: readonly SessionHistory[]): ExercisePoint[] {
-  return history
+  const ordered = history
     .filter((entry) => setsOf(entry).length > 0)
     .map((entry) => {
       const sets = setsOf(entry);
@@ -153,7 +185,23 @@ export function exerciseSeries(history: readonly SessionHistory[]): ExercisePoin
         topSetReps: top.reps,
         reps: sets.reduce((total, performed) => total + performed.reps, 0),
         volumeKg: sets.reduce((total, performed) => total + performed.weightKg * performed.reps, 0),
+        estimatedOneRepMaxKg: sets.reduce(
+          (best, performed) => Math.max(best, estimateOneRepMaxKg(performed)),
+          0,
+        ),
       };
     })
     .sort((a, b) => a.startedAt - b.startedAt);
+
+  // A running maximum, and only after the sort: the repository hands history
+  // over newest first, and reading records in that order would crown the oldest
+  // session and miss the newest. `index > 0` rather than a sentinel on `best`,
+  // because a bodyweight set logged at 0 kg estimates 0 — a real value, not an
+  // absent one, and the session after it must still be able to beat it.
+  let best = 0;
+  return ordered.map((point, index) => {
+    const isRecord = index > 0 && point.estimatedOneRepMaxKg > best;
+    best = Math.max(best, point.estimatedOneRepMaxKg);
+    return { ...point, isRecord };
+  });
 }

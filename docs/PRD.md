@@ -1020,11 +1020,24 @@ Todo se traza en kilogramos, incluso para un ejercicio registrado en libras
 Esta pantalla es la **forma** del registro; §11.10 es el registro — cada sesión
 y cada serie, en palabras. No hay lista de sesiones aquí.
 
+Después del MVP entraron dos métricas más, §39 A·1 y A·2:
+
+- **1RM estimado** — Epley sobre repeticiones **y RIR**,
+  `weightKg × (1 + (reps + rir) / 30)`. El RIR entra porque §30 lo guarda como
+  resultado real y prohibe descartarlo: una serie parada a dos repeticiones del
+  fallo demuestra la capacidad de una serie dos repeticiones más larga. Es el
+  máximo entre **todas** las series de la sesión, no el de la serie superior por
+  carga — 100 kg × 5 estima más que 110 kg × 1, y leerlo de la segunda tiraría
+  ese día a la basura. Cuarta métrica del conmutador.
+- **Récords** — una sesión es récord cuando su 1RM estimado supera **estrictamente**
+  al de todas las anteriores. Un empate no lo es, y la primera sesión nunca se
+  marca: no tiene nada que batir. Es un récord de 1RM estimado, no de carga; los
+  dos difieren, y el estimado es el que ve la mejora de repetir la misma carga
+  con más repeticiones o menos RIR.
+
 Posteriormente, con los nombres que usa §39 — esta lista y aquella son la
 misma, y escrita de dos formas se construye dos veces:
 
-- estimated 1RM;
-- PR detection;
 - workout volume;
 - workout adherence;
 - muscle volume.
@@ -2403,8 +2416,8 @@ sin schema, sin migración. Cada una es un cambio pequeño e independiente.
 
 | # | Ítem | Estado | Nota |
 | --- | --- | --- | --- |
-| 1 | estimated 1RM | ⬜ | Una fórmula sobre `weightKg` y repeticiones. |
-| 2 | PR detection | ⬜ | `summarizeExercise` ya calcula `bestSet` y `heaviest`; un PR es esa cifra contra la anterior. |
+| 1 | estimated 1RM | ✅ | `estimateOneRepMaxKg` en `domain/history.ts` — Epley sobre reps + RIR (§30); `ExercisePoint.estimatedOneRepMaxKg` es el máximo de la sesión; cuarta métrica del gráfico. |
+| 2 | PR detection | ✅ | `ExercisePoint.isRecord` — máximo acumulado sobre la serie ordenada, estrictamente mayor, nunca la primera sesión. |
 | 3 | workout volume | ⬜ | El volumen por sesión ya existe en el MVP; falta agregarlo por semana. |
 | 4 | workout adherence | ⬜ | Un `Placement` pasado sin `Session` ya se deriva (ADR 0001). |
 | 5 | calendar statistics | ⬜ | Mismo insumo que adherence, otra pantalla. |
