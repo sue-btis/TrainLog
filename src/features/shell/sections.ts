@@ -8,8 +8,8 @@
  *
  * Progress and Exercises arrive with the screens behind them.
  *
- * More is appended, never prepended: `AppShell` reads `SECTIONS[2]` as the
- * Routines entry to resolve the routes that sit under it.
+ * Appended, never prepended: `AppShell` reads `SECTIONS[2]` as Routines and
+ * `SECTIONS[3]` as More, to resolve the routes that sit under each of them.
  */
 
 import { CalendarDays, Dumbbell, Ellipsis, ScrollText } from 'lucide-react';

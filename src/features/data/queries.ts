@@ -17,6 +17,7 @@ import {
   getRoutine,
   getSessionDetail,
   getWorkout,
+  listAllSessions,
   listExerciseHistory,
   listPlacementsBetween,
   listPlacementsByRoutine,
@@ -72,6 +73,22 @@ export function useSessionDetail(sessionId: SessionId | null) {
   );
 }
 
+/**
+ * One Session for the history detail. `undefined` while the query is in flight,
+ * `null` when there is no such Session — the same distinction `useRoutine`
+ * draws, and for the same reason: a detail screen must not flash "no such
+ * session" during a read that is simply still running.
+ *
+ * `useSessionDetail` above cannot answer this: gym mode reads it for a Session
+ * it already holds, so `undefined` there means only "still reading".
+ */
+export function useSessionRecord(sessionId: SessionId | null) {
+  return useLiveQuery(
+    async () => (sessionId === null ? null : ((await getSessionDetail(sessionId)) ?? null)),
+    [sessionId],
+  );
+}
+
 export function useExerciseHistory(exerciseId: ExerciseId) {
   return useLiveQuery(() => listExerciseHistory(exerciseId), [exerciseId]);
 }
@@ -110,6 +127,11 @@ export function usePlacementsBetween(from: LocalDate, to: LocalDate) {
 /** Every Session in a month, across all Routines (§11.3, R-23). */
 export function useSessionsBetween(from: LocalDate, to: LocalDate) {
   return useLiveQuery(() => listSessionsBetween(from, to), [from, to]);
+}
+
+/** Every Session, newest first, across every Routine (§11.10, R-1). */
+export function useAllSessions() {
+  return useLiveQuery(() => listAllSessions(), []);
 }
 
 export function useSessionsByRoutine(routineId: RoutineId | null) {

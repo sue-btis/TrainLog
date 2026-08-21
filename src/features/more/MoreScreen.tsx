@@ -11,11 +11,15 @@
  * dropped; nothing partial is ever written (§18), and the database is not
  * touched until the lifter has seen the summary and pressed again.
  *
+ * Session history hangs off here as well: it is a place you go rather than an
+ * action you take, so it leads the screen and the data actions follow.
+ *
  * Settings (§32) will live here too. Only the data actions exist today.
  */
 
 import { useRef, useState } from 'react';
-import { Database, Download, FileUp, TriangleAlert, Upload } from 'lucide-react';
+import { Link } from 'react-router';
+import { ChevronRight, Database, Download, FileUp, History, TriangleAlert, Upload } from 'lucide-react';
 import { exportBackup, listSetsForCsv, restoreBackup, restoreSummary } from '@/db';
 import type { RestoreSummary } from '@/db';
 import { Button } from '@/components/ui/button';
@@ -23,8 +27,9 @@ import { formatPath, parseBackup, toCsv } from '@/domain/backup';
 import type { BackupDocument, StructuralError } from '@/domain/backup';
 import { formatLocalDate } from '@/domain/dates';
 import { plural } from '@/features/ui/format';
-import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
+import { ICON_STROKE, LABEL, PRESS, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/more/download';
+import { cn } from '@/lib/utils';
 
 /** A validated document waiting for the lifter to confirm replacing everything. */
 interface Pending {
@@ -102,6 +107,17 @@ export function MoreScreen() {
         Everything you log lives on this phone and nowhere else. A backup is the only
         copy that survives a lost device or a cleared browser.
       </p>
+
+      <Link className={cn(WELL, PRESS, 'flex-row items-center gap-3')} to="/sessions">
+        <History aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
+        <span className="min-w-0 flex-1">
+          <span className="block type-title">Session history</span>
+          <span className="block type-body-sm text-ink-2">
+            Every workout you have finished, and every set in it.
+          </span>
+        </span>
+        <ChevronRight aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
+      </Link>
 
       <section className={WELL}>
         <p className={LABEL}>backup</p>

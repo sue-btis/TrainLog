@@ -7,10 +7,10 @@
  */
 
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
-import type { PlannedExercise, Weekday } from '@/domain/types';
+import type { PlannedExercise, PlannedExerciseSession, Weekday } from '@/domain/types';
 
-/** `4–6`, or `4` when both ends agree. */
-export function range(min: number, max: number): string {
+/** `4–6`, or `4` when both ends agree. Internal: the two lines below read it. */
+function range(min: number, max: number): string {
   return min === max ? String(min) : `${min}–${max}`;
 }
 
@@ -22,6 +22,24 @@ export function programmingLine(exercise: PlannedExercise): string {
   }
   if (exercise.restSeconds !== null) parts.push(`${exercise.restSeconds}s`);
   parts.push(exercise.unit);
+  return parts.join(' · ');
+}
+
+/**
+ * `4×4–6 · RIR 1–2 · rest 210s` — the targets an exercise was performed
+ * against, read off the ExerciseSession's own snapshot and never off the
+ * PlannedExercise behind it (ADR 0002).
+ *
+ * The same line in gym mode and in session history, from one function, so the
+ * screen showing what you are about to do and the screen showing what you did
+ * cannot drift into two notations for the same fact.
+ */
+export function snapshotLine(planned: PlannedExerciseSession): string {
+  const parts = [`${planned.plannedSets}×${range(planned.plannedMinReps, planned.plannedMaxReps)}`];
+  if (planned.plannedMinRir !== null && planned.plannedMaxRir !== null) {
+    parts.push(`RIR ${range(planned.plannedMinRir, planned.plannedMaxRir)}`);
+  }
+  if (planned.plannedRestSeconds !== null) parts.push(`rest ${planned.plannedRestSeconds}s`);
   return parts.join(' · ');
 }
 

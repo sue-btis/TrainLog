@@ -2285,7 +2285,7 @@ No implementar `merge` en MVP.
 
 ## MVP 0.1
 
-Estado verificado contra el código el 2026-08-20 (rama `pwa-addition`).
+Estado verificado contra el código el 2026-08-21 (rama `master`).
 Leyenda: ✅ hecho · 🟡 parcial · ⬜ pendiente.
 Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit.
 
@@ -2311,10 +2311,10 @@ Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit
 | Workout | Skip exercise | ✅ | `skipExercise` → `SessionScreen.tsx` |
 | Workout | Reorder exercises | ✅ | `moveExerciseSession`, `ExerciseReorder.tsx` |
 | Workout | Unplanned exercises | ✅ | `startUnplannedExercise`, `ExercisePicker.tsx` |
-| Workout | Rest timer | 🟡 | `RestTimer.tsx` + wake lock y vibración; faltan las notificaciones de §11.6 |
+| Workout | Rest timer | ✅ | `RestTimer.tsx`, `useWakeLock.ts` + vibración; las notificaciones que faltan son las que §11.6 declara fuera del MVP |
 | Workout | Previous results | ✅ | `PreviousPanel.tsx` |
 | Workout | Finish session | ✅ | `finishSession`, `deriveSessionStatus` |
-| History | Sessions | ⬜ | no hay pantalla ni ruta de historial de sesiones (§11.10) |
+| History | Sessions | ✅ | `listAllSessions` → `features/history/SessionHistoryScreen.tsx`, `SessionDetailScreen.tsx`; rutas `/sessions` y `/sessions/:sessionId` |
 | History | Exercise history | ✅ | `features/history/ExerciseHistoryScreen.tsx` |
 | Progression | Manual | ✅ | `suggestLoad` → `ExerciseView.tsx` |
 | Progression | Double progression | ✅ | `domain/progression/index.ts` (§29) |
@@ -2324,8 +2324,8 @@ Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit
 | Data | Restore | ✅ | `parseBackup` valida, `restoreBackup` reemplaza en una transacción; confirmación en `MoreScreen.tsx` |
 | Data | CSV export | ✅ | `domain/backup/csv.ts`, `listSetsForCsv`; columnas §19 + `unit` |
 | Platform | Responsive | ✅ | `features/shell/` (mobile-first) |
-| Platform | PWA | ⬜ | `vite-plugin-pwa` instalado pero no configurado en `vite.config.ts`; sin manifest (§33) |
-| Platform | Offline | ⬜ | depende del service worker; sin él no hay cache de la app shell (§9) |
+| Platform | PWA | ✅ | `pwa/config.ts` (manifest §33 + iconos) montado en `vite.config.ts` |
+| Platform | Offline | ✅ | service worker de `vite-plugin-pwa`: precache del shell y de las fuentes, fallback de rutas profundas (§9) |
 
 Fuera de MVP 0.1 y aún sin empezar: Progress Dashboard (§11.11), Exercise Catalog
 como pantalla (§11.12), Settings (§32).
