@@ -36,7 +36,7 @@ fallback.
 | T-4 CSV | R-8 | Completed | `domain/backup/csv.ts` + test, `db/repositories/backup.ts` | test, typecheck, lint | 11 + 7 tests; commit `246925c` |
 | T-5 `/more` screen | R-1, R-6 (UI), R-9, R-10 | Completed | `features/more/`, `shell/sections.ts`, `App.tsx`, `docs/PRD.md` | test, typecheck, lint, build, browser QA | below |
 
-Final suite: **324 tests, 23 files, green.** `pnpm typecheck`, `pnpm lint`,
+Final suite: **334 tests, 23 files, green.** `pnpm typecheck`, `pnpm lint`,
 `pnpm build` all clean; the build emits `dist/sw.js` with 23 precache entries.
 
 ## Integration Gates
