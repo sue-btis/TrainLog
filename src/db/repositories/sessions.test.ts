@@ -18,6 +18,7 @@ import {
   getInProgressSession,
   getLastPerformedWorkout,
   getSession,
+  listAllSessions,
   listSessionsBetween,
   saveFinishedSession,
 } from '@/db/repositories/sessions';
@@ -389,5 +390,85 @@ describe('saveExerciseSessions (R-10, AC-20)', () => {
     const after = await listExerciseSessionsBySession(started.session.id);
     expect(after).toHaveLength(1);
     expect(after[0]?.order).toBe(0);
+  });
+});
+
+/**
+ * R-1, R-5 — the session history reads.
+ *
+ * `listAllSessions` is the list screen's only query: every Session across every
+ * Routine, newest first, of every status. The AC-5a case below is the one that
+ * matters most — history renders from the ExerciseSession snapshot, so editing
+ * the template behind a past Session must not move what that Session says it
+ * was performed against (ADR 0002).
+ */
+describe('session history reads (R-1, R-5)', () => {
+  const otherRoutine = toId<RoutineId>('routine-2');
+
+  it('AC-1a — every Session, both Routines, every status, newest first', async () => {
+    await db.sessions.bulkAdd([
+      {
+        id: toId<SessionId>('s-old'),
+        routineId,
+        workoutId,
+        startedAt: 1_000,
+        completedAt: 2_000,
+        status: 'completed',
+      },
+      {
+        id: toId<SessionId>('s-live'),
+        routineId: otherRoutine,
+        workoutId,
+        startedAt: 9_000,
+        completedAt: null,
+        status: 'in_progress',
+      },
+      {
+        id: toId<SessionId>('s-partial'),
+        routineId: otherRoutine,
+        workoutId,
+        startedAt: 5_000,
+        completedAt: 6_000,
+        status: 'partial',
+      },
+    ]);
+
+    const all = await listAllSessions();
+
+    expect(all.map((session) => session.id)).toEqual(['s-live', 's-partial', 's-old']);
+  });
+
+  it('AC-1b — an empty database lists nothing rather than failing', async () => {
+    expect(await listAllSessions()).toEqual([]);
+  });
+
+  it('AC-5a — editing the template leaves a past Session reading its snapshot', async () => {
+    await db.plannedExercises.add(planned);
+
+    const started = startWorkout({
+      routineId,
+      workoutId,
+      planned: [planned],
+      startedAt: 1_000,
+    });
+    await createStartedWorkout(started);
+    await saveFinishedSession(
+      finishSession(started.session, started.exerciseSessions, 9_000),
+      started.exerciseSessions,
+    );
+
+    // The lifter re-imports a corrected file: same template row, new targets.
+    await db.plannedExercises.put({ ...planned, sets: 8, minReps: 10, maxReps: 12, restSeconds: 60 });
+
+    const detail = await getSessionDetail(started.session.id);
+    const [performed] = detail!.exercises;
+
+    expect(performed!.exerciseSession).toMatchObject({
+      plannedExerciseId: planned.id,
+      plannedSets: 4,
+      plannedMinReps: 4,
+      plannedMaxReps: 6,
+      plannedRestSeconds: 180,
+    });
   });
 });

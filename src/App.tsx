@@ -7,6 +7,9 @@
  * gym mode carries no navigation at all, because §21 says nothing may compete
  * with the set in front of you.
  *
+ * Session history sits inside the shell too, under `/sessions` — plural, and a
+ * different thing from `/session`, which is the one being trained right now.
+ *
  * Progress and Exercises arrive with the screens behind them; the navigation
  * shows only what exists.
  */
@@ -14,6 +17,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { CalendarScreen } from '@/features/calendar/CalendarScreen';
 import { ExerciseHistoryScreen } from '@/features/history/ExerciseHistoryScreen';
+import { SessionDetailScreen } from '@/features/history/SessionDetailScreen';
+import { SessionHistoryScreen } from '@/features/history/SessionHistoryScreen';
 import { ImportWizard } from '@/features/import/ImportWizard';
 import { MoreScreen } from '@/features/more/MoreScreen';
 import { RoutineDetailScreen } from '@/features/routines/RoutineDetailScreen';
@@ -33,6 +38,8 @@ export function App() {
           <Route element={<MoreScreen />} path="/more" />
           <Route element={<RoutineDetailScreen />} path="/routines/:routineId" />
           <Route element={<ExerciseHistoryScreen />} path="/exercises/:exerciseId" />
+          <Route element={<SessionHistoryScreen />} path="/sessions" />
+          <Route element={<SessionDetailScreen />} path="/sessions/:sessionId" />
         </Route>
         <Route element={<ImportWizard />} path="/import" />
         <Route element={<SessionScreen />} path="/session" />

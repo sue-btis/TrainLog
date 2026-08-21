@@ -100,6 +100,23 @@ export async function listSessionsByRoutine(routineId: Session['routineId']): Pr
 }
 
 /**
+ * Every Session, newest first, across every Routine (R-1, §11.10).
+ *
+ * The session history list reads this and nothing else: a row is drawn from the
+ * `Session` itself, so the screen stays one query no matter how long a lifter
+ * has been training. Sessions of every status are returned — `partial` and
+ * `in_progress` are part of what happened, and hiding one here would make the
+ * list disagree with the calendar.
+ *
+ * Unpaginated, deliberately: one local lifter's history is hundreds of rows,
+ * not millions (`schema.ts` — "One database, one local user").
+ * Index: startedAt.
+ */
+export async function listAllSessions(): Promise<Session[]> {
+  return db.sessions.orderBy('startedAt').reverse().toArray();
+}
+
+/**
  * The Sessions that fall on the local days `from`..`to`, inclusive, across
  * every Routine (R-43, §11.3).
  *

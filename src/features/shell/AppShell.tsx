@@ -4,15 +4,15 @@
  *
  * The bar is filled from the route rather than by each screen, so a screen
  * cannot forget to render one or name itself something the navigation does not
- * call it. Sections come from the same table the navigation reads; the routine
- * detail is the one route below a section, and it is the only one with a way
- * back — a root section has nowhere to go.
+ * call it. Sections come from the same table the navigation reads; three route
+ * families sit below the sections rather than beside them, and each names its
+ * own way back — a root section has nowhere to go.
  *
  * The wizard and gym mode render their own frames and are deliberately outside
  * this one.
  */
 
-import { Dumbbell } from 'lucide-react';
+import { Dumbbell, History } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { BottomNav } from '@/features/shell/BottomNav';
 import { SECTIONS } from '@/features/shell/sections';
@@ -21,33 +21,51 @@ import { COLUMN, SCREEN } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 const ROUTINES = SECTIONS[2];
+const MORE = SECTIONS[3];
 
 export function AppShell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const section = SECTIONS.find((entry) => entry.to === pathname);
 
-  // Two routes sit under a section rather than beside them.
+  // Routes that sit under a section rather than beside them.
   const detail = section === undefined && pathname.startsWith(`${ROUTINES.to}/`);
   const exercise = section === undefined && pathname.startsWith('/exercises/');
+  const sessions = section === undefined && pathname === '/sessions';
+  const sessionDetail = section === undefined && pathname.startsWith('/sessions/');
 
   // An exercise's history is reached from more than one place — the routine
   // detail and, mid-workout, gym mode — so its back control retraces the step
   // taken rather than naming a destination. Sending a lifter to Routines from
-  // an open session would be the wrong answer to "back".
-  const back = exercise
-    ? { onBack: () => void navigate(-1) }
-    : detail
-      ? { to: ROUTINES.to }
-      : undefined;
+  // an open session would be the wrong answer to "back". One session's detail
+  // is reached from two places for the same reason: the history list and the
+  // calendar. The list itself has one way in, so it can name it.
+  const back =
+    exercise || sessionDetail
+      ? { onBack: () => void navigate(-1) }
+      : sessions
+        ? { to: MORE.to }
+        : detail
+          ? { to: ROUTINES.to }
+          : undefined;
+
+  const history = sessions || sessionDetail;
 
   return (
     <main className={SCREEN}>
       <TopBar
         back={back}
-        backLabel={exercise ? 'Back' : 'Back to Routines'}
-        icon={exercise ? Dumbbell : (section?.Icon ?? ROUTINES.Icon)}
-        title={exercise ? 'Exercise' : (section?.label ?? 'Routine')}
+        backLabel={backLabel(exercise || sessionDetail, sessions)}
+        icon={history ? History : exercise ? Dumbbell : (section?.Icon ?? ROUTINES.Icon)}
+        title={
+          sessions
+            ? 'History'
+            : sessionDetail
+              ? 'Session'
+              : exercise
+                ? 'Exercise'
+                : (section?.label ?? 'Routine')
+        }
       />
 
       <div className={cn(COLUMN, 'pb-32')}>
@@ -57,4 +75,10 @@ export function AppShell() {
       <BottomNav />
     </main>
   );
+}
+
+/** What the back control says: where it goes, when it goes somewhere named. */
+function backLabel(retraces: boolean, toMore: boolean): string {
+  if (retraces) return 'Back';
+  return toMore ? 'Back to More' : 'Back to Routines';
 }

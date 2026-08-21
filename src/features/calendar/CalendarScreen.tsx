@@ -13,6 +13,7 @@
  */
 
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { CalendarOff, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -41,6 +42,7 @@ import { DayCell, STATE_LABEL, STATE_ORDER } from '@/features/calendar/DayCell';
 import {
   ICON_STROKE,
   LABEL,
+  PRESS,
   ROW,
   ROW_LIST,
   WELL,
@@ -305,18 +307,21 @@ function SessionRow({ session, name }: { readonly session: Session; readonly nam
   const tone: Parameters<typeof chip>[0] =
     session.status === 'completed' ? 'actual' : session.status === 'partial' ? 'missed' : 'neutral';
 
+  // A recorded session opens its own detail: the calendar says one happened,
+  // and the next question is always what was in it.
   return (
-    <article className={ROW}>
+    <Link className={cn(ROW, PRESS, 'rounded-field')} to={`/sessions/${session.id}`}>
       <div className="flex items-center gap-2">
         <span className={chip(tone)}>{session.status.replace('_', ' ')}</span>
         <span className="min-w-0 flex-1 truncate type-title">{name}</span>
+        <ChevronRight aria-hidden="true" className="text-ink-3" size={18} strokeWidth={ICON_STROKE} />
       </div>
       <p className="type-measure-sm text-ink-3">
         started {started.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
         {session.completedAt !== null &&
           ` · ${plural(Math.max(1, Math.round((session.completedAt - session.startedAt) / 60000)), 'min')}`}
       </p>
-    </article>
+    </Link>
   );
 }
 

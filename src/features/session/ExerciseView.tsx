@@ -22,7 +22,7 @@ import type { Unit } from '@/domain/units';
 import { SetEditor } from '@/features/session/SetEditor';
 import { SetLogger, type SetValues } from '@/features/session/SetLogger';
 import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
-import { range } from '@/features/ui/format';
+import { snapshotLine } from '@/features/ui/format';
 import { ICON_STROKE, RULED, chip, dome } from '@/features/ui/styles';
 
 /** The plate granularity of an exercise, where its rule declares one (§29). */
@@ -114,13 +114,7 @@ export function ExerciseView({
           {planned === null ? (
             <span className={chip('neutral')}>Unplanned</span>
           ) : (
-            <span className="type-measure text-ink-3">
-              {planned.plannedSets}×{range(planned.plannedMinReps, planned.plannedMaxReps)}
-              {planned.plannedMinRir !== null &&
-                planned.plannedMaxRir !== null &&
-                ` · RIR ${range(planned.plannedMinRir, planned.plannedMaxRir)}`}
-              {planned.plannedRestSeconds !== null && ` · rest ${planned.plannedRestSeconds}s`}
-            </span>
+            <span className="type-measure text-ink-3">{snapshotLine(planned)}</span>
           )}
           {sets.length > (planned?.plannedSets ?? Infinity) && (
             <span className={chip('actual')}>{sets.length - planned!.plannedSets} extra</span>

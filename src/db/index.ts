@@ -64,6 +64,7 @@ export {
   getInProgressSession,
   getLastPerformedWorkout,
   getSession,
+  listAllSessions,
   listSessionsBetween,
   listSessionsByRoutine,
   saveFinishedSession,
