@@ -12,7 +12,7 @@
  * this one.
  */
 
-import { Dumbbell, History } from 'lucide-react';
+import { Dumbbell, History, ScrollText } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { BottomNav } from '@/features/shell/BottomNav';
 import { SECTIONS } from '@/features/shell/sections';
@@ -20,8 +20,16 @@ import { TopBar } from '@/features/shell/TopBar';
 import { COLUMN, SCREEN } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
-const ROUTINES = SECTIONS[2];
-const MORE = SECTIONS[3];
+/**
+ * The two destinations a route below a section goes back to, as paths.
+ *
+ * They were read out of `SECTIONS` by position, which held only while both were
+ * tabs and while nothing was ever inserted before them. Routines is not a tab
+ * any more, and a positional read of a homogeneous array is the kind of thing
+ * that keeps compiling after it stops being true.
+ */
+const ROUTINES = '/routines';
+const MORE = '/more';
 
 export function AppShell() {
   const { pathname } = useLocation();
@@ -29,7 +37,8 @@ export function AppShell() {
   const section = SECTIONS.find((entry) => entry.to === pathname);
 
   // Routes that sit under a section rather than beside them.
-  const detail = section === undefined && pathname.startsWith(`${ROUTINES.to}/`);
+  const routines = section === undefined && pathname === ROUTINES;
+  const detail = section === undefined && pathname.startsWith(`${ROUTINES}/`);
   const exercise = section === undefined && pathname.startsWith('/exercises/');
   const sessions = section === undefined && pathname === '/sessions';
   const sessionDetail = section === undefined && pathname.startsWith('/sessions/');
@@ -43,10 +52,10 @@ export function AppShell() {
   const back =
     exercise || sessionDetail
       ? { onBack: () => void navigate(-1) }
-      : sessions
-        ? { to: MORE.to }
+      : sessions || routines
+        ? { to: MORE }
         : detail
-          ? { to: ROUTINES.to }
+          ? { to: ROUTINES }
           : undefined;
 
   const history = sessions || sessionDetail;
@@ -55,8 +64,8 @@ export function AppShell() {
     <main className={SCREEN}>
       <TopBar
         back={back}
-        backLabel={backLabel(exercise || sessionDetail, sessions)}
-        icon={history ? History : exercise ? Dumbbell : (section?.Icon ?? ROUTINES.Icon)}
+        backLabel={backLabel(exercise || sessionDetail, sessions || routines)}
+        icon={history ? History : exercise ? Dumbbell : (section?.Icon ?? ScrollText)}
         title={
           sessions
             ? 'History'
@@ -64,7 +73,9 @@ export function AppShell() {
               ? 'Session'
               : exercise
                 ? 'Exercise'
-                : (section?.label ?? 'Routine')
+                : routines
+                  ? 'Routines'
+                  : (section?.label ?? 'Routine')
         }
       />
 

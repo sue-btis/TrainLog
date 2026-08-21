@@ -76,6 +76,24 @@ export async function listExerciseHistory(exerciseId: ExerciseId): Promise<Sessi
 }
 
 /**
+ * Every Exercise that has been trained at least once — what §11.11's selector
+ * offers, and nothing more.
+ *
+ * Read off the `exerciseSessions.exerciseId` index as unique keys, so the
+ * answer costs one index walk rather than a table scan and a `Set`.
+ *
+ * "Trained" here means an ExerciseSession exists, which includes one that was
+ * started and then skipped. Narrowing it to exercises that hold sets would mean
+ * joining `completedSets` for a distinction the screen already draws better:
+ * a selected exercise with no sets shows an empty state, which says *no sets
+ * yet* far more clearly than quietly missing from a list would.
+ */
+export async function listPerformedExercises(): Promise<ExerciseId[]> {
+  const ids = await db.exerciseSessions.orderBy('exerciseId').uniqueKeys();
+  return ids as ExerciseId[];
+}
+
+/**
  * One Session with every exercise it contains and every set logged in it — the
  * session detail read, and the resume read after recovery (§35).
  *
