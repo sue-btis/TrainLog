@@ -10,10 +10,10 @@
  * arrive as `var(--color-…)`. That is still the token: the Token-Only Rule bans
  * a raw hex literal, not the name the value is stored under.
  *
- * **One metric at a time.** Load is kilograms, reps are a count and volume is
- * kilogram-reps — three units, and DESIGN.md forbids a second Y axis. They are
- * three readings of the same sessions, so the switch is above the chart and the
- * axis always means one thing.
+ * **One metric at a time.** Load and e1RM are kilograms, reps are a count and
+ * volume is kilogram-reps — three units, and DESIGN.md forbids a second Y axis.
+ * They are four readings of the same sessions, so the switch is above the chart
+ * and the axis always means one thing.
  *
  * Everything is plotted in kilograms even for an exercise logged in pounds:
  * `weightKg` is the only value that means the same thing across units (§11.7),
@@ -23,12 +23,13 @@
 
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import type { ExercisePoint } from '@/domain/history';
-import { shortDate } from '@/features/ui/format';
+import { plural, shortDate } from '@/features/ui/format';
 
-export type Metric = 'load' | 'reps' | 'volume';
+export type Metric = 'load' | 'e1rm' | 'reps' | 'volume';
 
 export const METRICS: readonly { readonly id: Metric; readonly label: string }[] = [
   { id: 'load', label: 'Load' },
+  { id: 'e1rm', label: 'e1RM' },
   { id: 'reps', label: 'Reps' },
   { id: 'volume', label: 'Volume' },
 ];
@@ -39,24 +40,49 @@ const READING: Record<
   { readonly of: (point: ExercisePoint) => number; readonly unit: string; readonly noun: string }
 > = {
   load: { of: (point) => point.topSetKg, unit: 'kg', noun: 'top set' },
+  e1rm: { of: (point) => point.estimatedOneRepMaxKg, unit: 'kg', noun: 'estimated 1RM' },
   reps: { of: (point) => point.reps, unit: 'reps', noun: 'reps' },
   volume: { of: (point) => point.volumeKg, unit: 'kg', noun: 'volume' },
 };
 
 /**
- * A dot per session, the latest one larger.
+ * A dot per session, the latest one larger, a record filled.
  *
  * DESIGN.md sizes the series' dots at `r=4.5` and the most recent at `r=6`: the
  * point a lifter is actually looking for is the one they did last, so it is the
  * one the eye lands on first.
+ *
+ * A record fills that same circle with the stroke's own colour instead of the
+ * card — solid reads as achieved, and it adds no hue, no radius and no shape to
+ * the vocabulary DESIGN.md fixes. `progress` is deliberately not borrowed: on
+ * this skin it names the *derived* segment, so a dot in it would say projected,
+ * which is the opposite of what a record is. Fill is independent of radius, so
+ * the latest point stays the larger one whether or not it is also a record.
+ *
+ * Recharts clones this element with the datum as `payload`, which is how the
+ * flag arrives — the same path `index` already comes down. A record is a fact
+ * about the session, not about the reading on the axis, so it is marked on
+ * whichever metric is showing.
  */
-function Dot({ cx, cy, index, last }: { cx?: number; cy?: number; index?: number; last: number }) {
+function Dot({
+  cx,
+  cy,
+  index,
+  last,
+  payload,
+}: {
+  cx?: number;
+  cy?: number;
+  index?: number;
+  last: number;
+  payload?: { readonly isRecord: boolean };
+}) {
   if (cx === undefined || cy === undefined) return null;
   return (
     <circle
       cx={cx}
       cy={cy}
-      fill="var(--color-card)"
+      fill={payload?.isRecord ? 'var(--color-actual)' : 'var(--color-card)'}
       r={index === last ? 6 : 4.5}
       stroke="var(--color-actual)"
       strokeWidth={2.5}
@@ -82,22 +108,33 @@ const TICK = {
  *
  * DESIGN.md requires the label to state the trend rather than name the object,
  * so it reads as a sentence about training: what is charted, over how many
- * sessions, from what to what, and which way it went.
+ * sessions, from what to what, which way it went — and how many of those
+ * sessions beat everything before them. A series holding none says nothing at
+ * all about records: "no personal records" is not a fact about training, it is
+ * an absence, and reading it out on every chart is noise.
  */
 function describe(name: string, metric: Metric, points: readonly ExercisePoint[]): string {
   const { of, unit, noun } = READING[metric];
   const first = of(points[0]!);
   const last = of(points[points.length - 1]!);
   const direction = last > first ? 'rising' : last < first ? 'falling' : 'level';
+  const records = points.filter((point) => point.isRecord).length;
+  const best = records === 0 ? '' : ` ${plural(records, 'personal record')} along the way.`;
 
   if (points.length === 1) {
-    return `${name} ${noun}: one session, ${round(first)} ${unit}.`;
+    return `${name} ${noun}: one session, ${round(first)} ${unit}.${best}`;
   }
-  return `${name} ${noun} across ${points.length} sessions, from ${round(first)} to ${round(last)} ${unit} — ${direction}.`;
+  return `${name} ${noun} across ${points.length} sessions, from ${round(first)} to ${round(last)} ${unit} — ${direction}.${best}`;
 }
 
-/** Volume reaches five figures with decimals nobody reads. Load rarely does. */
-function round(value: number): number {
+/**
+ * Volume reaches five figures with decimals nobody reads. Load rarely does.
+ *
+ * Exported because the Progress screen states the best estimate as a figure over
+ * the same series this chart draws and the same sentence it speaks. Two roundings
+ * would be two answers to one question, on one screen.
+ */
+export function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
@@ -111,7 +148,11 @@ export function ExerciseChart({
   readonly points: readonly ExercisePoint[];
 }) {
   const { of, unit } = READING[metric];
-  const data = points.map((point) => ({ date: shortDate(point.date), value: round(of(point)) }));
+  const data = points.map((point) => ({
+    date: shortDate(point.date),
+    isRecord: point.isRecord,
+    value: round(of(point)),
+  }));
 
   return (
     // Wide content scrolls inside its own container; the page body never

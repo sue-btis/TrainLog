@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exerciseSeries, summarizeExercise } from '@/domain/history';
+import { estimateOneRepMaxKg, exerciseSeries, summarizeExercise } from '@/domain/history';
 import {
   toId,
   type CompletedSetId,
@@ -20,7 +20,7 @@ const exerciseId = toId<ExerciseId>('front-squat');
 
 let counter = 0;
 
-function set(weight: number, reps: number, unit: Unit = 'kg'): CompletedSet {
+function set(weight: number, reps: number, unit: Unit = 'kg', rir = 2): CompletedSet {
   counter += 1;
   return {
     id: toId<CompletedSetId>(`set-${counter}`),
@@ -30,7 +30,7 @@ function set(weight: number, reps: number, unit: Unit = 'kg'): CompletedSet {
     unit,
     weightKg: toKg(weight, unit),
     reps,
-    rir: 2,
+    rir,
     completedAt: 1_000 + counter,
   };
 }
@@ -258,5 +258,83 @@ describe('exerciseSeries (§11.11, R-1)', () => {
     // 100 lb is 45.36 kg — lighter than 50 kg despite the larger number.
     expect(series[0]?.topSetKg).toBe(50);
     expect(series[0]?.volumeKg).toBeCloseTo(50 * 5 + toKg(100, 'lb') * 5, 6);
+  });
+});
+
+describe('estimateOneRepMaxKg', () => {
+  // Epley over reps *and* RIR (§30): a set stopped short of failure demonstrates
+  // more than its reps alone say, and the app records how short on purpose.
+  it.each([
+    [100, 5, 0, 116.67],
+    [100, 1, 0, 103.33],
+    [100, 5, 2, 123.33],
+    [100, 0, 0, 100],
+  ])('estimates %d kg x %d @ RIR %d as %d', (weight, reps, rir, expected) => {
+    expect(estimateOneRepMaxKg(set(weight, reps, 'kg', rir))).toBeCloseTo(expected, 2);
+  });
+
+  it('reads weightKg, so a pound set is not estimated from its own number', () => {
+    const pounds = set(225, 5, 'lb', 0);
+    expect(estimateOneRepMaxKg(pounds)).toBeCloseTo(pounds.weightKg * (1 + 5 / 30), 6);
+    expect(estimateOneRepMaxKg(pounds)).toBeLessThan(225);
+  });
+});
+
+describe('exerciseSeries — estimated 1RM and records', () => {
+  it('takes the best estimate of the session, not the estimate of the top set', () => {
+    // better() picks the heavier set; under Epley the lighter one demonstrates
+    // more. Reading the estimate off the top set would throw that day away.
+    const [point] = exerciseSeries([
+      session('completed', 1, [set(100, 5, 'kg', 0), set(110, 1, 'kg', 0)]),
+    ]);
+    expect(point!.topSetKg).toBe(110);
+    expect(point!.estimatedOneRepMaxKg).toBeCloseTo(116.67, 2);
+  });
+
+  it('never estimates below the load actually lifted', () => {
+    const points = exerciseSeries([
+      session('completed', 1, [set(60, 12, 'kg', 3)]),
+      session('completed', 2, [set(140, 1, 'kg', 0)]),
+    ]);
+    for (const point of points) {
+      expect(point.estimatedOneRepMaxKg).toBeGreaterThanOrEqual(point.topSetKg);
+    }
+  });
+
+  it('marks a record only when it beats every earlier session', () => {
+    // 100, 105, 105, 103, 110 — the repeat is not a record, the dip is not, and
+    // the opening session has nothing to beat.
+    const points = exerciseSeries([
+      session('completed', 1, [set(100, 0, 'kg', 0)]),
+      session('completed', 2, [set(105, 0, 'kg', 0)]),
+      session('completed', 3, [set(105, 0, 'kg', 0)]),
+      session('completed', 4, [set(103, 0, 'kg', 0)]),
+      session('completed', 5, [set(110, 0, 'kg', 0)]),
+    ]);
+    expect(points.map((point) => point.isRecord)).toEqual([false, true, false, false, true]);
+  });
+
+  it('never marks the first session, even alone', () => {
+    const points = exerciseSeries([session('completed', 1, [set(100, 5)])]);
+    expect(points.map((point) => point.isRecord)).toEqual([false]);
+  });
+
+  it('judges records after sorting, not in the order handed over', () => {
+    // The repository returns history newest first; a running maximum read in
+    // that order would mark the oldest session and miss the newest.
+    const points = exerciseSeries([
+      session('completed', 3, [set(110, 0, 'kg', 0)]),
+      session('completed', 1, [set(100, 0, 'kg', 0)]),
+      session('completed', 2, [set(105, 0, 'kg', 0)]),
+    ]);
+    expect(points.map((point) => point.isRecord)).toEqual([false, true, true]);
+  });
+
+  it('holds a record in an unfinished session, on the rule the series already uses', () => {
+    const points = exerciseSeries([
+      session('completed', 1, [set(100, 0, 'kg', 0)]),
+      session('in_progress', 2, [set(120, 0, 'kg', 0)]),
+    ]);
+    expect(points.map((point) => point.isRecord)).toEqual([false, true]);
   });
 });

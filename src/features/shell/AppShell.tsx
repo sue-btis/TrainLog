@@ -40,6 +40,7 @@ export function AppShell() {
   const routines = section === undefined && pathname === ROUTINES;
   const detail = section === undefined && pathname.startsWith(`${ROUTINES}/`);
   const exercise = section === undefined && pathname.startsWith('/exercises/');
+  const catalog = section === undefined && pathname === '/exercises';
   const sessions = section === undefined && pathname === '/sessions';
   const sessionDetail = section === undefined && pathname.startsWith('/sessions/');
 
@@ -48,11 +49,12 @@ export function AppShell() {
   // taken rather than naming a destination. Sending a lifter to Routines from
   // an open session would be the wrong answer to "back". One session's detail
   // is reached from two places for the same reason: the history list and the
-  // calendar. The list itself has one way in, so it can name it.
+  // calendar. The lists themselves have one way in each — More — so they can
+  // name it.
   const back =
     exercise || sessionDetail
       ? { onBack: () => void navigate(-1) }
-      : sessions || routines
+      : sessions || routines || catalog
         ? { to: MORE }
         : detail
           ? { to: ROUTINES }
@@ -64,18 +66,20 @@ export function AppShell() {
     <main className={SCREEN}>
       <TopBar
         back={back}
-        backLabel={backLabel(exercise || sessionDetail, sessions || routines)}
-        icon={history ? History : exercise ? Dumbbell : (section?.Icon ?? ScrollText)}
+        backLabel={backLabel(exercise || sessionDetail, sessions || routines || catalog)}
+        icon={history ? History : exercise || catalog ? Dumbbell : (section?.Icon ?? ScrollText)}
         title={
-          sessions
-            ? 'History'
-            : sessionDetail
-              ? 'Session'
-              : exercise
-                ? 'Exercise'
-                : routines
-                  ? 'Routines'
-                  : (section?.label ?? 'Routine')
+          catalog
+            ? 'Exercises'
+            : sessions
+              ? 'History'
+              : sessionDetail
+                ? 'Session'
+                : exercise
+                  ? 'Exercise'
+                  : routines
+                    ? 'Routines'
+                    : (section?.label ?? 'Routine')
         }
       />
 

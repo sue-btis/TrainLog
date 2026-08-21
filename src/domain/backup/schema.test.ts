@@ -456,3 +456,88 @@ describe('parseBackup referential integrity', () => {
     expect(refusedPaths(both)).toEqual(['completedSets[0].reps']);
   });
 });
+
+/** The document with the first row of one table replaced by a patched copy. */
+function withRow(table: string, patch: Record<string, unknown>): Record<string, unknown> {
+  const document = validDocument();
+  const rows = document[table] as Record<string, unknown>[];
+  return { ...document, [table]: [{ ...rows[0], ...patch }, ...rows.slice(1)] };
+}
+
+describe('parseBackup numeric bounds', () => {
+  // Every numeric field carried a type and no range, so a hand-edited document
+  // could restore a set of -40 reps and turn it into a negative estimated 1RM on
+  // the Progress screen. The bound is what the app can write, never what the
+  // routine-file validator demands — see the no-upper-bound cases below.
+  it.each([
+    ['completedSets', 'setNumber', 0],
+    ['completedSets', 'weight', -0.5],
+    ['completedSets', 'weightKg', -0.5],
+    ['completedSets', 'reps', -1],
+    ['completedSets', 'rir', -1],
+    ['completedSets', 'completedAt', -1],
+    ['sessions', 'startedAt', -1],
+    ['routines', 'weeks', -1],
+    ['routines', 'createdAt', -1],
+    ['workouts', 'order', -1],
+    ['plannedExercises', 'order', -1],
+    ['plannedExercises', 'sets', -1],
+    ['plannedExercises', 'minReps', -1],
+    ['plannedExercises', 'maxReps', -1],
+    ['plannedExercises', 'minRir', -1],
+    ['plannedExercises', 'maxRir', -1],
+    ['plannedExercises', 'restSeconds', -1],
+    ['exerciseSessions', 'order', -1],
+    ['exerciseSessions', 'plannedSets', -1],
+    ['exerciseSessions', 'plannedMinReps', -1],
+    ['exerciseSessions', 'plannedRestSeconds', -1],
+  ])('refuses %s.%s below its bound, and says which field', (table, field, value) => {
+    const paths = refusedPaths(withRow(table, { [field]: value }));
+    expect(paths.join(' ')).toContain(field);
+  });
+
+  it('refuses a negative progression increment, which would walk the bar down forever', () => {
+    const paths = refusedPaths(
+      withRow('plannedExercises', { progression: { type: 'double_progression', increment: -2.5 } }),
+    );
+    expect(paths.join(' ')).toContain('increment');
+  });
+
+  it('refuses a negative exportedAt', () => {
+    expect(refusedPaths(withKey('exportedAt', -1)).join(' ')).toContain('exportedAt');
+  });
+
+  it('refuses a negative defaultRir', () => {
+    const paths = refusedPaths(withKey('settings', { id: 'settings', defaultUnit: 'kg', defaultRir: -1 }));
+    expect(paths.join(' ')).toContain('defaultRir');
+  });
+
+  // Zero is a real logged value, not an absent one: a bodyweight set is 0 kg,
+  // and a set taken to failure with nothing left is 0 reps in the bank.
+  it('accepts a set of 0 kg, 0 reps and 0 RIR', () => {
+    accept(withRow('completedSets', { weight: 0, weightKg: 0, reps: 0, rir: 0 }));
+  });
+
+  it('accepts setNumber 1, the first position there is', () => {
+    accept(withRow('completedSets', { setNumber: 1 }));
+  });
+
+  it('accepts order 0, because order is 0-based', () => {
+    accept(withRow('workouts', { order: 0 }));
+  });
+
+  // No upper bound anywhere. `Field` clamps at zero and caps nothing, so RIR 12
+  // is a real thing a lifter can log; MAX_RIR governs a *planned* RIR in a
+  // routine file, and borrowing it here would refuse a genuine backup.
+  it('accepts a logged RIR above MAX_RIR, which the set logger permits', () => {
+    accept(withRow('completedSets', { rir: 12 }));
+  });
+
+  it('accepts an extreme rep count rather than judging it', () => {
+    accept(withRow('completedSets', { reps: 500 }));
+  });
+
+  it('accepts a planned RIR above MAX_RIR, which an older document may carry', () => {
+    accept(withRow('plannedExercises', { minRir: 0, maxRir: 50 }));
+  });
+});
