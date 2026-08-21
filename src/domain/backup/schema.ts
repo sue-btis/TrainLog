@@ -82,7 +82,30 @@ function idOf<T extends Id<string>>(): z.ZodType<T, string> {
 
 const unit = z.enum(['kg', 'lb']);
 
-const timestamp = z.number().int();
+/**
+ * The numeric vocabulary of a backup (§18).
+ *
+ * A backup is evidence of what happened, and a count of repetitions below zero
+ * is not evidence of anything — restored, it becomes a negative estimated 1RM
+ * on a chart, which is worse than a refusal because it looks like training.
+ *
+ * The bound is always what the app can *write*, never what the routine-file
+ * validator demands of a file. `Field` clamps set logging at zero and caps
+ * nothing above it (`SetLogger.tsx`), so `RIR 12` is a real thing a lifter can
+ * log; borrowing `MAX_RIR` from `routine-file/validate.ts` — which governs a
+ * *planned* RIR, and is a recorded assumption rather than a PRD rule — would
+ * refuse a genuine backup. **Nothing here has an upper bound**, and the failure
+ * that matters is not a bad file getting in, it is a lifter's only copy of their
+ * training being turned away.
+ *
+ * `positiveCount` is used only where zero is impossible in the data the app
+ * writes; everything unproven takes the wider bound.
+ */
+const count = z.number().int().min(0);
+const positiveCount = z.number().int().min(1);
+const measure = z.number().min(0);
+
+const timestamp = z.number().int().min(0);
 
 /** `YYYY-MM-DD` naming a real day — `2026-02-31` parses as a string and is not one. */
 const localDate = z.custom<LocalDate>(
@@ -110,13 +133,13 @@ const weekday = z.enum([
  */
 const progression = z.discriminatedUnion('type', [
   z.object({ type: z.literal('manual') }),
-  z.object({ type: z.literal('double_progression'), increment: z.number() }),
+  z.object({ type: z.literal('double_progression'), increment: measure }),
 ]);
 
 const routine = z.object({
   id: idOf<RoutineId>(),
   name: z.string(),
-  weeks: z.number().int(),
+  weeks: count,
   status: z.enum(['active', 'archived']),
   createdAt: timestamp,
 });
@@ -126,23 +149,23 @@ const workout = z.object({
   routineId: idOf<RoutineId>(),
   name: z.string(),
   suggestedDays: z.array(weekday),
-  order: z.number().int(),
+  order: count,
 });
 
 const plannedExercise = z.object({
   id: idOf<PlannedExerciseId>(),
   workoutId: idOf<WorkoutId>(),
   exerciseId: idOf<ExerciseId>(),
-  sets: z.number().int(),
-  minReps: z.number().int(),
-  maxReps: z.number().int(),
-  minRir: z.number().nullable(),
-  maxRir: z.number().nullable(),
-  restSeconds: z.number().nullable(),
+  sets: count,
+  minReps: count,
+  maxReps: count,
+  minRir: measure.nullable(),
+  maxRir: measure.nullable(),
+  restSeconds: measure.nullable(),
   unit,
   focus: z.string().nullable(),
   notes: z.array(z.string()),
-  order: z.number().int(),
+  order: count,
   progression,
 });
 
@@ -173,7 +196,7 @@ const exerciseSessionBase = {
   id: idOf<ExerciseSessionId>(),
   sessionId: idOf<SessionId>(),
   exerciseId: idOf<ExerciseId>(),
-  order: z.number().int(),
+  order: count,
   status: z.enum(['pending', 'performed', 'skipped']),
 };
 
@@ -191,12 +214,12 @@ const exerciseSession = z.union([
     ...exerciseSessionBase,
     plannedExerciseId: idOf<PlannedExerciseId>(),
     plannedUnit: unit,
-    plannedSets: z.number().int(),
-    plannedMinReps: z.number().int(),
-    plannedMaxReps: z.number().int(),
-    plannedMinRir: z.number().nullable(),
-    plannedMaxRir: z.number().nullable(),
-    plannedRestSeconds: z.number().nullable(),
+    plannedSets: count,
+    plannedMinReps: count,
+    plannedMaxReps: count,
+    plannedMinRir: measure.nullable(),
+    plannedMaxRir: measure.nullable(),
+    plannedRestSeconds: measure.nullable(),
     plannedProgression: progression,
   }),
   // `looseObject`, not `object`: a plain object strips unknown keys *before*
@@ -234,12 +257,12 @@ const exerciseSession = z.union([
 const completedSet = z.object({
   id: idOf<CompletedSetId>(),
   exerciseSessionId: idOf<ExerciseSessionId>(),
-  setNumber: z.number().int(),
-  weight: z.number(),
+  setNumber: positiveCount,
+  weight: measure,
   unit,
-  weightKg: z.number(),
-  reps: z.number().int(),
-  rir: z.number(),
+  weightKg: measure,
+  reps: count,
+  rir: measure,
   completedAt: timestamp,
 });
 
@@ -256,7 +279,7 @@ const completedSet = z.object({
 const settings = z.object({
   id: z.literal('settings'),
   defaultUnit: unit,
-  defaultRir: z.number().nullable().optional(),
+  defaultRir: measure.nullable().optional(),
   timerVibration: z.boolean().optional(),
   timerSound: z.boolean().optional(),
   keepScreenAwake: z.boolean().optional(),
@@ -268,7 +291,7 @@ const settings = z.object({
  * dying as a shape error and reporting the wrong reason.
  */
 const backupDocument = z.object({
-  version: z.number().int(),
+  version: count,
   exportedAt: timestamp,
   routines: z.array(routine),
   workouts: z.array(workout),
