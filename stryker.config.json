@@ -11,7 +11,8 @@
     "src/domain/history.ts",
     "src/domain/progression/index.ts",
     "src/domain/session/index.ts",
-    "src/domain/scheduling/index.ts"
+    "src/domain/scheduling/index.ts",
+    "src/domain/backup/**/*.ts"
   ],
   "thresholds": {
     "high": 90,
