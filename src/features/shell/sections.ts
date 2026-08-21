@@ -6,13 +6,17 @@
  * land under then say the same word with the same drawing, because they are
  * the same entry — not two lists that have to be kept in step by hand.
  *
- * Progress, Exercises and More arrive with the screens behind them.
+ * Progress and Exercises arrive with the screens behind them.
+ *
+ * More is appended, never prepended: `AppShell` reads `SECTIONS[2]` as the
+ * Routines entry to resolve the routes that sit under it.
  */
 
-import { CalendarDays, Dumbbell, ScrollText } from 'lucide-react';
+import { CalendarDays, Dumbbell, Ellipsis, ScrollText } from 'lucide-react';
 
 export const SECTIONS = [
   { to: '/today', label: 'Today', Icon: Dumbbell },
   { to: '/calendar', label: 'Calendar', Icon: CalendarDays },
   { to: '/routines', label: 'Routines', Icon: ScrollText },
+  { to: '/more', label: 'More', Icon: Ellipsis },
 ] as const;
