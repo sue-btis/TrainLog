@@ -14,15 +14,36 @@
  * Session history hangs off here as well: it is a place you go rather than an
  * action you take, so it leads the screen and the data actions follow.
  *
- * Settings (§32) will live here too. Only the data actions exist today.
+ * Settings (§32) live here too, above the data actions: they are what the
+ * screen is for day to day, while a backup is what it is for once.
  */
 
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { ChevronRight, Database, Download, FileUp, History, TriangleAlert, Upload } from 'lucide-react';
-import { exportBackup, listSetsForCsv, restoreBackup, restoreSummary } from '@/db';
+import {
+  exportBackup,
+  listSetsForCsv,
+  restoreBackup,
+  restoreSummary,
+  setDefaultRir,
+  setDefaultUnit,
+  setKeepScreenAwake,
+  setTimerSound,
+  setTimerVibration,
+} from '@/db';
 import type { RestoreSummary } from '@/db';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import type { ResolvedSettings } from '@/domain/types';
+import { useSettings } from '@/features/data/queries';
 import { formatPath, parseBackup, toCsv } from '@/domain/backup';
 import type { BackupDocument, StructuralError } from '@/domain/backup';
 import { formatLocalDate } from '@/domain/dates';
@@ -119,6 +140,8 @@ export function MoreScreen() {
         <ChevronRight aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
       </Link>
 
+      <SettingsSection />
+
       <section className={WELL}>
         <p className={LABEL}>backup</p>
         <p className="type-body-sm text-ink-2">
@@ -197,6 +220,156 @@ export function MoreScreen() {
         </p>
       )}
     </>
+  );
+}
+
+/** The RIR options a lifter picks from, `none` standing for no opinion (§32). */
+const RIR_OPTIONS = ['none', '0', '1', '2', '3', '4'] as const;
+
+/**
+ * Settings (§32).
+ *
+ * Every one of these is a *default* — the value used when nothing more specific
+ * is known — and none of them reaches backwards. Changing the unit does not
+ * convert a single logged set: the unit an Exercise trains in was fixed when it
+ * was imported (§11.7), and rewriting history to match a preference is how a
+ * lifter's numbers stop meaning what they meant.
+ *
+ * Each control saves on change. There is no Save button for the same reason a
+ * set is written the moment it is logged (NFR-03): the app does not hold what
+ * you told it in memory and hope you come back.
+ *
+ * No theme control: dark was rejected from the use scene (DESIGN.md, the
+ * No-Dark-Variant Rule), so §32's theme row was removed rather than shipped.
+ */
+function SettingsSection() {
+  const settings = useSettings();
+  const unitId = useId();
+  const rirId = useId();
+
+  // One read, in flight. Rendering the controls at their defaults first would
+  // show a lifter their settings reset for a frame before snapping back.
+  if (settings === undefined) {
+    return (
+      <section className={WELL}>
+        <p className={LABEL}>settings</p>
+        <p className="type-body-sm text-ink-2">Reading your settings…</p>
+      </section>
+    );
+  }
+
+  const { defaultUnit, defaultRir, timerVibration, timerSound, keepScreenAwake } = settings;
+
+  return (
+    <section className={WELL}>
+      <p className={LABEL}>settings</p>
+
+      <div className="flex flex-col gap-2">
+        <label className="type-title" htmlFor={unitId}>
+          Default unit
+        </label>
+        <Select onValueChange={(next) => void setDefaultUnit(next as ResolvedSettings['defaultUnit'])} value={defaultUnit}>
+          <SelectTrigger className="type-measure" id={unitId}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem className="type-measure" value="kg">
+              kg
+            </SelectItem>
+            <SelectItem className="type-measure" value="lb">
+              lb
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="type-body-sm text-ink-2">
+          What a routine file inherits when it names no unit. Each exercise keeps its
+          own from then on, and nothing already logged is converted.
+        </p>
+      </div>
+
+      <div className={cn(RULED, 'gap-2')}>
+        <label className="type-title" htmlFor={rirId}>
+          Default RIR
+        </label>
+        <Select
+          onValueChange={(next) => void setDefaultRir(next === 'none' ? null : Number(next))}
+          value={defaultRir === null ? 'none' : String(defaultRir)}
+        >
+          <SelectTrigger className="type-measure" id={rirId}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {RIR_OPTIONS.map((option) => (
+              <SelectItem className="type-measure" key={option} value={option}>
+                {option === 'none' ? 'No default' : option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="type-body-sm text-ink-2">
+          Where the RIR readout opens for an exercise with no plan and no history. A
+          planned exercise still opens on its own target.
+        </p>
+      </div>
+
+      <div className={cn(RULED, 'gap-0')}>
+        <Toggle
+          checked={timerVibration}
+          hint="A short buzz when the rest is up."
+          label="Timer vibration"
+          onChange={(on) => void setTimerVibration(on)}
+        />
+        <Toggle
+          checked={timerSound}
+          hint="A beep when the rest is up. Silent by default — the gym is not."
+          label="Timer sound"
+          onChange={(on) => void setTimerSound(on)}
+        />
+        <Toggle
+          checked={keepScreenAwake}
+          hint="Keeps the screen on while a session is open, so it does not sleep between sets."
+          label="Keep screen awake"
+          onChange={(on) => void setKeepScreenAwake(on)}
+        />
+      </div>
+    </section>
+  );
+}
+
+/**
+ * One switch and the sentence saying what it does.
+ *
+ * A plain `<label>` rather than the shared `Label`: that component binds
+ * `type-label` — the 10px uppercase mono of a section heading — and a settings
+ * row is titled, not headed. Passing `type-title` alongside it would leave two
+ * type utilities on one element with CSS source order deciding which wins,
+ * which is the kind of thing that silently flips a screen's typography the next
+ * time `theme.css` is reordered. `htmlFor` gives the same click-to-toggle
+ * either way.
+ */
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  readonly label: string;
+  readonly hint: string;
+  readonly checked: boolean;
+  readonly onChange: (on: boolean) => void;
+}) {
+  const id = useId();
+
+  return (
+    <div className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+      <div className="flex min-w-0 flex-col gap-1">
+        <label className="type-title" htmlFor={id}>
+          {label}
+        </label>
+        <p className="type-body-sm text-ink-2">{hint}</p>
+      </div>
+      <Switch checked={checked} id={id} onCheckedChange={onChange} />
+    </div>
   );
 }
 

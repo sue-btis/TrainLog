@@ -25,6 +25,7 @@
 import { db } from '@/db/database';
 import { getExerciseNames } from '@/db/repositories/exercises';
 import { groupCompletedSetsByExerciseSession } from '@/db/repositories/completedSets';
+import { getSettings } from '@/db/repositories/settings';
 import { RESTORED_TABLES, BACKUP_VERSION, type BackupDocument } from '@/domain/backup';
 import { formatLocalDate } from '@/domain/dates';
 import type { CsvRow } from '@/domain/backup/csv';
@@ -63,7 +64,7 @@ export async function exportBackup(exportedAt: Timestamp): Promise<BackupDocumen
     db.sessions.toArray(),
     db.exerciseSessions.toArray(),
     db.completedSets.toArray(),
-    db.settings.get('settings'),
+    getSettings(),
   ]);
 
   return {
@@ -77,8 +78,10 @@ export async function exportBackup(exportedAt: Timestamp): Promise<BackupDocumen
     sessions,
     exerciseSessions,
     completedSets,
-    // A database nobody has changed a setting in has no settings row yet.
-    settings: settings ?? { id: 'settings', defaultUnit: 'kg' },
+    // Complete whatever the row holds: a database nobody has changed a setting
+    // in has no row at all, and one written before the later settings existed
+    // carries only the unit. `getSettings` resolves both (§32).
+    settings,
   };
 }
 

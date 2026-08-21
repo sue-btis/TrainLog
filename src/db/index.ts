@@ -52,10 +52,15 @@ export {
 } from '@/db/repositories/exercises';
 
 export {
+  DEFAULT_SETTINGS,
   DEFAULT_UNIT,
   getDefaultUnit,
   getSettings,
+  setDefaultRir,
   setDefaultUnit,
+  setKeepScreenAwake,
+  setTimerSound,
+  setTimerVibration,
 } from '@/db/repositories/settings';
 
 export {

@@ -89,3 +89,14 @@ The weight unit an Exercise is logged in, kg or lb, fixed per Exercise. Every
 recorded weight also carries a derived kilogram value used for all comparison,
 charting and progression.
 _Avoid_: Measure, scale
+
+### Preferences
+
+**Settings**:
+The single row of device preferences (§32): default unit, default RIR, timer
+vibration, timer sound, keep screen awake. Every field is a *default* — the
+value used when nothing more specific is known — and none of them acts on
+stored training: changing the unit converts no logged set. Settings belong to
+the phone, not to the training, which is why a backup carries them and a restore
+leaves them alone. There is no theme setting.
+_Avoid_: Preferences, config, options

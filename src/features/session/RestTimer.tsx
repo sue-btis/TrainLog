@@ -29,15 +29,50 @@ import { cn } from '@/lib/utils';
 /** What the add-time control offers before the lifter changes it (§11.6). */
 const DEFAULT_BUMP = 30;
 
+/**
+ * The rest-is-up beep (§32), synthesised rather than played.
+ *
+ * An audio file would be one more asset the service worker has to have cached
+ * before it is any use offline, for a tone this short; an oscillator is always
+ * there. The gain ramp is not decoration — cutting a tone off at full amplitude
+ * clicks.
+ *
+ * Every failure path is a shrug, as with the wake lock: audio can be refused by
+ * a policy or a silent switch, and none of that is something a lifter mid-rest
+ * can act on.
+ */
+function beep(): void {
+  try {
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35);
+
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.35);
+    oscillator.onended = () => void context.close().catch(() => {});
+  } catch {
+    // No audio available. Nothing to say and nothing to fall back to.
+  }
+}
+
 interface RestTimerProps {
   /** The instant the set was completed — the stored mark the rest counts from. */
   readonly since: Timestamp;
   /** The exercise's planned rest, in seconds. */
   readonly seconds: number;
+  /** §32 — whether reaching zero buzzes. */
+  readonly vibrate: boolean;
+  /** §32 — whether reaching zero beeps. */
+  readonly sound: boolean;
   readonly onSkip: () => void;
 }
 
-export function RestTimer({ since, seconds, onSkip }: RestTimerProps) {
+export function RestTimer({ since, seconds, vibrate, sound, onSkip }: RestTimerProps) {
   const [added, setAdded] = useState(0);
   const [pausedAt, setPausedAt] = useState<Timestamp | null>(null);
   /**
@@ -69,13 +104,19 @@ export function RestTimer({ since, seconds, onSkip }: RestTimerProps) {
     pausedAt: pausedAt ?? undefined,
   });
 
-  // Vibration only: §11.6 puts notifications outside the MVP, and the sound it
-  // also mentions needs the §32 setting that gates it, which does not exist yet.
+  // Vibration and sound, each behind its §32 setting. Notifications stay
+  // outside the MVP (§11.6).
+  //
+  // `buzzed` is what makes this fire once per rest rather than on every tick
+  // that finds the clock already past zero — and it is also why the settings
+  // can sit in the dependencies safely: changing one after the rest is up
+  // re-runs the effect, finds the flag set, and says nothing.
   useEffect(() => {
     if (remaining > 0 || buzzed.current) return;
     buzzed.current = true;
-    navigator.vibrate?.([220, 120, 220]);
-  }, [remaining]);
+    if (vibrate) navigator.vibrate?.([220, 120, 220]);
+    if (sound) beep();
+  }, [remaining, vibrate, sound]);
 
   const total = seconds + added;
   const minutes = Math.floor(remaining / 60);

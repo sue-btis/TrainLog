@@ -2110,7 +2110,8 @@ backup
 restore
 CSV export
 units
-theme
+timer
+screen
 ```
 
 ---
@@ -2134,13 +2135,19 @@ on / off
 
 Keep screen awake during workout
 on / off
-
-Theme
-system / light / dark
 ```
 
 La unidad de configuración es solo el valor por defecto. Cada ejercicio conserva
 la suya.
+
+Cada ajuste es un valor por defecto y ninguno actúa hacia atrás: cambiar la
+unidad no convierte ninguna serie ya registrada.
+
+**Sin control de tema.** El modo oscuro fue rechazado desde la escena de uso
+(DESIGN.md, la No-Dark-Variant Rule): la aplicación declara una sola paleta y no
+hay nada que un selector de tema pueda elegir. Esta lista tenía una fila
+`Theme system / light / dark`; se eliminó al implementar §32 porque contradecía
+el sistema de diseño.
 
 ---
 
@@ -2323,12 +2330,13 @@ Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit
 | Data | Backup | ✅ | `domain/backup/document.ts`, `exportBackup` → `features/more/MoreScreen.tsx` |
 | Data | Restore | ✅ | `parseBackup` valida, `restoreBackup` reemplaza en una transacción; confirmación en `MoreScreen.tsx` |
 | Data | CSV export | ✅ | `domain/backup/csv.ts`, `listSetsForCsv`; columnas §19 + `unit` |
+| Data | Settings | ✅ | `db/repositories/settings.ts`, sección **settings** en `features/more/MoreScreen.tsx` (§32, sin tema) |
 | Platform | Responsive | ✅ | `features/shell/` (mobile-first) |
 | Platform | PWA | ✅ | `pwa/config.ts` (manifest §33 + iconos) montado en `vite.config.ts` |
 | Platform | Offline | ✅ | service worker de `vite-plugin-pwa`: precache del shell y de las fuentes, fallback de rutas profundas (§9) |
 
-Fuera de MVP 0.1 y aún sin empezar: Progress Dashboard (§11.11), Exercise Catalog
-como pantalla (§11.12), Settings (§32).
+Fuera de MVP 0.1 y aún sin empezar: Progress Dashboard (§11.11) y Exercise
+Catalog como pantalla (§11.12).
 
 ---
 

@@ -9,13 +9,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   getActiveRoutine,
-  getDefaultUnit,
   getExerciseNames,
   getInProgressSession,
   getLastPerformedWorkout,
   getPreviousPerformance,
   getRoutine,
   getSessionDetail,
+  getSettings,
   getWorkout,
   listAllSessions,
   listExerciseHistory,
@@ -168,12 +168,15 @@ export function useWorkoutsById(ids: readonly WorkoutId[]) {
 /* ── Gym mode's reads ──────────────────────────────────────────────────── */
 
 /**
- * The unit an exercise with no plan of its own logs in (§11.7, A-4). An
- * unplanned exercise has no PlannedExercise to take a unit from, so it takes
- * the settings default.
+ * Every setting, complete (§32). `undefined` only while the first read is in
+ * flight — the repository resolves absent fields, so a caller never has to.
+ *
+ * One hook rather than one per setting: gym mode needs four of them at once
+ * (the unit and RIR an unplanned exercise opens on, and the two the rest timer
+ * announces with), and they live in a single row.
  */
-export function useDefaultUnit() {
-  return useLiveQuery(() => getDefaultUnit(), []);
+export function useSettings() {
+  return useLiveQuery(() => getSettings(), []);
 }
 
 /**

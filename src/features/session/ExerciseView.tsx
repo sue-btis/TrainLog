@@ -34,6 +34,8 @@ interface ExerciseViewProps {
   readonly sets: readonly CompletedSet[];
   /** The unit an unplanned exercise logs in — it has no plan to take one from. */
   readonly defaultUnit: Unit;
+  /** The settings default RIR, or `null` when the lifter has no opinion (§32). */
+  readonly defaultRir: number | null;
   readonly onLog: (values: SetValues, unit: Unit, setNumber: number) => Promise<void>;
   /** Move to the next exercise, or finish when this is the last one (R-3). */
   readonly onAdvance: () => void;
@@ -49,6 +51,7 @@ export function ExerciseView({
   name,
   sets,
   defaultUnit,
+  defaultRir,
   onLog,
   onAdvance,
   isLast,
@@ -83,7 +86,7 @@ export function ExerciseView({
   const [editing, setEditing] = useState<CompletedSetId | null>(null);
   const editedSet = sets.find((set) => set.id === editing) ?? null;
 
-  const opening = openingValues(exerciseSession, sets, suggestion, previousSets);
+  const opening = openingValues(exerciseSession, sets, suggestion, previousSets, defaultRir);
   const current = values ?? opening;
   const setNumber = sets.length + 1;
 
@@ -290,16 +293,22 @@ function stepOf(exerciseSession: ExerciseSession): number {
  * In order of preference: the set just logged in this exercise, because a
  * lifter usually repeats the load across sets; then the progression suggestion;
  * then last session's opening set; then nothing to go on, and zeros.
+ *
+ * `defaultRir` is the last word before that zero and nothing more: an exercise
+ * with a plan opens on its target, and one with history opens on what was done.
+ * It exists for the unplanned exercise nobody has logged before, where the
+ * alternative is RIR 0 — a claim that the lifter trains that set to failure.
  */
 function openingValues(
   exerciseSession: ExerciseSession,
   sets: readonly CompletedSet[],
   suggestion: LoadSuggestion | null,
   previousSets: readonly CompletedSet[],
+  defaultRir: number | null,
 ): SetValues {
   const planned = exerciseSession.plannedExerciseId === null ? null : exerciseSession;
   const reps = planned?.plannedMaxReps ?? previousSets[0]?.reps ?? 0;
-  const rir = planned?.plannedMinRir ?? previousSets[0]?.rir ?? 0;
+  const rir = planned?.plannedMinRir ?? previousSets[0]?.rir ?? defaultRir ?? 0;
 
   const lastLogged = sets.at(-1);
   if (lastLogged !== undefined) {
