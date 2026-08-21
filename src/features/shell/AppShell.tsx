@@ -8,16 +8,23 @@
  * families sit below the sections rather than beside them, and each names its
  * own way back — a root section has nowhere to go.
  *
+ * The bar's accessory slot carries the gear. Settings and the backup are not a
+ * place in the navigation — they are the app's own knobs, wanted from wherever
+ * a lifter already is — so they hang off the bar that is on every screen rather
+ * than off a row three presses down inside More.
+ *
  * The wizard and gym mode render their own frames and are deliberately outside
- * this one.
+ * this one, gear included: §21 says nothing may compete with the set in front
+ * of you, and an import is a task you finish and leave.
  */
 
-import { Dumbbell, History, ScrollText } from 'lucide-react';
-import { Outlet, useLocation, useNavigate } from 'react-router';
+import { Dumbbell, ScrollText, Settings } from 'lucide-react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
+import { Button } from '@/components/ui/button';
 import { BottomNav } from '@/features/shell/BottomNav';
 import { SECTIONS } from '@/features/shell/sections';
 import { TopBar } from '@/features/shell/TopBar';
-import { COLUMN, SCREEN } from '@/features/ui/styles';
+import { COLUMN, ICON_STROKE, SCREEN } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 /**
@@ -30,6 +37,7 @@ import { cn } from '@/lib/utils';
  */
 const ROUTINES = '/routines';
 const MORE = '/more';
+const SETTINGS = '/settings';
 
 export function AppShell() {
   const { pathname } = useLocation();
@@ -41,38 +49,46 @@ export function AppShell() {
   const detail = section === undefined && pathname.startsWith(`${ROUTINES}/`);
   const exercise = section === undefined && pathname.startsWith('/exercises/');
   const catalog = section === undefined && pathname === '/exercises';
-  const sessions = section === undefined && pathname === '/sessions';
   const sessionDetail = section === undefined && pathname.startsWith('/sessions/');
+  const settings = section === undefined && pathname === SETTINGS;
 
   // An exercise's history is reached from more than one place — the routine
   // detail and, mid-workout, gym mode — so its back control retraces the step
   // taken rather than naming a destination. Sending a lifter to Routines from
   // an open session would be the wrong answer to "back". One session's detail
-  // is reached from two places for the same reason: the history list and the
-  // calendar. The lists themselves have one way in each — More — so they can
-  // name it.
+  // is reached from the calendar, and settings from the gear on whatever screen
+  // a lifter was on, so both retrace for the same reason. The lists themselves
+  // have one way in each — More — so they can name it.
   const back =
-    exercise || sessionDetail
+    exercise || sessionDetail || settings
       ? { onBack: () => void navigate(-1) }
-      : sessions || routines || catalog
+      : routines || catalog
         ? { to: MORE }
         : detail
           ? { to: ROUTINES }
           : undefined;
 
-  const history = sessions || sessionDetail;
-
   return (
     <main className={SCREEN}>
       <TopBar
+        // The gear is the way in, so the screen it opens does not offer it
+        // again: a control that reloads the screen you are already on is a
+        // control that has stopped meaning anything.
+        action={settings ? undefined : <GearLink />}
         back={back}
-        backLabel={backLabel(exercise || sessionDetail, sessions || routines || catalog)}
-        icon={history ? History : exercise || catalog ? Dumbbell : (section?.Icon ?? ScrollText)}
+        backLabel={backLabel(exercise || sessionDetail || settings, routines || catalog)}
+        icon={
+          settings
+            ? Settings
+            : exercise || catalog
+              ? Dumbbell
+              : (section?.Icon ?? ScrollText)
+        }
         title={
-          catalog
-            ? 'Exercises'
-            : sessions
-              ? 'History'
+          settings
+            ? 'Settings'
+            : catalog
+              ? 'Exercises'
               : sessionDetail
                 ? 'Session'
                 : exercise
@@ -89,6 +105,17 @@ export function AppShell() {
 
       <BottomNav />
     </main>
+  );
+}
+
+/** The accessory in the bar: settings and the backup, one press from anywhere. */
+function GearLink() {
+  return (
+    <Button aria-label="Settings and backup" asChild size="icon" variant="ghost">
+      <Link to={SETTINGS}>
+        <Settings aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+      </Link>
+    </Button>
   );
 }
 

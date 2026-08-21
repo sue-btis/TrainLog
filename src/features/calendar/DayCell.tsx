@@ -40,7 +40,7 @@ export const STATE_LABEL: Record<DayState, string> = {
   rest: 'rest',
 };
 
-const STATE_STYLE: Record<DayState, string> = {
+export const STATE_STYLE: Record<DayState, string> = {
   // Raised means "you can still act on this"; flat means it already happened.
   planned: 'bg-card text-planned-ink shadow-dome ring-2 ring-planned-wash ring-inset',
   completed: 'bg-actual-ink text-on-fill',
@@ -88,7 +88,7 @@ export function DayCell({ date, state, inMonth, isToday, selected, onSelect }: D
  * The non-colour half of the signal. Only the states that mean something get
  * one — a rest day is the absence of a mark, which is the honest rendering.
  */
-function Glyph({ state }: { readonly state: DayState }) {
+export function Glyph({ state }: { readonly state: DayState }) {
   const size = 12;
   switch (state) {
     case 'completed':

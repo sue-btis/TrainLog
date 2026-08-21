@@ -49,8 +49,8 @@ export function SessionDetailScreen() {
       <section className={WELL}>
         <p className="type-title">No such session</p>
         <p className="type-body-sm text-ink-2">
-          It may have been replaced by a restored backup. Session history lists everything
-          this phone still holds.
+          It may have been deleted, or replaced by a restored backup. The calendar draws
+          every session this phone still holds.
         </p>
       </section>
     );

@@ -35,6 +35,7 @@ import {
 import { generatePlacements } from '@/domain/scheduling';
 import type { Weekday } from '@/domain/types';
 import { ActionBar } from '@/features/import/ActionBar';
+import { takeHandedOffFile } from '@/features/import/ImportRoutineButton';
 import { ExercisesStep } from '@/features/import/ExercisesStep';
 import { FileStep } from '@/features/import/FileStep';
 import { ScheduleStep } from '@/features/import/ScheduleStep';
@@ -91,6 +92,16 @@ export function ImportWizard() {
     target?.scrollIntoView({ block: 'center' });
     target?.focus({ preventScroll: true });
   });
+
+  // The file was already chosen on the screen that sent us here, so the wizard
+  // opens on the first real step rather than on one asking for it again. When
+  // nothing was handed over — a reload, a bookmarked `/import` — the file step
+  // renders and asks, which is what it is there for.
+  useEffect(() => {
+    const handed = takeHandedOffFile();
+    if (handed !== null) void chooseFile(handed);
+    // Once, on mount: the handover is consumed by the first read.
+  }, []);
 
   async function chooseFile(chosen: File) {
     let text: string;

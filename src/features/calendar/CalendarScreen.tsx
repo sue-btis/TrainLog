@@ -14,7 +14,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { CalendarOff, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { CalendarOff, ChevronLeft, ChevronRight, Info, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,8 +38,9 @@ import {
   useWorkoutsById,
 } from '@/features/data/queries';
 import { longDate, monthName, plural } from '@/features/ui/format';
-import { DayCell, STATE_LABEL, STATE_ORDER } from '@/features/calendar/DayCell';
+import { DayCell, Glyph, STATE_LABEL, STATE_ORDER, STATE_STYLE } from '@/features/calendar/DayCell';
 import {
+  FOCUS_RING,
   ICON_STROKE,
   LABEL,
   PRESS,
@@ -149,14 +150,13 @@ export function CalendarScreen() {
           <CalendarOff aria-hidden="true" className="text-ink-3" size={24} strokeWidth={ICON_STROKE} />
           <p className="type-title">Nothing planned this month</p>
           <p className="type-body-sm text-ink-2">
-            Placements are generated when you accept a routine import, and they are yours
-            from that moment — move them or delete them freely.
+            Import a routine and the days it asks for land here.
           </p>
         </section>
       ) : selected === null ? (
         <section className={WELL}>
           <p className="type-body-sm text-ink-2">
-            Choose a day to see what was planned for it and what happened.
+            Choose a day to see what was planned and what happened.
           </p>
         </section>
       ) : (
@@ -179,15 +179,34 @@ export function CalendarScreen() {
   );
 }
 
+/**
+ * The legend is a reference, not a headline: it answers a question the lifter
+ * asks once. `<details>` is the platform's own disclosure — it keeps the
+ * keyboard and screen-reader behaviour without a line of state.
+ */
 function Legend() {
   return (
-    <section className="flex flex-wrap gap-2" aria-label="What the days mean">
-      {STATE_ORDER.map((state) => (
-        <span className={chip(state === 'completed' ? 'actual' : 'neutral')} key={state}>
-          {STATE_LABEL[state]}
-        </span>
-      ))}
-    </section>
+    <details className="group">
+      <summary
+        className={cn(
+          'inline-flex min-h-12 cursor-default list-none items-center gap-1.5 rounded-chip px-3 type-label text-ink-2',
+          PRESS,
+          FOCUS_RING,
+          '[&::-webkit-details-marker]:hidden',
+        )}
+      >
+        <Info aria-hidden="true" size={16} strokeWidth={ICON_STROKE} />
+        what the colours mean
+      </summary>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {STATE_ORDER.map((state) => (
+          <span className={chip('neutral', STATE_STYLE[state])} key={state}>
+            <Glyph state={state} />
+            {STATE_LABEL[state]}
+          </span>
+        ))}
+      </div>
+    </details>
   );
 }
 

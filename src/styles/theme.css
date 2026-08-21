@@ -140,6 +140,35 @@
 @keyframes breathe    { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
 @keyframes pulse-well { 0%, 100% { opacity: 1; }         50% { opacity: .48; } }
 
+/* ── Disclosure ──────────────────────────────────────────────────────────
+   Every <details> in the app opens the same way, so the rule lives here and no
+   component carries it. The browser does the work: `interpolate-size` makes
+   the `auto` height animatable and `allow-discrete` holds content-visibility
+   open for the duration. Where either is unsupported the panel simply snaps —
+   the disclosure still works, it just arrives without the travel. */
+details {
+  interpolate-size: allow-keywords;
+}
+
+details::details-content {
+  height: 0;
+  overflow: clip;
+  opacity: 0;
+  transition:
+    height 180ms var(--ease-press),
+    opacity 140ms var(--ease-press),
+    content-visibility 180ms allow-discrete;
+}
+
+details[open]::details-content {
+  height: auto;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  details::details-content { transition: none; }
+}
+
 /* ── Materials — the two named surfaces DESIGN.md describes in prose ──────
    The bloom exists so the glass has something to blur: frosted white over flat
    white is an invisible material. Both are utilities rather than component

@@ -71,8 +71,7 @@ export function ExerciseHistoryScreen() {
           <Dumbbell aria-hidden="true" className="text-ink-3" size={24} />
           <p className="type-title">No history yet</p>
           <p className="type-body-sm text-ink-2">
-            Train this exercise and every session will be recorded here — what you lifted,
-            for how many reps, and how it has moved.
+            Train this exercise and every session shows up here.
           </p>
         </section>
       ) : (

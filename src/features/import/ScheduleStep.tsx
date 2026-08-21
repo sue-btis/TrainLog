@@ -62,10 +62,7 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
 
       <Card>
         <div className="flex items-center justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <span className={LABEL}>weeks</span>
-            <span className="type-body-sm text-ink-2">How long this Routine runs.</span>
-          </div>
+          <span className={LABEL}>weeks</span>
           <div className="flex items-center gap-3">
             <Button
               aria-label="One week fewer"
@@ -166,8 +163,8 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
 
             {workout.suggested_days.length === 0 && (
               <p className="type-caption text-ink-3">
-                No day chosen. This Workout will be imported with no Placements — you can
-                still put it on the calendar yourself later.
+                No day chosen. This Workout lands on no date — you can still put it on
+                the calendar yourself later.
               </p>
             )}
             </section>
@@ -192,8 +189,8 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
                 : ''}
             </p>
             <p className="type-caption text-ink-2">
-              Placements start from today, so this week only carries the days that have not
-              passed yet.
+              Days are placed from today, so this week only carries the ones that have
+              not passed yet.
             </p>
           </>
         )}

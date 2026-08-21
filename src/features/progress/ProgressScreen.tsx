@@ -57,8 +57,7 @@ export function ProgressScreen() {
         <TrendingUp aria-hidden="true" className="text-ink-3" size={24} strokeWidth={ICON_STROKE} />
         <p className="type-title">Nothing to plot yet</p>
         <p className="type-body-sm text-ink-2">
-          Log a set and this fills in — what you lifted, how many reps you did, and how
-          much work that came to, session after session.
+          Log a set and this fills in.
         </p>
         <Button asChild size="block" variant="secondary">
           <Link to="/today">Go to today</Link>

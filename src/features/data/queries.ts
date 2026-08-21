@@ -17,7 +17,6 @@ import {
   getSessionDetail,
   getSettings,
   getWorkout,
-  listAllSessions,
   listExerciseHistory,
   listPerformedExercises,
   listPlacementsBetween,
@@ -128,11 +127,6 @@ export function usePlacementsBetween(from: LocalDate, to: LocalDate) {
 /** Every Session in a month, across all Routines (§11.3, R-23). */
 export function useSessionsBetween(from: LocalDate, to: LocalDate) {
   return useLiveQuery(() => listSessionsBetween(from, to), [from, to]);
-}
-
-/** Every Session, newest first, across every Routine (§11.10, R-1). */
-export function useAllSessions() {
-  return useLiveQuery(() => listAllSessions(), []);
 }
 
 export function useSessionsByRoutine(routineId: RoutineId | null) {

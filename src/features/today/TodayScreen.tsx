@@ -37,6 +37,7 @@ import {
   useSessionsByRoutine,
   useWorkouts,
 } from '@/features/data/queries';
+import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
 import { longDate, plural, programmingLine, shortDate } from '@/features/ui/format';
 import {
   ICON_STROKE,
@@ -147,14 +148,9 @@ function NoRoutine() {
       <FileUp aria-hidden="true" className="text-ink-3" size={24} strokeWidth={ICON_STROKE} />
       <p className="type-title">No active routine</p>
       <p className="type-body-sm text-ink-2">
-        TrainLog runs the programme you give it. Import a routine file and today will know
-        what to train.
+        Import a routine file and today will know what to train.
       </p>
-      <Button asChild size="block" variant="primary">
-        <Link to="/import">
-          Import a routine
-        </Link>
-      </Button>
+      <ImportRoutineButton>Import a routine</ImportRoutineButton>
     </section>
   );
 }

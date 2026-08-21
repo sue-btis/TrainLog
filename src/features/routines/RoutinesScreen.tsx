@@ -8,6 +8,10 @@
  *
  * Deleting is refused while any Session references the Routine (§37): history
  * outranks tidiness, and the refusal says so and offers archiving instead.
+ *
+ * `Import routine` opens the file picker here and hands the wizard what it
+ * chose, rather than routing to a wizard step whose only content is the same
+ * request a second time.
  */
 
 import { useState } from 'react';
@@ -24,6 +28,7 @@ import { Card } from '@/components/ui/card';
 import type { RoutineId } from '@/domain/ids';
 import type { Routine } from '@/domain/types';
 import { useRoutines } from '@/features/data/queries';
+import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
 import { plural, shortDate } from '@/features/ui/format';
 import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
 import { formatLocalDate } from '@/domain/dates';
@@ -50,17 +55,10 @@ export function RoutinesScreen() {
 
   return (
     <>
-      <p className="type-lede text-ink-2">
-        Every programme you have imported. One is active at a time; the rest wait,
-        archived, with their history intact.
-      </p>
-
-      <Button asChild size="block" variant="primary">
-        <Link to="/import">
-          <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Import routine
-        </Link>
-      </Button>
+      <ImportRoutineButton>
+        <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+        Import routine
+      </ImportRoutineButton>
 
       {routines === undefined ? null : routines.length === 0 ? (
         <section className={WELL}>
@@ -174,8 +172,8 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
 
       {confirming && (
         <p className={LABEL}>
-          this removes the routine, its workouts and its placements — sessions are never
-          touched
+          this removes the routine, its workouts and its days on the calendar — sessions
+          are never touched
         </p>
       )}
     </Card>

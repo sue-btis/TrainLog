@@ -7,8 +7,15 @@
  * gym mode carries no navigation at all, because §21 says nothing may compete
  * with the set in front of you.
  *
- * Session history sits inside the shell too, under `/sessions` — plural, and a
- * different thing from `/session`, which is the one being trained right now.
+ * One Session sits inside the shell too, under `/sessions/:sessionId` — plural,
+ * and a different thing from `/session`, which is the one being trained right
+ * now. There is no list at `/sessions`: the calendar already answers "what did
+ * I do", month by month, with the plan drawn beside it, and a second flat list
+ * of the same Sessions was one screen doing a screen's job twice.
+ *
+ * Settings sits below the shell's sections as well, at `/settings`, reached
+ * from the top bar rather than from a tab. It carries what the app is for once
+ * — the backup — and what it is for day to day, which is everything else.
  *
  * Routines sits inside the shell as well, but below a section rather than
  * beside one: the navigation caps at four tabs (DESIGN.md §Navigation) and
@@ -24,13 +31,13 @@ import { CalendarScreen } from '@/features/calendar/CalendarScreen';
 import { ExerciseCatalogScreen } from '@/features/exercises/ExerciseCatalogScreen';
 import { ExerciseHistoryScreen } from '@/features/history/ExerciseHistoryScreen';
 import { SessionDetailScreen } from '@/features/history/SessionDetailScreen';
-import { SessionHistoryScreen } from '@/features/history/SessionHistoryScreen';
 import { ImportWizard } from '@/features/import/ImportWizard';
 import { MoreScreen } from '@/features/more/MoreScreen';
 import { ProgressScreen } from '@/features/progress/ProgressScreen';
 import { RoutineDetailScreen } from '@/features/routines/RoutineDetailScreen';
 import { RoutinesScreen } from '@/features/routines/RoutinesScreen';
 import { SessionScreen } from '@/features/session/SessionScreen';
+import { SettingsScreen } from '@/features/settings/SettingsScreen';
 import { AppShell } from '@/features/shell/AppShell';
 import { TodayScreen } from '@/features/today/TodayScreen';
 
@@ -47,8 +54,8 @@ export function App() {
           <Route element={<RoutineDetailScreen />} path="/routines/:routineId" />
           <Route element={<ExerciseCatalogScreen />} path="/exercises" />
           <Route element={<ExerciseHistoryScreen />} path="/exercises/:exerciseId" />
-          <Route element={<SessionHistoryScreen />} path="/sessions" />
           <Route element={<SessionDetailScreen />} path="/sessions/:sessionId" />
+          <Route element={<SettingsScreen />} path="/settings" />
         </Route>
         <Route element={<ImportWizard />} path="/import" />
         <Route element={<SessionScreen />} path="/session" />

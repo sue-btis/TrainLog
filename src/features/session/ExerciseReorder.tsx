@@ -83,8 +83,7 @@ export function ExerciseReorder({
       <h2 className="type-headline">Reorder exercises</h2>
 
       <p className="type-body-sm text-ink-2">
-        Hold an exercise by its handle and drag it where you want it. The session keeps
-        the order you leave here.
+        The session keeps the order you leave here.
       </p>
 
       <DndContext

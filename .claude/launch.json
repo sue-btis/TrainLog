@@ -61,6 +61,28 @@
         "--strictPort"
       ],
       "port": 4183
+    },
+    {
+      "name": "trainlog-verify-2",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev",
+        "--port",
+        "5234",
+        "--strictPort"
+      ],
+      "port": 5234
+    },
+    {
+      "name": "trainlog-verify-3",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev",
+        "--port",
+        "5235",
+        "--strictPort"
+      ],
+      "port": 5235
     }
   ]
 }

@@ -74,8 +74,7 @@ export function ExercisePicker({ onPick, onCancel, busy }: ExercisePickerProps) 
         <section className={WELL}>
           <p className="type-title">No exercise matches “{query}”</p>
           <p className="type-body-sm text-ink-2">
-            Only the built-in catalog and the exercises your routine files created are
-            available here. A new movement arrives by importing a routine that names it.
+            Only what the app ships with, and what your routines named.
           </p>
         </section>
       ) : (
