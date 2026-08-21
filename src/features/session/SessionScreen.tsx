@@ -66,7 +66,7 @@ import { RestTimer } from '@/features/session/RestTimer';
 import type { SetValues } from '@/features/session/SetLogger';
 import { useWakeLock } from '@/features/session/useWakeLock';
 import {
-  useDefaultUnit,
+  useSettings,
   useExerciseNames,
   useInProgressSession,
   useSessionDetail,
@@ -80,7 +80,11 @@ export function SessionScreen() {
   const navigate = useNavigate();
   const session = useInProgressSession();
   const detail = useSessionDetail(session?.id ?? null);
-  const defaultUnit = useDefaultUnit();
+  // One read for all of gym mode's settings (§32). Absent only while it is in
+  // flight, and the fallbacks below are the shipped behaviour, so a lifter
+  // never sees a frame of the timer or the logger acting on someone else's
+  // preferences.
+  const settings = useSettings();
 
   const entries = detail?.exercises ?? [];
   const names = useExerciseNames(entries.map((entry) => entry.exerciseSession.exerciseId));
@@ -104,8 +108,11 @@ export function SessionScreen() {
   /** Finishing with work left undone asks once; this is the armed state (§37). */
   const [confirmFinish, setConfirmFinish] = useState(false);
 
-  // §11.6 — the screen stays awake for as long as a session is open.
-  useWakeLock(session !== undefined);
+  // §11.6 — the screen stays awake for as long as a session is open, unless the
+  // lifter has turned that off (§32). Passing the setting through `active` is
+  // enough: the hook re-runs on change and its cleanup releases the sentinel,
+  // so turning it off mid-session lets the screen sleep again.
+  useWakeLock(session !== undefined && (settings?.keepScreenAwake ?? true));
 
   // Rest belongs to the Session, not to the exercise on screen: the last set
   // logged anywhere starts it, and paging to another exercise mid-rest does not
@@ -333,6 +340,8 @@ export function SessionScreen() {
               onSkip={() => setSkippedRest(rest.since)}
               seconds={rest.seconds}
               since={rest.since}
+              sound={settings?.timerSound ?? false}
+              vibrate={settings?.timerVibration ?? true}
             />
           )}
 
@@ -343,7 +352,8 @@ export function SessionScreen() {
             onAdvance={() => (at >= entries.length - 1 ? finish() : setIndex(at + 1))}
             onDeleteSet={deleteLoggedSet}
             onEditSet={editLoggedSet}
-            defaultUnit={defaultUnit ?? DEFAULT_UNIT}
+            defaultRir={settings?.defaultRir ?? null}
+            defaultUnit={settings?.defaultUnit ?? DEFAULT_UNIT}
             exerciseSession={entry.exerciseSession}
             name={names?.get(entry.exerciseSession.exerciseId) ?? '…'}
             onLog={log}

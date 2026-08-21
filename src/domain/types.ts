@@ -254,10 +254,31 @@ export interface CompletedSet {
 // ------------------------------------------------------------------ Settings
 
 /**
- * §32, REQ-077 — the single settings row. The unit here is only the default
- * used when a routine file omits one; each Exercise keeps its own (§12).
+ * §32, REQ-077 — the single settings row. Every field is a *default*: a value
+ * used when nothing more specific is known. None of them reaches back into
+ * stored training. The unit is what a routine file inherits when it omits one;
+ * each Exercise keeps its own from then on (§12).
+ *
+ * The fields after `defaultUnit` were added later, so a row already on disk
+ * carries only `defaultUnit`. They are optional here for that reason alone —
+ * `getSettings` fills them in on read, and every consumer above the repository
+ * sees all five. Nothing else may read this type off the database directly.
+ *
+ * No theme setting: dark was rejected from the use scene (DESIGN.md, the
+ * No-Dark-Variant Rule), so there is nothing for a theme control to choose.
  */
 export interface Settings {
   readonly id: 'settings';
   readonly defaultUnit: Unit;
+  /** The RIR the readouts open on when nothing else is known. `null` = no opinion. */
+  readonly defaultRir?: number | null;
+  /** Whether the rest timer buzzes when it reaches zero (§11.6). */
+  readonly timerVibration?: boolean;
+  /** Whether the rest timer beeps when it reaches zero (§11.6). */
+  readonly timerSound?: boolean;
+  /** Whether the screen is held awake for the length of a session (§11.6). */
+  readonly keepScreenAwake?: boolean;
 }
+
+/** The settings row as everything above the repository sees it: complete. */
+export type ResolvedSettings = Required<Settings>;

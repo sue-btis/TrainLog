@@ -163,6 +163,33 @@ describe('parseBackup', () => {
     expect(document.settings.defaultUnit).toBe('kg');
   });
 
+  // AC-4a — `validDocument` already carries the settings row as it was written
+  // before the other four settings existed. Stated as its own test because it
+  // is a compatibility promise, not an incidental property of the fixture: a
+  // backup a lifter took months ago is the copy they will need.
+  it('accepts a settings row carrying only the unit', () => {
+    const document = accept(withKey('settings', { id: 'settings', defaultUnit: 'lb' }));
+    expect(document.settings).toEqual({ id: 'settings', defaultUnit: 'lb' });
+  });
+
+  it('accepts a settings row carrying every setting', () => {
+    const full = {
+      id: 'settings',
+      defaultUnit: 'kg',
+      defaultRir: 2,
+      timerVibration: false,
+      timerSound: true,
+      keepScreenAwake: false,
+    };
+    expect(accept(withKey('settings', full)).settings).toEqual(full);
+  });
+
+  it('refuses a setting of the wrong type rather than dropping it', () => {
+    expect(refusedPaths(withKey('settings', { id: 'settings', defaultUnit: 'kg', timerSound: 'yes' }))).toEqual([
+      'settings.timerSound',
+    ]);
+  });
+
   // Raw text, deliberately *not* through `parse`: `JSON.stringify('not a
   // backup')` is valid JSON, so routing this through the helper would exercise
   // the object schema and never reach the JSON failure it claims to test.

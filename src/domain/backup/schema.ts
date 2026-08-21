@@ -243,7 +243,24 @@ const completedSet = z.object({
   completedAt: timestamp,
 });
 
-const settings = z.object({ id: z.literal('settings'), defaultUnit: unit });
+/**
+ * The settings row (§32).
+ *
+ * Everything after `defaultUnit` is optional, and that is a compatibility rule
+ * rather than a shape preference: a backup taken before those settings existed
+ * carries the unit alone, and a lifter's only copy of their training must not
+ * be refused because the app grew a beep since they exported it. Restore
+ * ignores this object entirely (§18) — it is validated so the document is
+ * whole, not because anything is written from it.
+ */
+const settings = z.object({
+  id: z.literal('settings'),
+  defaultUnit: unit,
+  defaultRir: z.number().nullable().optional(),
+  timerVibration: z.boolean().optional(),
+  timerSound: z.boolean().optional(),
+  keepScreenAwake: z.boolean().optional(),
+});
 
 /**
  * The document (§17). `version` is validated in pass 2; here it only has to be
