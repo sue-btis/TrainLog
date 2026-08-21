@@ -478,4 +478,38 @@ describe('listSetsForCsv', () => {
     // `es2` is performed but carries no sets in the seed.
     expect(await listSetsForCsv()).toHaveLength(1);
   });
+
+  it('skips a Session that has no exercises at all', async () => {
+    // A workout started and abandoned before anything was chosen. It must not
+    // break the export for every session after it.
+    await seed();
+    await db.sessions.add({
+      ...session,
+      id: toId<SessionId>('empty'),
+      startedAt: session.startedAt + 86_400_000,
+      status: 'partial',
+    });
+
+    expect(await listSetsForCsv()).toHaveLength(1);
+  });
+
+  it('falls back to the id when an Exercise resolves to no name', async () => {
+    // REQ-023 forbids removing a catalog slug, so this should be unreachable —
+    // but a row labelled with its id is recoverable and a blank one is not.
+    await seed();
+    await db.exerciseSessions.add({
+      ...unplannedSession,
+      id: toId<ExerciseSessionId>('es3'),
+      exerciseId: toId<ExerciseId>('vanished-exercise'),
+      order: 2,
+    });
+    await db.completedSets.add({
+      ...completedSet,
+      id: toId<CompletedSetId>('cs3'),
+      exerciseSessionId: toId<ExerciseSessionId>('es3'),
+    });
+
+    const names = (await listSetsForCsv()).map((row) => row.exercise);
+    expect(names).toContain('vanished-exercise');
+  });
 });
