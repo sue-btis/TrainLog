@@ -2285,67 +2285,50 @@ No implementar `merge` en MVP.
 
 ## MVP 0.1
 
-### Routine
+Estado verificado contra el código el 2026-08-20 (rama `pwa-addition`).
+Leyenda: ✅ hecho · 🟡 parcial · ⬜ pendiente.
+Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit.
 
-- YAML import;
-- structural + semantic validation;
-- import wizard (exercises, days, weeks);
-- routine storage;
-- activate routine;
-- archive routine.
+| Área | Ítem | Estado | Evidencia |
+| --- | --- | --- | --- |
+| Routine | YAML import | ✅ | `domain/routine-file/`, `features/import/FileStep.tsx` |
+| Routine | Structural + semantic validation | ✅ | `routine-file/schema.ts`, `routine-file/validate.ts` |
+| Routine | Import wizard (exercises, days, weeks) | ✅ | `features/import/` |
+| Routine | Routine storage | ✅ | `db/repositories/routines.ts`, `import.ts` |
+| Routine | Activate routine | ✅ | `activateRoutine` → `RoutinesScreen.tsx` |
+| Routine | Archive routine | ✅ | `archiveRoutine` → `RoutinesScreen.tsx` |
+| Schedule | Placement generation | ✅ | `domain/scheduling/generatePlacements` |
+| Schedule | Move placement | ✅ | `movePlacement` → `CalendarScreen.tsx` |
+| Schedule | Delete placement | ✅ | `deletePlacement` → `CalendarScreen.tsx` |
+| Calendar | Placements | ✅ | `features/calendar/` |
+| Calendar | Completed sessions | ✅ | `dayState` |
+| Calendar | Derived missed days | ✅ | `isMissed`, nunca almacenado |
+| Workout | Start session | ✅ | `domain/session/startSession`, `startWorkout` |
+| Workout | Snapshot planned targets | ✅ | `startPlannedExercise` (ADR 0002) |
+| Workout | Weight + unit / reps / RIR | ✅ | `SetLogger.tsx`, `domain/units.ts` |
+| Workout | Completed sets | ✅ | `logSet`, `db/repositories/completedSets.ts` |
+| Workout | Extra / fewer sets | ✅ | `logSet`, `removeSet`, `editSet` |
+| Workout | Skip exercise | ✅ | `skipExercise` → `SessionScreen.tsx` |
+| Workout | Reorder exercises | ✅ | `moveExerciseSession`, `ExerciseReorder.tsx` |
+| Workout | Unplanned exercises | ✅ | `startUnplannedExercise`, `ExercisePicker.tsx` |
+| Workout | Rest timer | 🟡 | `RestTimer.tsx` + wake lock y vibración; faltan las notificaciones de §11.6 |
+| Workout | Previous results | ✅ | `PreviousPanel.tsx` |
+| Workout | Finish session | ✅ | `finishSession`, `deriveSessionStatus` |
+| History | Sessions | ⬜ | no hay pantalla ni ruta de historial de sesiones (§11.10) |
+| History | Exercise history | ✅ | `features/history/ExerciseHistoryScreen.tsx` |
+| Progression | Manual | ✅ | `suggestLoad` → `ExerciseView.tsx` |
+| Progression | Double progression | ✅ | `domain/progression/index.ts` (§29) |
+| Data | Bundled exercise catalog | ✅ | `domain/catalog/data.ts` |
+| Data | IndexedDB | ✅ | `db/schema.ts`, `db/repositories/` |
+| Data | Backup | ⬜ | §17 sin implementar |
+| Data | Restore | ⬜ | §18 sin implementar |
+| Data | CSV export | ⬜ | §19 sin implementar |
+| Platform | Responsive | ✅ | `features/shell/` (mobile-first) |
+| Platform | PWA | ⬜ | `vite-plugin-pwa` instalado pero no configurado en `vite.config.ts`; sin manifest (§33) |
+| Platform | Offline | ⬜ | depende del service worker; sin él no hay cache de la app shell (§9) |
 
-### Schedule
-
-- placement generation;
-- move placement;
-- delete placement.
-
-### Calendar
-
-- placements;
-- completed sessions;
-- derived missed days.
-
-### Workout
-
-- start session;
-- snapshot planned targets;
-- exercises;
-- weight + unit;
-- reps;
-- RIR;
-- completed sets;
-- extra / fewer sets;
-- skip exercise;
-- reorder exercises;
-- unplanned exercises;
-- rest timer;
-- previous results;
-- finish session.
-
-### History
-
-- sessions;
-- exercise history.
-
-### Progression
-
-- manual;
-- double progression.
-
-### Data
-
-- bundled exercise catalog;
-- IndexedDB;
-- backup;
-- restore;
-- CSV export.
-
-### Platform
-
-- responsive;
-- PWA;
-- offline.
+Fuera de MVP 0.1 y aún sin empezar: Progress Dashboard (§11.11), Exercise Catalog
+como pantalla (§11.12), Settings (§32).
 
 ---
 

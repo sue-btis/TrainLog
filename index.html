@@ -2,7 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!--
+      The board token from src/styles/theme.css. It paints the address bar and
+      the install splash, which sit against the same surface the app renders on.
+      vite-plugin-pwa injects <link rel="manifest"> and the service-worker
+      registration; everything below is what it does not inject.
+    -->
+    <meta name="theme-color" content="#f0f5f5" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon.svg" sizes="any" type="image/svg+xml" />
+
+    <!-- iOS ignores the manifest for the home-screen icon and reads this. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <meta name="apple-mobile-web-app-title" content="TrainLog" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!--
+      Both spellings on purpose. Chrome deprecated `apple-mobile-web-app-capable`
+      and flags it, but iOS Safari still reads only that one. Shipping the pair is
+      the fix; swapping would break iOS.
+    -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
     <title>TrainLog</title>
   </head>
   <body>

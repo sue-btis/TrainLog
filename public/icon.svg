@@ -1,0 +1,26 @@
+<!--
+  Placeholder app icon. NOT a brand mark.
+
+  "TrainLog" is a working name and no logo, wordmark or brand palette exists
+  (PRODUCT.md § Brand Commitments). This file exists only because a Web App
+  Manifest requires `icons` (PRD §33), and it draws exclusively on tokens
+  already declared in src/styles/theme.css — board, card, and three of the five
+  semantic hues, in the order the product reads them: Planned, Actual,
+  Progression.
+
+  Deliberately free of filters and gradients: it is rasterised by sharp, which
+  does not render SVG filter primitives reliably. Depth is omitted rather than
+  faked.
+
+  Replace wholesale when real identity work happens. Nothing downstream should
+  treat this as settled.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#f0f5f5" />
+  <rect x="56" y="56" width="400" height="400" rx="80" fill="#FEFEFD" />
+  <g>
+    <rect x="120" y="146" width="160" height="52" rx="26" fill="#2F62F0" />
+    <rect x="120" y="230" width="240" height="52" rx="26" fill="#0F9B67" />
+    <rect x="120" y="314" width="120" height="52" rx="26" fill="#6D3FE0" />
+  </g>
+</svg>
