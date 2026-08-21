@@ -2320,9 +2320,9 @@ Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit
 | Progression | Double progression | ✅ | `domain/progression/index.ts` (§29) |
 | Data | Bundled exercise catalog | ✅ | `domain/catalog/data.ts` |
 | Data | IndexedDB | ✅ | `db/schema.ts`, `db/repositories/` |
-| Data | Backup | ⬜ | §17 sin implementar |
-| Data | Restore | ⬜ | §18 sin implementar |
-| Data | CSV export | ⬜ | §19 sin implementar |
+| Data | Backup | ✅ | `domain/backup/document.ts`, `exportBackup` → `features/more/MoreScreen.tsx` |
+| Data | Restore | ✅ | `parseBackup` valida, `restoreBackup` reemplaza en una transacción; confirmación en `MoreScreen.tsx` |
+| Data | CSV export | ✅ | `domain/backup/csv.ts`, `listSetsForCsv`; columnas §19 + `unit` |
 | Platform | Responsive | ✅ | `features/shell/` (mobile-first) |
 | Platform | PWA | ⬜ | `vite-plugin-pwa` instalado pero no configurado en `vite.config.ts`; sin manifest (§33) |
 | Platform | Offline | ⬜ | depende del service worker; sin él no hay cache de la app shell (§9) |
