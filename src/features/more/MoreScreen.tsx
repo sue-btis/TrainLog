@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Database,
   Download,
+  Dumbbell,
   FileUp,
   History,
   ScrollText,
@@ -158,6 +159,17 @@ export function MoreScreen() {
           <span className="block type-title">Session history</span>
           <span className="block type-body-sm text-ink-2">
             Every workout you have finished, and every set in it.
+          </span>
+        </span>
+        <ChevronRight aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
+      </Link>
+
+      <Link className={cn(WELL, PRESS, 'flex-row items-center gap-3')} to="/exercises">
+        <Dumbbell aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
+        <span className="min-w-0 flex-1">
+          <span className="block type-title">Exercises</span>
+          <span className="block type-body-sm text-ink-2">
+            Every movement the app knows, and the history behind each one.
           </span>
         </span>
         <ChevronRight aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />

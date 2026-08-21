@@ -453,16 +453,18 @@ Pantallas que se visitan, no acciones que se ejecutan:
 ```text
 Routines          la lista de programas importados (§11.2)
 Session history   cada sesión realizada (§38, «History | Sessions»)
+Exercises         el catálogo y los ejercicios propios (§11.12)
 ```
 
 `Routines` ocupó la tercera pestaña mientras `Progress` no existía. Al llegar
 `Progress` (§11.11) bajó aquí, que es donde corresponde a una pantalla que se
 mira después de importar y no durante un entrenamiento.
 
-`Exercises` (§11.12) no tiene pantalla todavía. El catálogo existe como dato y
-se consulta desde el asistente de importación y el selector de ejercicio no
-planificado; la pantalla para navegarlo está fuera del MVP 0.1. Cuando llegue
-entrará bajo `More`, no como quinta pestaña.
+`Exercises` (§11.12) llegó después del MVP 0.1, y entró aquí — no como quinta
+pestaña. Agrupa por categoría, filtra por equipo y busca por nombre; cada fila
+abre el historial de ese ejercicio (§11.10), que ya sabe decir «No history yet»
+para un movimiento nunca entrenado. No crea ni edita ejercicios: eso sigue
+siendo `exercise management` en §39.
 
 ---
 
@@ -2377,7 +2379,10 @@ Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit
 `Progress` entró en la navegación y `Routines` bajó a `More` (§10): la barra
 tiene cuatro pestañas y no admite una quinta.
 
-Fuera de MVP 0.1 y aún sin empezar: Exercise Catalog como pantalla (§11.12).
+Nada queda pendiente de MVP 0.1. Exercise Catalog como pantalla (§11.12) era el
+único ítem que la tabla marcaba fuera de alcance; se construyó después, como
+primer ítem de V1.0 — `features/exercises/ExerciseCatalogScreen.tsx`, ruta
+`/exercises`, `groupExercises` en `domain/catalog/index.ts`.
 
 ---
 
