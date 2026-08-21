@@ -9,9 +9,11 @@
     "dev:phone": "vite --mode phone",
     "build": "vite build",
     "preview": "vite preview",
+    "preview:phone": "vite preview --mode phone",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "pwa:assets": "pwa-assets-generator"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -38,6 +40,7 @@
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-basic-ssl": "2.3.0",
     "@vitejs/plugin-react": "6.0.5",
     "@vitest/coverage-v8": "4.1.11",
@@ -48,6 +51,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0",
     "vite": "8.2.1",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "4.1.11"
   }
 }

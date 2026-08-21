@@ -41,6 +41,26 @@
         "--strictPort"
       ],
       "port": 5233
+    },
+    {
+      "name": "trainlog-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "preview:phone"
+      ],
+      "port": 4173,
+      "url": "https://localhost:4173"
+    },
+    {
+      "name": "trainlog-preview-local",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "preview",
+        "--port",
+        "4183",
+        "--strictPort"
+      ],
+      "port": 4183
     }
   ]
 }

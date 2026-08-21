@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import { VitePWA } from 'vite-plugin-pwa';
+import { pwaOptions } from './src/pwa/config.ts';
 
 /**
  * Two dev modes, because the app is designed for a phone but developed on a
@@ -20,20 +22,38 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
  *
  * The certificate is self-signed, so a phone warns once before trusting it.
  * Accepting that warning still yields a secure context, which is the point.
- * Neither mode reaches the build: `basicSsl` configures the dev server only and
- * is a devDependency that never ships.
+ *
+ * `pnpm preview:phone` is the same arrangement for the built app, and it is the
+ * only way to exercise the PWA on a phone. The service worker is disabled in
+ * dev, so `dev:phone` can never show installation or offline behavior; and a
+ * plain `pnpm preview` binds loopback only, so a phone has nothing to reach.
+ * `basicSsl` covers `preview.https` as well as `server.https`, so passing
+ * `--mode phone` to either command yields a secure context.
+ *
+ * Neither mode reaches the build: `basicSsl` configures the dev and preview
+ * servers only and is a devDependency that never ships.
  */
 export default defineConfig(({ mode }) => {
   const phone = mode === 'phone';
 
   return {
-    plugins: [react(), tailwindcss(), ...(phone ? [basicSsl()] : [])],
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA(pwaOptions),
+      ...(phone ? [basicSsl()] : []),
+    ],
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
     server: {
       port: 5173,
       // Loopback only unless a phone needs to reach it.
+      host: phone,
+    },
+    preview: {
+      port: 4173,
+      // Same rule, and the only surface where the service worker actually runs.
       host: phone,
     },
   };
