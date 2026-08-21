@@ -264,7 +264,7 @@ function SettingsSection() {
     <section className={WELL}>
       <div className="flex flex-col gap-2">
         <label className="type-title flex items-center gap-2" htmlFor={unitId}>
-          <Scale aria-hidden="true" className="text-ink-3" size={20} strokeWidth={2.5} />
+          <Scale aria-hidden="true" className="text-ink" size={20} strokeWidth={2.5} />
           Default unit
         </label>
         <Select onValueChange={(next) => void setDefaultUnit(next as ResolvedSettings['defaultUnit'])} value={defaultUnit}>
@@ -288,7 +288,7 @@ function SettingsSection() {
 
       <div className={cn(RULED, 'gap-2')}>
         <label className="type-title flex items-center gap-2" htmlFor={rirId}>
-          <Gauge aria-hidden="true" className="text-ink-3" size={20} strokeWidth={2.5} />
+          <Gauge aria-hidden="true" className="text-ink" size={20} strokeWidth={2.5} />
           Default RIR
         </label>
         <Select
@@ -356,7 +356,7 @@ function Head({
 }) {
   return (
     <p className={cn(LABEL, 'flex items-center gap-1.5', className)}>
-      <Icon aria-hidden="true" size={16} strokeWidth={2.5} />
+      <Icon aria-hidden="true" className="text-ink" size={16} strokeWidth={2.5} />
       {children}
     </p>
   );
@@ -392,7 +392,7 @@ function Toggle({
     <div className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
       <div className="flex min-w-0 flex-col gap-1">
         <label className="type-title flex items-center gap-2" htmlFor={id}>
-          <Icon aria-hidden="true" className="text-ink-3" size={20} strokeWidth={2.5} />
+          <Icon aria-hidden="true" className="text-ink" size={20} strokeWidth={2.5} />
           {label}
         </label>
         <p className="type-body-sm text-ink-2">{hint}</p>
