@@ -11,6 +11,14 @@ export { DATABASE_NAME, SCHEMA_VERSION, TABLE_NAMES, TrainLogDatabase } from '@/
 export { importRoutine } from '@/db/repositories/import';
 
 export {
+  exportBackup,
+  restoreBackup,
+  restoreSummary,
+  type RestoreSummary,
+  type TableCounts,
+} from '@/db/repositories/backup';
+
+export {
   RoutineHasSessionsError,
   activateRoutine,
   archiveRoutine,
