@@ -12,6 +12,7 @@ export { importRoutine } from '@/db/repositories/import';
 
 export {
   exportBackup,
+  listSetsForCsv,
   restoreBackup,
   restoreSummary,
   type RestoreSummary,

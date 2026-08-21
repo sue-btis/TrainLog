@@ -23,7 +23,12 @@
  */
 
 import { db } from '@/db/database';
+import { getExerciseNames } from '@/db/repositories/exercises';
+import { groupCompletedSetsByExerciseSession } from '@/db/repositories/completedSets';
 import { RESTORED_TABLES, BACKUP_VERSION, type BackupDocument } from '@/domain/backup';
+import { formatLocalDate } from '@/domain/dates';
+import type { CsvRow } from '@/domain/backup/csv';
+import type { SessionId } from '@/domain/ids';
 import type { Timestamp } from '@/domain/types';
 
 /**
@@ -144,4 +149,70 @@ export async function restoreBackup(document: BackupDocument): Promise<void> {
       if (rows.length > 0) await db.table(table).bulkAdd([...rows]);
     }
   });
+}
+
+/**
+ * Every logged set, flattened for CSV (§19), oldest Session first.
+ *
+ * Chronological because this file is read as a training log: a spreadsheet
+ * opened at the top should start where the lifter started. The screens sort
+ * newest-first for the opposite reason — what you did last time is the thing
+ * you need now.
+ *
+ * The whole database, in three reads and no per-row lookups: Sessions, then
+ * their ExerciseSessions, then the sets of those, with names resolved in one
+ * batch through `getExerciseNames` so catalog and user-created Exercises both
+ * come back (DEC-007).
+ *
+ * `date` is the Session's local calendar day derived from `startedAt`, not a
+ * UTC one (REQ-013) — a set logged at 22:30 belongs to the evening it happened
+ * in, not to tomorrow.
+ */
+export async function listSetsForCsv(): Promise<CsvRow[]> {
+  const sessions = await db.sessions.toArray();
+  if (sessions.length === 0) return [];
+
+  sessions.sort((a, b) => a.startedAt - b.startedAt);
+
+  const exerciseSessions = await db.exerciseSessions.toArray();
+  const sets = await groupCompletedSetsByExerciseSession(
+    exerciseSessions.map((exerciseSession) => exerciseSession.id),
+  );
+  const names = await getExerciseNames(
+    exerciseSessions.map((exerciseSession) => exerciseSession.exerciseId),
+  );
+
+  const bySession = new Map<SessionId, typeof exerciseSessions>();
+  for (const exerciseSession of exerciseSessions) {
+    const group = bySession.get(exerciseSession.sessionId);
+    if (group === undefined) bySession.set(exerciseSession.sessionId, [exerciseSession]);
+    else group.push(exerciseSession);
+  }
+
+  const rows: CsvRow[] = [];
+  for (const session of sessions) {
+    const date = formatLocalDate(new Date(session.startedAt));
+    const performed = [...(bySession.get(session.id) ?? [])].sort((a, b) => a.order - b.order);
+
+    for (const exerciseSession of performed) {
+      // An Exercise the catalog dropped would resolve to nothing. REQ-023
+      // forbids that, so it cannot happen — but a nameless row would be worse
+      // than a labelled one, and the id is at least traceable.
+      const exercise = names.get(exerciseSession.exerciseId) ?? exerciseSession.exerciseId;
+
+      for (const set of sets.get(exerciseSession.id) ?? []) {
+        rows.push({
+          date,
+          exercise,
+          set: set.setNumber,
+          weight: set.weight,
+          unit: set.unit,
+          reps: set.reps,
+          rir: set.rir,
+        });
+      }
+    }
+  }
+
+  return rows;
 }

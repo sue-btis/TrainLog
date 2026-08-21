@@ -23,6 +23,8 @@ export {
   type RestoredTable,
 } from '@/domain/backup/document';
 
+export { CSV_HEADER, toCsv, type CsvRow } from '@/domain/backup/csv';
+
 export {
   formatPath,
   parseBackup,

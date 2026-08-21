@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
   exportBackup,
+  listSetsForCsv,
   restoreBackup,
   restoreSummary,
 } from '@/db/repositories/backup';
@@ -95,12 +96,20 @@ const userExercise: Exercise = {
   equipment: null,
 };
 
+/**
+ * 2026-08-18 at 18:00 *local*, built from local parts rather than written as an
+ * epoch number so the calendar day the CSV must print is a fact of the fixture
+ * and not something the test has to guess.
+ */
+const STARTED_AT = new Date(2026, 7, 18, 18, 0).getTime();
+const SESSION_DAY = toLocalDate('2026-08-18');
+
 const session: Session = {
   id: toId<SessionId>('s1'),
   routineId: routine.id,
   workoutId: workout.id,
-  startedAt: 1_755_100_000_000,
-  completedAt: 1_755_103_000_000,
+  startedAt: STARTED_AT,
+  completedAt: STARTED_AT + 3_600_000,
   status: 'completed',
 };
 
@@ -376,5 +385,97 @@ describe('the round trip', () => {
     }
 
     expect(await snapshot()).toEqual(before);
+  });
+});
+
+describe('listSetsForCsv', () => {
+  it('is empty for a database with no sessions', async () => {
+    expect(await listSetsForCsv()).toEqual([]);
+  });
+
+  it('flattens one row per logged set', async () => {
+    await seed();
+    expect(await listSetsForCsv()).toEqual([
+      {
+        date: SESSION_DAY,
+        exercise: 'Front Squat',
+        set: 1,
+        weight: 75,
+        unit: 'kg',
+        reps: 6,
+        rir: 2,
+      },
+    ]);
+  });
+
+  // AC-8c — the catalog is consulted first, then the user table (DEC-007).
+  it('names catalog and user-created Exercises alike', async () => {
+    await seed();
+    await db.completedSets.add({
+      ...completedSet,
+      id: toId<CompletedSetId>('cs2'),
+      exerciseSessionId: unplannedSession.id,
+    });
+
+    const names = (await listSetsForCsv()).map((row) => row.exercise);
+    expect(names).toEqual(['Front Squat', 'Reverse Hyper']);
+  });
+
+  // AC-8d — DEC-B: as entered, not converted.
+  it('carries the weight as entered with its unit', async () => {
+    await seed();
+    await db.completedSets.clear();
+    await db.completedSets.add({
+      ...completedSet,
+      weight: 165,
+      unit: 'lb',
+      weightKg: 74.843,
+    });
+
+    expect(await listSetsForCsv()).toEqual([
+      expect.objectContaining({ weight: 165, unit: 'lb' }),
+    ]);
+  });
+
+  // AC-8b — REQ-013: the evening it happened in, not tomorrow in UTC.
+  it('dates a set by the local day of its Session', async () => {
+    // 2026-08-18 at 22:30 local. In any timezone east of UTC this instant is
+    // already the 19th in UTC, so a UTC-derived date would drift a day.
+    const startedAt = new Date(2026, 7, 18, 22, 30).getTime();
+    await seed();
+    await db.sessions.update(session.id, { startedAt });
+
+    const rows = await listSetsForCsv();
+    expect(rows.map((row) => row.date)).toEqual([toLocalDate('2026-08-18')]);
+  });
+
+  it('orders sessions oldest first, and exercises by their order within one', async () => {
+    await seed();
+    const earlier: Session = {
+      ...session,
+      id: toId<SessionId>('s0'),
+      startedAt: session.startedAt - 86_400_000,
+    };
+    await db.sessions.add(earlier);
+    await db.exerciseSessions.add({
+      ...unplannedSession,
+      id: toId<ExerciseSessionId>('es0'),
+      sessionId: earlier.id,
+      order: 0,
+    });
+    await db.completedSets.add({
+      ...completedSet,
+      id: toId<CompletedSetId>('cs0'),
+      exerciseSessionId: toId<ExerciseSessionId>('es0'),
+    });
+
+    const rows = await listSetsForCsv();
+    expect(rows.map((row) => row.exercise)).toEqual(['Reverse Hyper', 'Front Squat']);
+  });
+
+  it('skips an exercise that was started but never logged', async () => {
+    await seed();
+    // `es2` is performed but carries no sets in the seed.
+    expect(await listSetsForCsv()).toHaveLength(1);
   });
 });
