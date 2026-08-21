@@ -1,9 +1,10 @@
 /**
- * Dexie schema, version 1 (REQ-070, REQ-072, §17, §34).
+ * Dexie schema (REQ-070, REQ-072, §17, §34).
  *
  * This declaration is effectively irreversible: a user's IndexedDB is the only
  * copy of their history, so every later change to it must be a forward
- * migration. It therefore declares the tables and indexes for the whole
+ * migration. Version 2 is the first of those — it adds no table and no index,
+ * only a backfill for a field that was added to a stored type without one. It therefore declares the tables and indexes for the whole
  * technical spine — planning *and* execution — even though the execution
  * repositories are written in a later workstream. Nothing outside this file
  * may add a table or an index at version 1.
@@ -22,9 +23,12 @@
  *
  * `ProgressionRule` is embedded on `PlannedExercise` and on
  * `PlannedExerciseSession`, not stored as a table (DEC-006).
+ *
+ * The store definitions below are still `SCHEMA_V1`, and the name is accurate:
+ * no version since has changed a table or an index.
  */
 
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   CompletedSetId,
   ExerciseId,
@@ -44,14 +48,22 @@ import type {
   Routine,
   Session,
   Settings,
+  Unit,
   Workout,
 } from '@/domain/types';
 
 /** The database name. One database, one local user (§NFR-08). */
 export const DATABASE_NAME = 'trainlog';
 
-/** The only schema version that exists. A change here needs a migration (§8). */
-export const SCHEMA_VERSION = 1;
+/**
+ * The current schema version. A change here needs a migration (§8).
+ *
+ * v1 → v2 adds no table and no index. It exists because `plannedUnit` became a
+ * required field of `PlannedExerciseSession` after v1 shipped, which left rows
+ * on disk that the type system believes are complete and are not. See
+ * `backfillPlannedUnit`.
+ */
+export const SCHEMA_VERSION = 2;
 
 /**
  * The nine tables of REQ-070, as Dexie store definitions.
@@ -135,6 +147,64 @@ export class TrainLogDatabase extends Dexie {
 
   constructor(name: string = DATABASE_NAME) {
     super(name);
-    this.version(SCHEMA_VERSION).stores(SCHEMA_V1);
+    // Both versions declare the same stores. Dexie rebuilds each version's
+    // parsed schema inside `stores()`, using the versions registered at that
+    // moment — so a version that only calls `upgrade()` is left with an empty
+    // schema, and the empty schema is what `deleteRemovedTables` reads. The
+    // repetition is not redundancy; omitting it drops every table.
+    this.version(1).stores(SCHEMA_V1);
+    this.version(2).stores(SCHEMA_V1).upgrade(backfillPlannedUnit);
   }
+}
+
+/**
+ * The unit a backfilled row gets when its PlannedExercise cannot be found.
+ *
+ * Declared here rather than imported from the settings repository: this file is
+ * the bottom of the persistence layer and repositories are built on top of it,
+ * so reaching up would close a cycle. It is the same kilogram default the rest
+ * of the app starts from (§32).
+ */
+const FALLBACK_UNIT: Unit = 'kg';
+
+/**
+ * v1 → v2: gives every stored `PlannedExerciseSession` the `plannedUnit` it
+ * was always supposed to have (§11.7, ADR 0002).
+ *
+ * `plannedUnit` became a required field after v1 shipped. Rows written before
+ * that do not have it, so they contradict `PlannedExerciseSession` while the
+ * compiler believes otherwise — and the backup validator, which checks what is
+ * actually there rather than what the types promise, refuses them. The visible
+ * symptom is a lifter who can export a backup and not restore it.
+ *
+ * The value comes from the PlannedExercise the session was snapshotted from,
+ * which is where `startPlannedExercise` reads it today, so the backfill writes
+ * what the original code would have written.
+ *
+ * Two rows are deliberately left alone:
+ *
+ * - **Unplanned sessions.** They carry no planned targets at all (§14.7);
+ *   adding one would make a shape the domain forbids.
+ * - **Rows that already have a unit.** The snapshot outranks the template — a
+ *   re-import may since have changed it, and rewriting history to match is
+ *   exactly what ADR 0002 exists to prevent.
+ *
+ * The fallback matters little in practice. A PlannedExercise can only be absent
+ * if its Routine was deleted, which §37 refuses while any Session references
+ * it; and once a set exists, `CompletedSet.unit` is what every screen reads
+ * (`ExerciseView`), so `plannedUnit` only decides the very first entry.
+ */
+async function backfillPlannedUnit(transaction: Transaction): Promise<void> {
+  const planned = await transaction.table<PlannedExercise>('plannedExercises').toArray();
+  const unitOf = new Map(planned.map((exercise) => [exercise.id, exercise.unit] as const));
+
+  await transaction
+    .table<Record<string, unknown>>('exerciseSessions')
+    .toCollection()
+    .modify((row) => {
+      const plannedExerciseId = row.plannedExerciseId;
+      if (typeof plannedExerciseId !== 'string') return;
+      if (row.plannedUnit !== undefined) return;
+      row.plannedUnit = unitOf.get(plannedExerciseId as PlannedExerciseId) ?? FALLBACK_UNIT;
+    });
 }
