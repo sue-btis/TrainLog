@@ -1,5 +1,6 @@
 /**
- * The figures §11.10 puts at the top of an exercise's history screen.
+ * The figures §11.10 puts at the top of an exercise's history screen, and the
+ * series §11.11 charts below it.
  *
  * Derived on demand from the session history, never stored — the same rule the
  * progression engine follows (§11.9). There is no `currentWorkingWeight` field
@@ -11,6 +12,7 @@
  * 50 kg one, and the bigger number is the wrong answer.
  */
 
+import { formatLocalDate, type LocalDate } from '@/domain/dates';
 import type { SessionHistory } from '@/domain/progression';
 import type { CompletedSet, Timestamp } from '@/domain/types';
 
@@ -93,4 +95,65 @@ export function summarizeExercise(history: readonly SessionHistory[]): ExerciseS
       0,
     ),
   };
+}
+
+/**
+ * One Session's work on one exercise, as §11.11 charts it.
+ *
+ * Three quantities, three units — kilograms, reps, and kilogram-reps — which is
+ * why they are three readings of one point rather than three series on one
+ * axis. `topSetKg` is the load the session reached; `reps` is everything done
+ * at any load; `volumeKg` is the two multiplied and summed, the only one of the
+ * three that moves when either of the others does.
+ *
+ * `topSetReps` is not a fourth quantity. It is what makes the top set nameable
+ * — `77.5 × 5` rather than `77.5` — and it is how the tie-break is visible from
+ * outside.
+ */
+export interface ExercisePoint {
+  /** The local day the Session started, which is the day a lifter trained. */
+  readonly date: LocalDate;
+  /** What orders the series. The date cannot: two Sessions can share a day. */
+  readonly startedAt: Timestamp;
+  readonly topSetKg: number;
+  readonly topSetReps: number;
+  /** Every rep of the exercise in that Session, at any load. */
+  readonly reps: number;
+  /** `Σ weightKg × reps` — the work moved. */
+  readonly volumeKg: number;
+}
+
+/**
+ * §11.11's series for one exercise, from the history
+ * `listExerciseHistory(exerciseId)` returns.
+ *
+ * The session rule is `summarizeExercise`'s, deliberately and exactly: a
+ * Session counts when it holds sets, whatever its status. The two render on the
+ * same screen — a best set above the chart that draws these points — and a
+ * second, narrower rule here would let the figure disagree with the line under
+ * it. An open Session is therefore today's point, which is also the honest
+ * answer: those sets happened.
+ *
+ * Ordered oldest first, because that is the direction a chart is read. The
+ * repository hands history over newest first, so this is a reversal, not a
+ * formality — and the input may arrive in any order, so it is sorted rather
+ * than reversed.
+ */
+export function exerciseSeries(history: readonly SessionHistory[]): ExercisePoint[] {
+  return history
+    .filter((entry) => setsOf(entry).length > 0)
+    .map((entry) => {
+      const sets = setsOf(entry);
+      const top = sets.reduce(better);
+
+      return {
+        date: formatLocalDate(new Date(entry.session.startedAt)),
+        startedAt: entry.session.startedAt,
+        topSetKg: top.weightKg,
+        topSetReps: top.reps,
+        reps: sets.reduce((total, performed) => total + performed.reps, 0),
+        volumeKg: sets.reduce((total, performed) => total + performed.weightKg * performed.reps, 0),
+      };
+    })
+    .sort((a, b) => a.startedAt - b.startedAt);
 }

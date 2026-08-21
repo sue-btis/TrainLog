@@ -18,7 +18,11 @@ import {
   listExerciseSessionsBySession,
 } from '@/db/repositories/exerciseSessions';
 import { saveLoggedSet } from '@/db/repositories/completedSets';
-import { getPreviousPerformance, listExerciseHistory } from '@/db/repositories/history';
+import {
+  getPreviousPerformance,
+  listExerciseHistory,
+  listPerformedExercises,
+} from '@/db/repositories/history';
 import { listPlannedExercisesByWorkout } from '@/db/repositories/plannedExercises';
 import { suggestLoad } from '@/domain/progression';
 import {
@@ -253,5 +257,23 @@ describe('PRD §47 flow 2 — perform, persist, read back, progress', () => {
       weightKg: 100,
       targetMet: false,
     });
+  });
+});
+
+describe('performed exercises (§11.11, R-4)', () => {
+  it('has nothing to offer before anything has been trained (AC-4b)', async () => {
+    expect(await listPerformedExercises()).toEqual([]);
+  });
+
+  it('returns each trained exercise once, across Sessions and Routines (AC-4a)', async () => {
+    const { workout } = await seedRoutine('one', squat);
+    const second = await seedRoutine('two', bench);
+
+    // Squat twice, in two Sessions of the same Routine; bench once, in another.
+    await performSession(workout, 1_000, [5, 5], 100);
+    await performSession(workout, 2_000, [5, 5], 102.5);
+    await performSession(second.workout, 3_000, [8], 60);
+
+    expect([...(await listPerformedExercises())].sort()).toEqual([bench, squat].sort());
   });
 });

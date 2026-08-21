@@ -11,8 +11,11 @@
  * dropped; nothing partial is ever written (§18), and the database is not
  * touched until the lifter has seen the summary and pressed again.
  *
- * Session history hangs off here as well: it is a place you go rather than an
- * action you take, so it leads the screen and the data actions follow.
+ * Routines and session history hang off here as well: each is a place you go
+ * rather than an action you take, so they lead the screen and the data actions
+ * follow. Routines lost its tab to Progress (DESIGN.md §Navigation caps the
+ * navigation at four) and landed here, which is where a screen you visit after
+ * an import rather than during a session belongs.
  *
  * Settings (§32) live here too, above the data actions: they are what the
  * screen is for day to day, while a backup is what it is for once.
@@ -20,7 +23,16 @@
 
 import { useId, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { ChevronRight, Database, Download, FileUp, History, TriangleAlert, Upload } from 'lucide-react';
+import {
+  ChevronRight,
+  Database,
+  Download,
+  FileUp,
+  History,
+  ScrollText,
+  TriangleAlert,
+  Upload,
+} from 'lucide-react';
 import {
   exportBackup,
   listSetsForCsv,
@@ -128,6 +140,17 @@ export function MoreScreen() {
         Everything you log lives on this phone and nowhere else. A backup is the only
         copy that survives a lost device or a cleared browser.
       </p>
+
+      <Link className={cn(WELL, PRESS, 'flex-row items-center gap-3')} to="/routines">
+        <ScrollText aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
+        <span className="min-w-0 flex-1">
+          <span className="block type-title">Routines</span>
+          <span className="block type-body-sm text-ink-2">
+            Every programme you have imported, and what each one asks of you.
+          </span>
+        </span>
+        <ChevronRight aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
+      </Link>
 
       <Link className={cn(WELL, PRESS, 'flex-row items-center gap-3')} to="/sessions">
         <History aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />

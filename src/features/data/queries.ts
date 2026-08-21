@@ -19,6 +19,7 @@ import {
   getWorkout,
   listAllSessions,
   listExerciseHistory,
+  listPerformedExercises,
   listPlacementsBetween,
   listPlacementsByRoutine,
   listPlannedExercisesByWorkout,
@@ -187,4 +188,12 @@ export function useSettings() {
  */
 export function useUserExercises() {
   return useLiveQuery(() => listUserExercises(), []);
+}
+
+/**
+ * What §11.11's selector offers: every Exercise trained at least once. An
+ * exercise nobody has performed has no series to draw, so it is not on offer.
+ */
+export function usePerformedExercises() {
+  return useLiveQuery(() => listPerformedExercises(), []);
 }

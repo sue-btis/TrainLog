@@ -96,4 +96,5 @@ export {
   getPreviousPerformance,
   getSessionDetail,
   listExerciseHistory,
+  listPerformedExercises,
 } from '@/db/repositories/history';

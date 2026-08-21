@@ -419,7 +419,8 @@ Debe estar disponible offline:
 
 # 10. Information Architecture
 
-La aplicación tendrá cinco áreas principales.
+La navegación tiene **cuatro** pestañas, y sólo cuatro (DESIGN.md §Navigation).
+Todo lo demás se alcanza desde una de ellas.
 
 ```text
 Today
@@ -427,8 +428,6 @@ Today
 Calendar
 
 Progress
-
-Exercises
 
 More
 ```
@@ -447,7 +446,23 @@ Diseñada para uso con una mano:
 └──────────────────────────────┘
 ```
 
-`Exercises` puede integrarse inicialmente dentro de `Progress` o `More` si se desea mantener cuatro elementos principales.
+## Bajo `More`
+
+Pantallas que se visitan, no acciones que se ejecutan:
+
+```text
+Routines          la lista de programas importados (§11.2)
+Session history   cada sesión realizada (§38, «History | Sessions»)
+```
+
+`Routines` ocupó la tercera pestaña mientras `Progress` no existía. Al llegar
+`Progress` (§11.11) bajó aquí, que es donde corresponde a una pantalla que se
+mira después de importar y no durante un entrenamiento.
+
+`Exercises` (§11.12) no tiene pantalla todavía. El catálogo existe como dato y
+se consulta desde el asistente de importación y el selector de ejercicio no
+planificado; la pantalla para navegarlo está fuera del MVP 0.1. Cuando llegue
+entrará bajo `More`, no como quinta pestaña.
 
 ---
 
@@ -980,12 +995,28 @@ Aug 11
 
 # 11.11 Progress Dashboard
 
+Un ejercicio a la vez, a lo largo del tiempo. El selector ofrece sólo los
+ejercicios que se han entrenado; lo que no tiene historial no tiene línea que
+dibujar.
+
 MVP:
 
-- carga;
-- repeticiones;
-- volumen;
-- mejores sets.
+- carga — la serie superior de cada sesión;
+- repeticiones — todas las de la sesión, a cualquier carga;
+- volumen — `Σ carga × repeticiones`;
+- mejor serie.
+
+Las tres primeras son tres unidades distintas (kg, repeticiones, kg·rep) y
+DESIGN.md prohíbe un segundo eje Y, así que son **un gráfico con un conmutador
+de métrica**, no tres gráficos apilados. La mejor serie es una cifra sobre el
+gráfico, la misma que calcula `summarizeExercise` para §11.10: una función
+llamada dos veces, que por eso no pueden discrepar.
+
+Todo se traza en kilogramos, incluso para un ejercicio registrado en libras
+(§11.7).
+
+Esta pantalla es la **forma** del registro; §11.10 es el registro — cada sesión
+y cada serie, en palabras. No hay lista de sesiones aquí.
 
 Posteriormente:
 
@@ -2081,10 +2112,14 @@ session detail
 
 ```text
 exercise selector
-history
-charts
-PRs
+best set
+metric switch  load / reps / volume
+chart
 ```
+
+El historial completo del ejercicio se abre desde aquí, en §11.10. El *PR
+timeline* está en la lista de «Posteriormente» de §11.11; lo que el MVP muestra
+es la mejor serie.
 
 ## Screen 5 — Routine Detail
 
@@ -2334,9 +2369,15 @@ Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit
 | Platform | Responsive | ✅ | `features/shell/` (mobile-first) |
 | Platform | PWA | ✅ | `pwa/config.ts` (manifest §33 + iconos) montado en `vite.config.ts` |
 | Platform | Offline | ✅ | service worker de `vite-plugin-pwa`: precache del shell y de las fuentes, fallback de rutas profundas (§9) |
+| Progress | Serie por ejercicio | ✅ | `exerciseSeries` en `domain/history.ts` (carga, repeticiones, volumen), bajo el gate de mutación |
+| Progress | Dashboard | ✅ | `features/progress/`, ruta `/progress`; selector sobre `listPerformedExercises` |
+| Progress | Gráfico | ✅ | `ExerciseChart.tsx` con Recharts, piel de DESIGN.md §Charts |
+| Progress | Mejor serie | ✅ | `summarizeExercise().bestSet`, la misma que §11.10 |
 
-Fuera de MVP 0.1 y aún sin empezar: Progress Dashboard (§11.11) y Exercise
-Catalog como pantalla (§11.12).
+`Progress` entró en la navegación y `Routines` bajó a `More` (§10): la barra
+tiene cuatro pestañas y no admite una quinta.
+
+Fuera de MVP 0.1 y aún sin empezar: Exercise Catalog como pantalla (§11.12).
 
 ---
 
