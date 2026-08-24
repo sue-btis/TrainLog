@@ -166,3 +166,46 @@ export function NotesField({ id, label, value, onCommit }: NotesFieldProps) {
     </FieldFrame>
   );
 }
+
+interface TextFieldProps {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly onCommit: (value: string) => void;
+  readonly error?: string | null;
+  readonly placeholder?: string;
+  readonly className?: string;
+}
+
+/**
+ * A line of text, with the same caption-control-error frame every other field
+ * here uses.
+ *
+ * It commits on every keystroke rather than on blur, unlike `NumberField`.
+ * A number needs a settled value before it means anything — half of "12" is
+ * "1", a different number — but half of a name is just a shorter name, and the
+ * semantic issue it clears should clear as the lifter types rather than when
+ * they happen to leave the field.
+ */
+export function TextField({
+  id,
+  label,
+  value,
+  onCommit,
+  error = null,
+  placeholder,
+  className,
+}: TextFieldProps) {
+  return (
+    <FieldFrame className={className} error={error} id={id} label={label}>
+      <Input
+        aria-describedby={error === null ? undefined : `${id}-error`}
+        aria-invalid={error !== null}
+        id={id}
+        onChange={(event) => onCommit(event.target.value)}
+        placeholder={placeholder}
+        value={value}
+      />
+    </FieldFrame>
+  );
+}

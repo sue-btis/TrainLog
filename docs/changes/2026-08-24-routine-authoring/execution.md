@@ -35,7 +35,7 @@ write code; none were simulated. Waves A–E in order.
 | Wave / WS | REQ IDs | Status | Files Changed | Checks | Evidence |
 |---|---|---|---|---|---|
 | A / WS-1 | REQ-100…110, 902, 909 | **Completed** | 7 | typecheck, test, lint, build — all green | 471 tests (458 → +13); UI observed, below |
-| B / Gate 0 + WS-2 | REQ-001…014, 200…212 | Not started | | | |
+| B / Gate 0 + WS-2 | REQ-001…014, 200…212, 900, 901, 903, 906, 908 | **Completed** | 12 | all four green | 494 tests (471 → +23); UI observed, below |
 | C / WS-3 | REQ-300…312 | Not started | | | |
 | D / WS-4 | REQ-400…417 | Not started | | | |
 | E / WS-5 | REQ-500…516 | Not started | | | |
@@ -117,11 +117,121 @@ recorded as what it is rather than as a click.
 | `pnpm lint` | Pass |
 | `pnpm build` | Pass |
 
+## Wave B — "I can build a routine without a file." (Gate 0 + WS-2)
+
+Landed as one wave, per plan §6: splitting it would ship §8's second rollout
+window as a live defect — `routine_name_blank` blocks Accept the moment Gate 0
+lands, and the field that fixes it arrives with WS-2.
+
+### Files changed
+
+| Path | Change |
+|---|---|
+| `src/domain/routine-file/edit.ts` | `addWorkout`, `addExercise`, `setRoutineName`, `setWorkoutName`, `blankRoutineFile`; header amended |
+| `src/domain/routine-file/validate.ts` | `routine_name_blank`; the J-2 message conditional |
+| `src/domain/routine-file/index.ts` | barrel exports; header prose amended |
+| `src/features/import/issues.ts` | `FIX` + `problemOf` for the new code; `routine_has_no_workouts` reworded |
+| `src/features/import/state.ts` | `fileName` out of `editing`; `DEFAULT_WEEKS` |
+| `src/features/import/fields.tsx` | `TextField` (J-7) |
+| `src/features/import/ImportWizard.tsx` | from-scratch entry, `?new=1`, three handlers, both abandon guards |
+| `src/features/import/ExercisesStep.tsx` | editable names, `AddWorkout`, three copy blocks |
+| `src/features/import/FileStep.tsx` | "Start from scratch"; well copy |
+| `src/features/import/ScheduleStep.tsx` | opening line |
+| `src/features/today/TodayScreen.tsx` | second entry point + copy (`:224-230`) |
+| `src/features/routines/RoutinesScreen.tsx` | third entry point; `imported` → `created`; empty-state copy |
+| `src/domain/routine-file/edit.test.ts`, `src/db/repositories/import.test.ts` | TST-001…015, TST-207 |
+
+`TodayScreen.tsx:161-163` was **not** touched — it belongs to WS-4 (REQ-906).
+
+### D-004 held, and the compiler proved it
+
+Adding `routine_name_blank` to `SemanticIssueCode` broke `tsc` in exactly two
+places — `FIX`'s total `Record` and `problemOf`'s `default`-less switch — and
+nowhere else. That is the contract check §12 asks for: the consumer set was
+found by the compiler, not by grep, and Gate 0 shipping `validate.ts` without
+`issues.ts` would not have typechecked.
+
+### `state.fileName` turned out to be dead
+
+REQ-202 removes `fileName` from the `editing` phase. Grepping first showed the
+`editing` copy was read by nothing — only the `choosing` phase's own `fileName`
+is rendered, and that stays. So the requirement was a dead-field removal rather
+than a refactor, and the compiler caught the single stale dispatch.
+
+### Requirement status
+
+| Requirement | Implementation | Acceptance evidence | Status |
+|---|---|---|---|
+| REQ-001…003, 005…009, 012, 014 | the five draft verbs | AC-001…014 — TST-001…015 | Completed |
+| REQ-004, 900 | seed deferred to WS-3's `draftExercise`; `addExercise` takes a whole row | AC-004 **deferred to Wave C**, as plan §8 records | Deferred |
+| REQ-010 | barrel + two headers | AC-010 — static | Completed |
+| REQ-011, 013, 901 | `routine_name_blank` across all three files | AC-011/013 — TST-013 | Completed |
+| REQ-200 | three entry surfaces | AC-200 — observed on all three | Completed |
+| REQ-201 | `?new=1`, consumed once on mount | AC-201 — observed | Completed |
+| REQ-202 | `fileName` gone from `editing` | AC-202 — typecheck | Completed |
+| REQ-203, 908 | `blankRoutineFile(DEFAULT_WEEKS)` | AC-203 — TST-014 **and** observed: opens on exactly two problems | Completed |
+| REQ-204 | routine name is a `TextField` | AC-204 — observed | Completed |
+| REQ-205 | blocked until named | AC-205 — observed: 2 problems → 1 on naming | Completed |
+| REQ-206 | `AddWorkout`; new Workout becomes active | AC-206 — observed | Completed |
+| REQ-207 | Add disabled while blank | AC-207 — observed as a state transition | Completed |
+| REQ-208 | both wells reworded | AC-208 — observed | Completed |
+| REQ-209 | titles, chip, primary button, step 2 line | AC-209 — observed **after a correction, below** | Completed |
+| REQ-210 | same `importRoutine` path | AC-210 — TST-207 **and** observed end to end | Completed |
+| REQ-211, 906 | `created {date}` | AC-211 — observed: "4 weeks · created Mon, Aug 24" | Completed |
+| REQ-212 | both surfaces state both ways in | AC-212 — observed | Completed |
+| REQ-903 | `beforeunload` + history sentinel & `popstate` | AC-421 — see below | Completed, with a stated limit |
+
+### Two defects found by running it, not by reading it
+
+Both were in copy the tests cannot reach, and both were introduced by this
+change making a previously unreachable state reachable:
+
+1. **"Push has no exercises left."** The empty-Workout well was written for the
+   delete path, where "left" is true. A Workout added here never had any. Fixed
+   to "has no exercises", with a comment recording why.
+2. **REQ-209 was not actually satisfied on first pass.** After accepting an
+   authored routine the confirmation still said **"Imported"**, the chip said
+   **"imported"**, the primary button said **"Import another routine"**, and
+   step 2 opened with **"These are the days your file suggested."** My earlier
+   grep had found only the ScheduleStep *header comment* and I took that for the
+   copy. Titles are now "Add a routine" / "Ready", the chip is "saved", the
+   button is "Add another routine", and step 2 says "this routine suggests".
+
+### AC-421 — what was and was not verified
+
+Both mechanisms were verified **armed and correct**, at the listener:
+
+- Dispatching a cancelable `beforeunload` while editing came back
+  `defaultPrevented: true` — the guard is live.
+- `window.history.state` while editing is `{"trainlogDraft":true}` — the
+  sentinel is pushed.
+- Dispatching `popstate` raised the existing Leave question — *"Discard this
+  import? Nothing has been stored yet, so every correction you made here goes
+  with it."* — and the sentinel was re-pushed afterwards, so a second back press
+  asks again.
+
+**Not verified:** an actual hardware or browser back press, and an actual
+reload-with-dialog. The `computer` tool times out in this session (the Browser
+pane is hidden), so the events were dispatched rather than produced by a real
+gesture. A dispatched `popstate` is the same event the browser fires on back and
+the handler is the same code, but the gesture itself was not exercised, and this
+is recorded as an inference at that last step rather than as an observation.
+
+### Checks
+
+| Command | Result |
+|---|---|
+| `pnpm typecheck` | Pass |
+| `pnpm test` | Pass — **494** tests (471 → +23) |
+| `pnpm lint` | Pass |
+| `pnpm build` | Pass |
+
 ## Integration Gates
 
 | Gate | Owner | Diff inspected? | Checks | Result |
 |---|---|---:|---|---|
 | Wave A | this writer | Yes | four green, 471 tests | **Pass** |
+| Wave B | this writer | Yes | four green, 494 tests | **Pass** |
 
 ## Deviations
 
@@ -139,5 +249,5 @@ None.
 
 ## Independent Verification Readiness
 
-Wave A: ready. Diff range `git diff 40e0c02..HEAD -- src/`.
-Waves B–E: not started.
+Waves A and B: ready. Diff range `git diff 40e0c02..HEAD -- src/`.
+Waves C–E: not started.

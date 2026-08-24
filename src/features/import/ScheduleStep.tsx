@@ -1,8 +1,9 @@
 /**
  * Step 2 — Days and Weeks (§11.1).
  *
- * The days shown are the ones the file suggested, already assigned; the user
- * confirms or changes them, and sets how long the programme runs. Accepting
+ * The days shown are the ones the draft suggests, already assigned — from a
+ * file that declared them, or from what was chosen while authoring here. The
+ * user confirms or changes them, and sets how long the programme runs. Accepting
  * turns both into Placements, which are the user's from that moment on — the
  * suggested days are never read again (§12).
  *
@@ -57,7 +58,7 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
   return (
     <>
       <p className="type-lede text-ink-2">
-        These are the days your file suggested. Change them if your week looks different.
+        These are the days this routine suggests. Change them if your week looks different.
       </p>
 
       <Card>

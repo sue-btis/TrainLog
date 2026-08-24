@@ -17,7 +17,8 @@ export type SemanticIssueCode =
   | 'sets_not_positive'
   | 'progression_unrecognized'
   | 'suggested_day_shared'
-  | 'routine_has_no_workouts';
+  | 'routine_has_no_workouts'
+  | 'routine_name_blank';
 
 /** One semantic problem, addressed to the field or fields that caused it. */
 export interface SemanticIssue {
@@ -54,11 +55,32 @@ export function validateRoutineFile(file: RoutineFile): readonly SemanticIssue[]
   // A *Workout* with no exercises stays valid on purpose. It runs end to end
   // (`createStartedWorkout`), and `deleteExercise` deliberately allows emptying
   // one so the wizard cannot trap a user who removed the last exercise.
+  // A Routine authored in the wizard starts with no name at all, and a name is
+  // what every list, Today and the wizard header render it by. Semantic rather
+  // than structural on purpose: `.min(1)` on `routine.name` would reject the
+  // blank draft the from-scratch flow opens on, which is the one thing that
+  // must stay parseable (§11.1, and the file's own Structural/Semantic split).
+  //
+  // Unlike `routine_has_no_workouts` this one has a field to point at, so it
+  // carries a path and the action bar can jump to it.
+  const unnamed = file.routine.name.trim() === '';
+  if (unnamed) {
+    issues.push({
+      code: 'routine_name_blank',
+      paths: [['routine', 'name']],
+      message: 'This routine has no name.',
+    });
+  }
+
   if (file.routine.workouts.length === 0) {
     issues.push({
       code: 'routine_has_no_workouts',
       paths: [],
-      message: `${file.routine.name} declares no Workouts.`,
+      // Naming the routine is the whole point of the sentence, so a draft that
+      // has no name yet says "This routine" rather than opening with a space.
+      message: unnamed
+        ? 'This routine declares no Workouts.'
+        : `${file.routine.name} declares no Workouts.`,
     });
   }
 

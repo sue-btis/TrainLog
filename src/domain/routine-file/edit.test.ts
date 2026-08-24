@@ -9,12 +9,19 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  addExercise,
+  addWorkout,
+  blankRoutineFile,
   deleteExercise,
   editExercise,
   moveExercise,
-  toggleSuggestedDay,
+  setRoutineName,
   setWeeks,
+  setWorkoutName,
+  toggleSuggestedDay,
 } from '@/domain/routine-file/edit';
+import { routineFileToDomain } from '@/domain/routine-file/to-domain';
+import { validateRoutineFile } from '@/domain/routine-file/validate';
 import { aFile, anExercise, aWorkout } from '@/domain/routine-file/fixtures';
 
 const named = (name: string) => anExercise({ name });
@@ -178,5 +185,187 @@ describe('setWeeks', () => {
     const file = aFile();
     setWeeks(file, 8);
     expect(file.routine.weeks).toBe(4);
+  });
+});
+
+/** TST-001, TST-002, TST-007 — adding a Workout (REQ-001, REQ-002, REQ-007). */
+describe('addWorkout', () => {
+  it('appends a named Workout with no days and no exercises', () => {
+    const file = aFile([aWorkout({ name: 'Push' })]);
+    const edited = addWorkout(file, 'Pull');
+
+    expect(edited.routine.workouts.map((w) => w.name)).toEqual(['Push', 'Pull']);
+    expect(edited.routine.workouts[1]).toEqual({
+      name: 'Pull',
+      suggested_days: [],
+      exercises: [],
+    });
+  });
+
+  it('leaves the input untouched and reuses the existing Workouts by reference', () => {
+    const file = aFile([aWorkout({ name: 'Push' })]);
+    const edited = addWorkout(file, 'Pull');
+
+    expect(file.routine.workouts).toHaveLength(1);
+    expect(edited.routine.workouts[0]).toBe(file.routine.workouts[0]);
+  });
+
+  it('raises no issue of its own, and clears the no-Workouts one', () => {
+    expect(validateRoutineFile(addWorkout(aFile(), 'Pull'))).toEqual([]);
+
+    const blank = blankRoutineFile(4);
+    expect(validateRoutineFile(blank).map((i) => i.code)).toEqual([
+      'routine_name_blank',
+      'routine_has_no_workouts',
+    ]);
+    expect(validateRoutineFile(addWorkout(blank, 'Pull')).map((i) => i.code)).toEqual([
+      'routine_name_blank',
+    ]);
+  });
+});
+
+/** TST-003, TST-005, TST-006 — adding an exercise (REQ-003, REQ-005, REQ-006). */
+describe('addExercise', () => {
+  it('appends the given row verbatim and leaves other Workouts alone', () => {
+    const file = aFile([
+      aWorkout({ name: 'Push', exercises: [named('Bench')] }),
+      aWorkout({ name: 'Pull' }),
+    ]);
+    const row = anExercise({ name: 'Dip', exercise_id: 'dip' });
+    const edited = addExercise(file, 0, row);
+
+    expect(edited.routine.workouts[0]?.exercises[1]).toBe(row);
+    expect(edited.routine.workouts[1]).toBe(file.routine.workouts[1]);
+    expect(validateRoutineFile(edited)).toEqual([]);
+  });
+
+  it('returns the same file when the Workout index names nothing', () => {
+    const file = aFile();
+    expect(addExercise(file, 9, named('Dip'))).toBe(file);
+  });
+
+  it('does not mutate its input', () => {
+    const file = aFile([aWorkout({ exercises: [named('Bench')] })]);
+    addExercise(file, 0, named('Dip'));
+    expect(file.routine.workouts[0]?.exercises).toHaveLength(1);
+  });
+
+  it('mints one Exercise when the same new name is added to two Workouts (26)', () => {
+    const two = aFile([
+      aWorkout({ name: 'Push', exercises: [] }),
+      aWorkout({ name: 'Pull', exercises: [] }),
+    ]);
+    const file = addExercise(
+      addExercise(two, 0, named('Zercher Good Morning')),
+      1,
+      named('zercher good morning'),
+    );
+
+    const draft = routineFileToDomain(file, {
+      defaultUnit: 'kg',
+      existingExercises: [],
+      createdAt: 0,
+    });
+
+    expect(draft.createdExercises).toHaveLength(1);
+    expect(new Set(draft.plannedExercises.map((p) => p.exerciseId)).size).toBe(1);
+  });
+
+  it('assigns order from list position, leaving earlier rows where they were', () => {
+    const file = addExercise(aFile([aWorkout({ exercises: [named('Bench')] })]), 0, named('Dip'));
+    const draft = routineFileToDomain(file, {
+      defaultUnit: 'kg',
+      existingExercises: [],
+      createdAt: 0,
+    });
+
+    expect(draft.plannedExercises.map((p) => p.order)).toEqual([0, 1]);
+    expect(draft.workouts.map((w) => w.order)).toEqual([0]);
+  });
+});
+
+/** TST-008, TST-012 — naming (REQ-008, REQ-012). */
+describe('setRoutineName and setWorkoutName', () => {
+  it('replaces the routine name and keeps the Workouts referentially identical', () => {
+    const file = aFile();
+    const edited = setRoutineName(file, 'Hybrid Strength II');
+
+    expect(edited.routine.name).toBe('Hybrid Strength II');
+    expect(edited.routine.workouts).toBe(file.routine.workouts);
+    expect(file.routine.name).toBe('Hybrid Strength');
+  });
+
+  it('replaces one Workout name, leaving its contents and the others alone', () => {
+    const file = aFile([
+      aWorkout({ name: 'Push', exercises: [named('Bench')] }),
+      aWorkout({ name: 'Pull' }),
+    ]);
+    const edited = setWorkoutName(file, 0, 'Upper');
+
+    expect(edited.routine.workouts.map((w) => w.name)).toEqual(['Upper', 'Pull']);
+    expect(edited.routine.workouts[0]?.exercises).toBe(file.routine.workouts[0]?.exercises);
+    expect(edited.routine.workouts[1]).toBe(file.routine.workouts[1]);
+    expect(file.routine.workouts[0]?.name).toBe('Push');
+  });
+
+  it('returns the same file when the Workout index names nothing', () => {
+    const file = aFile();
+    expect(setWorkoutName(file, 9, 'Upper')).toBe(file);
+  });
+});
+
+/** TST-014, TST-015 — the blank draft (REQ-014, REQ-203, REQ-210). */
+describe('blankRoutineFile', () => {
+  it('is version 1, unnamed, no Workouts, at the weeks it was given', () => {
+    expect(blankRoutineFile(4)).toEqual({
+      version: 1,
+      routine: { name: '', weeks: 4, workouts: [] },
+    });
+  });
+
+  it('opens blocked on exactly two problems, and nothing else', () => {
+    expect(validateRoutineFile(blankRoutineFile(4)).map((i) => i.code)).toEqual([
+      'routine_name_blank',
+      'routine_has_no_workouts',
+    ]);
+  });
+
+  it('says "This routine" rather than opening with a space while unnamed', () => {
+    const issues = validateRoutineFile(blankRoutineFile(4));
+    expect(issues[1]?.message).toBe('This routine declares no Workouts.');
+    expect(issues[0]?.paths.map((p) => p.join('.'))).toEqual(['routine.name']);
+  });
+
+  it('unblocks once it is named and given one Workout', () => {
+    const built = addWorkout(setRoutineName(blankRoutineFile(4), 'Winter Block'), 'Push');
+    expect(validateRoutineFile(built)).toEqual([]);
+  });
+});
+
+/** TST-013 — the blank-name rule on any draft, not only a scratch one. */
+describe('routine_name_blank', () => {
+  it('fires for an empty and a whitespace-only name, at routine.name', () => {
+    for (const name of ['', '   ']) {
+      const issues = validateRoutineFile(setRoutineName(aFile(), name));
+      expect(issues.map((i) => i.code)).toEqual(['routine_name_blank']);
+      expect(issues[0]?.paths.map((p) => p.join('.'))).toEqual(['routine.name']);
+    }
+  });
+
+  it('does not fire for a real name', () => {
+    expect(validateRoutineFile(setRoutineName(aFile(), 'Winter Block'))).toEqual([]);
+  });
+});
+
+/** TST-010 — delete then add, in one draft (REQ-009, REQ-511). */
+describe('emptying a Workout and putting an exercise back', () => {
+  it('round-trips', () => {
+    const file = aFile([aWorkout({ exercises: [named('Bench')] })]);
+    const emptied = deleteExercise(file, { workout: 0, exercise: 0 });
+    expect(emptied.routine.workouts[0]?.exercises).toEqual([]);
+    expect(validateRoutineFile(emptied)).toEqual([]);
+
+    const refilled = addExercise(emptied, 0, named('Dip'));
+    expect(refilled.routine.workouts[0]?.exercises.map((e) => e.name)).toEqual(['Dip']);
   });
 });

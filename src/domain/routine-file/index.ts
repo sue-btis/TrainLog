@@ -10,10 +10,14 @@
  * });
  * ```
  *
- * Between validation and mapping the wizard may edit the file — `editExercise`,
+ * Between validation and mapping the wizard may edit the file — `addWorkout`,
+ * `addExercise`, `setRoutineName`, `setWorkoutName`, `editExercise`,
  * `deleteExercise`, `moveExercise`, `toggleSuggestedDay`, `setWeeks` — and
- * re-validate, because §11.1 is where a Routine is corrected and the only
- * place it can be.
+ * re-validate. The wizard is where a *draft* is corrected; a Routine already
+ * accepted takes additions only, never a rewrite or a deletion (AGENTS.MD).
+ *
+ * `blankRoutineFile` is the same pipeline entered without a file: a draft with
+ * no name and no Workouts, which validates as exactly those two problems.
  *
  * Nothing here touches a database or a clock; `src/db` persists the draft.
  */
@@ -34,11 +38,16 @@ export {
 } from '@/domain/routine-file/schema';
 
 export {
+  addExercise,
+  addWorkout,
+  blankRoutineFile,
   deleteExercise,
   editExercise,
   moveExercise,
-  toggleSuggestedDay,
+  setRoutineName,
   setWeeks,
+  setWorkoutName,
+  toggleSuggestedDay,
   type ExerciseRef,
   type MoveDirection,
 } from '@/domain/routine-file/edit';

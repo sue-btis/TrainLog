@@ -1,10 +1,16 @@
 /**
  * The import wizard's state (§11.1).
  *
- * Three phases, and the file lives in exactly one of them: nothing is stored
- * until the user accepts, so the draft exists only here, in memory, and a
- * reload restarts the import. That is the PRD's rule, not a limitation —
- * "la rutina no se almacena hasta que el usuario acepta".
+ * Three phases, and the draft lives in exactly one of them: nothing is stored
+ * until the user accepts, so it exists only here, in memory, and a reload
+ * restarts the wizard. That is the PRD's rule, not a limitation — "la rutina no
+ * se almacena hasta que el usuario acepta".
+ *
+ * The editing phase does not record where its draft came from. A file and a
+ * blank start produce the same thing — a `RoutineFile` being shaped — and the
+ * steps that shape it have no reason to ask which. Only the `choosing` phase
+ * still names a file, because that is the phase whose job is reporting what
+ * happened to one.
  */
 
 import type { LocalDate } from '@/domain/dates';
@@ -19,6 +25,17 @@ import type { Unit, Weekday } from '@/domain/types';
 /** The duration a Routine may declare. One week is the smallest useful block. */
 export const MIN_WEEKS = 1;
 export const MAX_WEEKS = 52;
+
+/**
+ * The duration a from-scratch draft opens on, inside those bounds.
+ *
+ * A month is the shortest block most programmes are written in, and it is a
+ * number the lifter changes on step 2 rather than one they have to supply
+ * before they can start. It lives here, not in the domain: the bounds it sits
+ * inside are the wizard's, and `blankRoutineFile` takes `weeks` precisely so
+ * the domain does not have to know them.
+ */
+export const DEFAULT_WEEKS = 4;
 
 export type WizardStep = 1 | 2;
 
@@ -43,7 +60,6 @@ export type WizardState =
     }
   | {
       readonly phase: 'editing';
-      readonly fileName: string;
       readonly file: RoutineFile;
       readonly defaultUnit: Unit;
       readonly step: WizardStep;
@@ -62,7 +78,6 @@ export type WizardAction =
   | { readonly type: 'unreadable'; readonly fileName: string; readonly message: string }
   | {
       readonly type: 'loaded';
-      readonly fileName: string;
       readonly file: RoutineFile;
       readonly defaultUnit: Unit;
     }
@@ -111,7 +126,6 @@ export function reduceWizard(state: WizardState, action: WizardAction): WizardSt
     case 'loaded':
       return {
         phase: 'editing',
-        fileName: action.fileName,
         file: action.file,
         defaultUnit: action.defaultUnit,
         step: 1,
