@@ -21,13 +21,14 @@
  * backup is what it is for once.
  */
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   Bell,
   Database,
   Download,
   FileUp,
   Gauge,
+  HardDrive,
   RotateCcw,
   Scale,
   Smartphone,
@@ -47,6 +48,7 @@ import {
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
+  setLastBackupAt,
   setTimerSound,
   setTimerVibration,
 } from '@/db';
@@ -65,9 +67,14 @@ import { useSettings } from '@/features/data/queries';
 import { formatPath, parseBackup, toCsv } from '@/domain/backup';
 import type { BackupDocument, StructuralError } from '@/domain/backup';
 import { formatLocalDate } from '@/domain/dates';
-import { plural } from '@/features/ui/format';
+import { longDate, plural } from '@/features/ui/format';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
+import {
+  isInstalled,
+  readStorageDurability,
+  type StorageDurability,
+} from '@/pwa/persistence';
 import { cn } from '@/lib/utils';
 
 /** A validated document waiting for the lifter to confirm replacing everything. */
@@ -102,8 +109,12 @@ export function SettingsScreen() {
 
   async function exportJson() {
     reset();
-    const document = await exportBackup(Date.now());
+    const at = Date.now();
+    const document = await exportBackup(at);
     download(stamp('trainlog-backup', 'json'), JSON.stringify(document), 'application/json');
+    // Stamped after the file is handed over, so a failed export does not claim
+    // a backup that was never taken.
+    await setLastBackupAt(at);
     setDone('Backup saved. Keep it somewhere that is not this phone.');
   }
 
@@ -150,6 +161,7 @@ export function SettingsScreen() {
           One file holding every routine, session and set. Restoring it on another phone
           brings your training across whole.
         </p>
+        <BackupAge />
 
         <Button onClick={() => void exportJson()} size="block" type="button" variant="primary">
           <Download aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
@@ -307,8 +319,12 @@ function SettingsSection() {
           </SelectContent>
         </Select>
         <p className="type-body-sm text-ink-2">
-          Where the RIR readout opens for an exercise with no plan and no history. A
-          planned exercise still opens on its own target.
+          RIR is <em>reps in reserve</em> — how many more you could have done when you
+          stopped. RIR 2 means two left in the tank; RIR 0 means none.
+        </p>
+        <p className="type-body-sm text-ink-2">
+          This is where the RIR readout opens for an exercise with no plan and no
+          history. A planned exercise still opens on its own target.
         </p>
       </div>
 
@@ -340,7 +356,95 @@ function SettingsSection() {
           onChange={(on) => void setKeepScreenAwake(on)}
         />
       </div>
+
+      <Durability />
     </section>
+  );
+}
+
+/**
+ * How long ago the last backup was taken, or that there has never been one.
+ *
+ * An export button with no memory is pressed once and forgotten; the age is
+ * what makes it a habit. The wording gets blunter the older it gets, and the
+ * "never" case is the one that matters most — it is the state every lifter
+ * starts in and the one the app used to say nothing about.
+ */
+function BackupAge() {
+  const settings = useSettings();
+  // Read once, on mount. `Date.now()` in the body would be an impure render,
+  // and the age of a backup does not need to tick — the screen is opened, read,
+  // and left.
+  const [now] = useState(Date.now);
+  if (settings === undefined) return null;
+
+  const at = settings.lastBackupAt ?? null;
+  if (at === null) {
+    return (
+      <p className="type-body-sm text-missed-ink">
+        You have never exported a backup. Nothing outside this phone holds your training.
+      </p>
+    );
+  }
+
+  const days = Math.floor((now - at) / 86_400_000);
+  return (
+    <p className={cn('type-body-sm', days >= 14 ? 'text-missed-ink' : 'text-ink-2')}>
+      Last backup{' '}
+      {days === 0 ? 'today' : days === 1 ? 'yesterday' : `${plural(days, 'day')} ago`} ·{' '}
+      {longDate(formatLocalDate(new Date(at)))}
+    </p>
+  );
+}
+
+/**
+ * Where a lifter's training actually stands on this device.
+ *
+ * The app has no account and no server, so this is the honest answer to "what
+ * happens to my history" — and until now it was answered nowhere. The state is
+ * read, not asked for: the request itself happens where the lifter has just
+ * invested something (`ensurePersistentStorage`, called on import and on
+ * finishing a session), because that is when a browser is willing to grant it.
+ *
+ * Installing is named separately because it is a different mechanism, not a
+ * nicer version of the same one. WebKit deletes a site's IndexedDB after seven
+ * days of Safari use without visiting it, and a home-screen app is the exemption
+ * — no API call reaches that.
+ */
+function Durability() {
+  const [durability, setDurability] = useState<StorageDurability | null>(null);
+  const installed = isInstalled();
+
+  useEffect(() => {
+    let live = true;
+    void readStorageDurability().then((state) => {
+      if (live) setDurability(state);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <div className={cn(RULED, 'gap-2')}>
+      <Head className="pb-1" icon={HardDrive}>this device</Head>
+      <p className="type-body-sm text-ink-2">
+        {durability === null
+          ? 'Checking how this browser is holding your training…'
+          : durability.state === 'persisted'
+            ? 'Your training is stored persistently. This browser will not clear it to reclaim space.'
+            : durability.state === 'unsupported'
+              ? 'This browser does not say whether it will clear stored data to reclaim space. Keep a backup.'
+              : 'This browser may clear your training to reclaim space, and it clears all of it at once. Keeping the app on your home screen and exporting a backup are what prevent that.'}
+      </p>
+      {!installed && (
+        <p className="type-body-sm text-ink-2">
+          You are running in a browser tab. Add TrainLog to your home screen —
+          on iPhone, Share then <em>Add to Home Screen</em> — and it stops being a
+          site the browser can clear after a week of not opening it.
+        </p>
+      )}
+    </div>
   );
 }
 

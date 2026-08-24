@@ -38,10 +38,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ExerciseId, ExerciseSessionId } from '@/domain/ids';
 import type { ExerciseSession } from '@/domain/types';
+import { exerciseStatusLabel } from '@/features/ui/format';
 import { ICON_STROKE, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -83,7 +84,8 @@ export function ExerciseReorder({
       <h2 className="type-headline">Reorder exercises</h2>
 
       <p className="type-body-sm text-ink-2">
-        The session keeps the order you leave here.
+        The session keeps the order you leave here. Drag by the handle, or use the
+        arrows.
       </p>
 
       <DndContext
@@ -100,9 +102,11 @@ export function ExerciseReorder({
             {ordered.map((exerciseSession, index) => (
               <Row
                 busy={busy}
+                count={ordered.length}
                 exerciseSession={exerciseSession}
                 key={exerciseSession.id}
                 name={names?.get(exerciseSession.exerciseId) ?? '…'}
+                onMove={onMove}
                 position={index + 1}
               />
             ))}
@@ -121,11 +125,15 @@ function Row({
   exerciseSession,
   name,
   position,
+  count,
+  onMove,
   busy,
 }: {
   readonly exerciseSession: ExerciseSession;
   readonly name: string;
   readonly position: number;
+  readonly count: number;
+  readonly onMove: (id: ExerciseSessionId, toPosition: number) => void;
   readonly busy: boolean;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
@@ -148,25 +156,52 @@ function Row({
             )}
             {exerciseSession.status !== 'pending' && (
               <span className={chip(exerciseSession.status === 'skipped' ? 'missed' : 'actual')}>
-                {exerciseSession.status}
+                {exerciseStatusLabel(exerciseSession.status)}
               </span>
             )}
           </div>
         </div>
 
-        {/* The one thing that starts a drag — and the one thing that must not
-            scroll under a held thumb, which is what `touch-none` says. */}
-        <button
-          aria-label={`Reorder ${name}`}
-          className="flex min-h-11 w-11 cursor-grab touch-none items-center justify-center text-ink-3 active:cursor-grabbing"
-          disabled={busy}
-          ref={setActivatorNodeRef}
-          type="button"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-        </button>
+        {/* Arrows first, drag second.
+            A 180ms press-and-hold drag was the only way to reorder, and it is
+            the least reliable gesture available to a sweaty thumb on the one
+            screen designed for exactly that hand. Two buttons cost nothing and
+            never miss. The handle stays for anyone who prefers it. */}
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            aria-label={`Move ${name} up`}
+            disabled={busy || position === 1}
+            onClick={() => onMove(exerciseSession.id, position - 2)}
+            size="icon"
+            type="button"
+            variant="nav"
+          >
+            <ChevronUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          </Button>
+          <Button
+            aria-label={`Move ${name} down`}
+            disabled={busy || position === count}
+            onClick={() => onMove(exerciseSession.id, position)}
+            size="icon"
+            type="button"
+            variant="nav"
+          >
+            <ChevronDown aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          </Button>
+          {/* The one thing that starts a drag — and the one thing that must not
+              scroll under a held thumb, which is what `touch-none` says. */}
+          <button
+            aria-label={`Reorder ${name}`}
+            className="flex size-12 shrink-0 cursor-grab touch-none items-center justify-center text-ink-3 active:cursor-grabbing"
+            disabled={busy}
+            ref={setActivatorNodeRef}
+            type="button"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          </button>
+        </div>
       </div>
     </article>
   );

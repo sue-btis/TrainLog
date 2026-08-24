@@ -278,6 +278,18 @@ export interface Settings {
   readonly timerSound?: boolean;
   /** Whether the screen is held awake for the length of a session (§11.6). */
   readonly keepScreenAwake?: boolean;
+  /**
+   * When a backup was last exported, or `null` for never.
+   *
+   * The app has no server, so the export button is the only thing standing
+   * between a lifter and losing everything — and an export button is pressed
+   * once and never thought about again. The number is what turns it into a
+   * habit, and it cannot be one unless it is written down.
+   *
+   * Optional like the rest, so a backup taken before this existed still
+   * restores (§18's compatibility rule).
+   */
+  readonly lastBackupAt?: Timestamp | null;
 }
 
 /** The settings row as everything above the repository sees it: complete. */

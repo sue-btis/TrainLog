@@ -70,9 +70,18 @@ interface RestTimerProps {
   /** §32 — whether reaching zero beeps. */
   readonly sound: boolean;
   readonly onSkip: () => void;
+  /**
+   * The exercise whose set started this rest — not the one on screen.
+   *
+   * Rest belongs to the Session, so paging to another exercise, or slotting an
+   * accessory set into a long rest, leaves a countdown running that the heading
+   * above it would otherwise appear to explain. Naming it is what makes
+   * surviving those moves the right behaviour rather than a confusing one.
+   */
+  readonly exerciseName: string | null;
 }
 
-export function RestTimer({ since, seconds, vibrate, sound, onSkip }: RestTimerProps) {
+export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName }: RestTimerProps) {
   const [added, setAdded] = useState(0);
   const [pausedAt, setPausedAt] = useState<Timestamp | null>(null);
   /**
@@ -132,43 +141,72 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip }: RestTimerP
 
   return (
     <section aria-label="Rest timer" className={TIMER_SHELL}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <span className={cn(LABEL, 'text-on-fill/90')}>{remaining === 0 ? 'rest is up' : 'rest'}</span>
-          <span aria-live="off" className="type-clock">
-            {minutes}:{String(remaining % 60).padStart(2, '0')}
-          </span>
-        </div>
-
-        <div className="flex gap-2">
-          <Control label={paused ? 'Resume rest' : 'Pause rest'} onClick={() => setPausedAt(paused ? null : Date.now())}>
-            {paused ? (
-              <Play aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            ) : (
-              <Pause aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            )}
-          </Control>
-          <Control
-            label="Restart rest"
-            onClick={() => {
-              setAdded(0);
-              setPausedAt(null);
-              setRestartedAt(Date.now());
-              buzzed.current = false;
-            }}
-          >
-            <RotateCcw aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-          </Control>
-          <Control label="Skip rest" onClick={onSkip}>
-            <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-          </Control>
-        </div>
+      <div className="flex flex-col gap-1">
+        <span className={cn(LABEL, 'text-on-fill/90')}>
+          {remaining === 0 ? 'rest is up' : 'rest'}
+          {exerciseName !== null && <span className="text-on-fill/70"> · {exerciseName}</span>}
+        </span>
+        <span aria-live="off" className="type-clock">
+          {minutes}:{String(remaining % 60).padStart(2, '0')}
+        </span>
       </div>
 
-      {/* How much to add is the lifter's, not the app's. Thirty seconds is only
-          what the field starts at; a heavy single might want three minutes and
-          the old fixed control made that six presses. */}
-      <div className="mt-3 flex items-center justify-end gap-2">
+      {/* Every control in one band, under a full-width clock.
+          The controls used to flank the clock with the add-time field on a row
+          of its own. Regrouping them costs nothing in height — measured, the
+          shell is ~166px either way — but it gives the clock the full width it
+          is read at arm's length across, and puts all five controls in one
+          horizontal sweep of the thumb rather than two.
+
+          The height that mattered came from the field beside them: it was a
+          w-16 `type-title` input followed by the word "seconds", and shrinking
+          it to w-12 with the word moved into the accessible name is what put
+          "Complete set" — the most-pressed control in the product — back inside
+          an 812px viewport, at 811px rather than 829px.
+
+          How much to add stays the lifter's rather than becoming a fixed ±15:
+          a heavy single might want three minutes, and a fixed bump makes that
+          six presses. */}
+      <div className="mt-2 flex items-center gap-2">
+        <Control label={paused ? 'Resume rest' : 'Pause rest'} onClick={() => setPausedAt(paused ? null : Date.now())}>
+          {paused ? (
+            <Play aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          ) : (
+            <Pause aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          )}
+        </Control>
+        <Control
+          label="Restart rest"
+          onClick={() => {
+            setAdded(0);
+            setPausedAt(null);
+            setRestartedAt(Date.now());
+            buzzed.current = false;
+          }}
+        >
+          <RotateCcw aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        </Control>
+        <Control label="Skip rest" onClick={onSkip}>
+          <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        </Control>
+
+        <span aria-hidden="true" className="flex-1" />
+
+        <input
+          aria-label="Seconds to add"
+          className={cn(
+            'w-12 rounded-field bg-on-fill/15 px-1 py-1.5 text-center type-body-sm text-on-fill',
+            'outline-none focus-visible:ring-2 focus-visible:ring-on-fill',
+          )}
+          inputMode="numeric"
+          onBlur={commitBump}
+          onChange={(event) => setBumpDraft(event.target.value)}
+          onFocus={(event) => event.target.select()}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+          }}
+          value={bumpDraft ?? String(bump)}
+        />
         <Control
           label={`Add ${bump} seconds to the rest`}
           onClick={() => {
@@ -178,24 +216,6 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip }: RestTimerP
         >
           <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </Control>
-        <label className="flex items-center gap-2">
-          <input
-            aria-label="Seconds to add"
-            className={cn(
-              'w-16 rounded-field bg-on-fill/15 px-2 py-1.5 text-center type-title text-on-fill',
-              'outline-none focus-visible:ring-2 focus-visible:ring-on-fill',
-            )}
-            inputMode="numeric"
-            onBlur={commitBump}
-            onChange={(event) => setBumpDraft(event.target.value)}
-            onFocus={(event) => event.target.select()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur();
-            }}
-            value={bumpDraft ?? String(bump)}
-          />
-          <span className={cn(LABEL, 'text-on-fill/90')}>seconds</span>
-        </label>
       </div>
 
       {/* The rail *scales*; it does not resize. DESIGN.md forbids animating
@@ -204,6 +224,9 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip }: RestTimerP
       <div className={TIMER_TRACK}>
         <div
           className={TIMER_RAIL}
+          // Named so the reduced-motion block can spare it: the rail is the
+          // remaining time drawn as a length, not decoration.
+          data-rail="rest"
           style={{ transform: `scaleX(${total === 0 ? 0 : remaining / total})` }}
         />
       </div>

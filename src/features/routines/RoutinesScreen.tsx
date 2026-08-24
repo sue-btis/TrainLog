@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { RoutineId } from '@/domain/ids';
 import type { Routine } from '@/domain/types';
-import { useRoutines } from '@/features/data/queries';
+import { useRoutines, useSessionsByRoutine } from '@/features/data/queries';
 import { ConversionPromptButton } from '@/features/import/ConversionPromptButton';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
 import { plural, shortDate } from '@/features/ui/format';
@@ -99,6 +99,16 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
   const [confirming, setConfirming] = useState(false);
   const active = routine.status === 'active';
 
+  // §37's refusal, asked before the lifter presses rather than after.
+  // It used to arm, confirm, and only then report that the delete was refused —
+  // for a condition the app could answer on render. Two presses to be told no
+  // is the shape of a control that should never have offered.
+  //
+  // The repository stays the authority: `refusal` below is still rendered if a
+  // delete is refused anyway, because this read can be a moment stale.
+  const sessions = useSessionsByRoutine(routine.id);
+  const blocked = sessions !== undefined && sessions.length > 0;
+
   return (
     <Card>
       <div className="flex items-start gap-3">
@@ -153,8 +163,15 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
             </Button>
           )}
           <Button
-            aria-label={confirming ? `Confirm deleting ${routine.name}` : `Delete ${routine.name}`}
+            aria-label={
+              blocked
+                ? `${routine.name} cannot be deleted — sessions reference it`
+                : confirming
+                  ? `Confirm deleting ${routine.name}`
+                  : `Delete ${routine.name}`
+            }
             className={confirming ? 'shadow-none' : undefined}
+            disabled={blocked}
             onClick={() => {
               if (confirming) {
                 setConfirming(false);
@@ -172,6 +189,15 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
           </Button>
         </div>
       </div>
+
+      {blocked && (
+        <p className="type-body-sm text-ink-2">
+          {plural(sessions.length, 'session')} in your history{' '}
+          {sessions.length === 1 ? 'references' : 'reference'} this routine, so it cannot be
+          deleted. Archive it instead — it leaves Today and the calendar, and your history
+          keeps pointing at something real.
+        </p>
+      )}
 
       {confirming && (
         <p className={LABEL}>

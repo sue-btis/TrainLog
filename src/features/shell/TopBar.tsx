@@ -56,7 +56,15 @@ export function TopBar({ title, icon: Icon, back, backLabel = 'Back', action }: 
       {/* A stadium, not a card: at this height `rounded-cell` is the same full
           round the controls inside it wear, so the bar reads as one object of
           the same family rather than a panel that happens to be curved. */}
-      <div className="glass pointer-events-auto relative mx-auto flex w-full max-w-lg items-center gap-2 rounded-cell p-2">
+      {/* `flex-wrap`, and a title that claims a minimum width rather than
+          absorbing whatever is left.
+          The two gutters are rem-sized, so at 200% text zoom they double to
+          96px each while the viewport does not — which used to squeeze the
+          title row to 55px and let `truncate` eat the heading down to a
+          sliver, leaving a lifter unable to tell which screen they were on
+          (WCAG 1.4.4). With a floor of its own, the title drops to a full-width
+          second row instead of vanishing. */}
+      <div className="glass pointer-events-auto relative mx-auto flex w-full max-w-lg flex-wrap items-center gap-2 rounded-cell p-2">
         <div className="flex w-12 shrink-0 items-center">
           {back === undefined ? null : 'to' in back ? (
             <Button aria-label={backLabel} asChild size="icon" variant="ghost">
@@ -75,7 +83,7 @@ export function TopBar({ title, icon: Icon, back, backLabel = 'Back', action }: 
           )}
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+        <div className="flex min-w-32 flex-1 items-center justify-center gap-2">
           {Icon !== undefined && (
             <Icon
               aria-hidden="true"
@@ -84,7 +92,7 @@ export function TopBar({ title, icon: Icon, back, backLabel = 'Back', action }: 
               strokeWidth={ICON_STROKE}
             />
           )}
-          <h1 className="min-w-0 truncate type-title">{title}</h1>
+          <h1 className="min-w-0 text-center type-title">{title}</h1>
         </div>
 
         <div className="flex w-12 shrink-0 items-center justify-end">{action}</div>

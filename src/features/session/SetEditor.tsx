@@ -48,11 +48,31 @@ export function SetEditor({
 
   return (
     <section className="flex flex-col gap-3">
+      {/* Delete sits up here, beside cancel — not under Save.
+          The two used to be stacked full-width and adjacent: solid green
+          "Save the correction" directly above solid red "Delete this set", both
+          landing in the thumb zone, on a screen used with wet hands. The arming
+          step catches the first mis-tap and nothing catches the second, so the
+          answer is distance rather than another confirmation. */}
       <div className="flex items-center justify-between gap-3">
         <span className={LABEL}>editing set {set.setNumber}</span>
-        <Button aria-label="Cancel" onClick={onCancel} size="icon" type="button" variant="ghost">
-          <X aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-        </Button>
+        <div className="flex items-center gap-1">
+          {!armed && (
+            <Button
+              aria-label={`Delete set ${set.setNumber}`}
+              disabled={busy}
+              onClick={() => setArmed(true)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            </Button>
+          )}
+          <Button aria-label="Cancel" onClick={onCancel} size="icon" type="button" variant="ghost">
+            <X aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          </Button>
+        </div>
       </div>
 
       <SetFields
@@ -81,28 +101,16 @@ export function SetEditor({
           </Button>
         </>
       ) : (
-        <>
-          <Button
-            disabled={busy || values.reps === 0}
-            onClick={() => onSave(values, set.unit)}
-            size="block"
-            type="button"
-            variant="primary"
-          >
-            <Check aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            {values.reps === 0 ? 'Set the reps first' : 'Save the correction'}
-          </Button>
-          <Button
-            disabled={busy}
-            onClick={() => setArmed(true)}
-            size="block"
-            type="button"
-            variant="danger"
-          >
-            <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            Delete this set
-          </Button>
-        </>
+        <Button
+          disabled={busy || values.reps === 0}
+          onClick={() => onSave(values, set.unit)}
+          size="block"
+          type="button"
+          variant="primary"
+        >
+          <Check aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          {values.reps === 0 ? 'Set the reps first' : 'Save the correction'}
+        </Button>
       )}
     </section>
   );

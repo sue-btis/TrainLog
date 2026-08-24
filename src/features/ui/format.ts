@@ -7,7 +7,13 @@
  */
 
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
-import type { PlannedExercise, PlannedExerciseSession, Weekday } from '@/domain/types';
+import type {
+  ExerciseSessionStatus,
+  PlannedExercise,
+  PlannedExerciseSession,
+  SessionStatus,
+  Weekday,
+} from '@/domain/types';
 
 /** `4–6`, or `4` when both ends agree. Internal: the two lines below read it. */
 function range(min: number, max: number): string {
@@ -77,4 +83,36 @@ export function weekdayName(day: Weekday): string {
 /** `4 weeks`, `1 week` — a count with the right noun. */
 export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+/**
+ * What a Session's status is called on screen (CONTEXT.md).
+ *
+ * Six screens used to render the stored value, four of them through
+ * `status.replace('_', ' ')` — so the one word Today showed about the session a
+ * lifter had just finished was the lowercase enum `partial`. These are database
+ * values; the glossary governs what the lifter reads, and it does not contain
+ * them. Written once so the six cannot drift into six vocabularies.
+ */
+export function sessionStatusLabel(status: SessionStatus): string {
+  switch (status) {
+    case 'in_progress':
+      return 'still open';
+    case 'partial':
+      return 'work left undone';
+    case 'completed':
+      return 'completed';
+  }
+}
+
+/** The same, for one exercise within a Session. */
+export function exerciseStatusLabel(status: ExerciseSessionStatus): string {
+  switch (status) {
+    case 'pending':
+      return 'not started';
+    case 'performed':
+      return 'done';
+    case 'skipped':
+      return 'skipped';
+  }
 }

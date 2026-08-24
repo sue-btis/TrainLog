@@ -17,14 +17,14 @@
 
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Activity, FileUp, Play, Timer } from 'lucide-react';
+import { Activity, CalendarX, CheckCircle2, FileUp, Play, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createStartedWorkout } from '@/db';
-import { formatLocalDate } from '@/domain/dates';
+import { addDays, formatLocalDate } from '@/domain/dates';
 import type { RoutineId, WorkoutId } from '@/domain/ids';
-import { estimateDuration, nextWorkoutInRotation } from '@/domain/scheduling';
+import { estimateDuration, isMissed, nextWorkoutInRotation } from '@/domain/scheduling';
 import { startWorkout } from '@/domain/session';
 import type { PlannedExercise, Session, Workout } from '@/domain/types';
 import {
@@ -38,7 +38,13 @@ import {
   useWorkouts,
 } from '@/features/data/queries';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
-import { longDate, plural, programmingLine, shortDate } from '@/features/ui/format';
+import {
+  longDate,
+  plural,
+  programmingLine,
+  sessionStatusLabel,
+  shortDate,
+} from '@/features/ui/format';
 import {
   ICON_STROKE,
   LABEL,
@@ -49,6 +55,9 @@ import {
   chip,
 } from '@/features/ui/styles';
 
+/** How far back Today looks for a planned day that went untrained. */
+const MISSED_WINDOW_DAYS = 28;
+
 export function TodayScreen() {
   const navigate = useNavigate();
   const today = formatLocalDate(new Date());
@@ -57,6 +66,10 @@ export function TodayScreen() {
 
   const workouts = useWorkouts(routineId) ?? [];
   const todaysPlacements = usePlacementsBetween(today, today) ?? [];
+  // Four weeks back, only so Today can say a planned day went untrained. The
+  // calendar owns the full record; this is the one line that stops a missed day
+  // from being invisible unless a lifter goes looking for it.
+  const recentPlacements = usePlacementsBetween(addDays(today, -MISSED_WINDOW_DAYS), today) ?? [];
   const lastPerformed = useLastPerformedWorkout(routineId) ?? null;
   const open = useInProgressSession();
   const sessions = useSessionsByRoutine(routineId) ?? [];
@@ -66,6 +79,23 @@ export function TodayScreen() {
   const suggested = suggestWorkout(workouts, todaysPlacements.map((p) => p.workoutId), lastPerformed);
   const shown = workouts.find((workout) => workout.id === picked) ?? suggested;
   const placed = todaysPlacements.some((placement) => placement.workoutId === shown?.id);
+
+  // A Session for this Workout, finished, today. Today used to offer "Start
+  // workout" regardless — on the app's most-visited screen, for a Workout it
+  // had already recorded an hour earlier, which is how a duplicate Session gets
+  // made. An open Session is not this: `open` already has its own banner.
+  const recordedToday =
+    shown === null
+      ? undefined
+      : sessions.find(
+          (session) =>
+            session.workoutId === shown.id &&
+            session.status !== 'in_progress' &&
+            formatLocalDate(new Date(session.startedAt)) === today,
+        );
+
+  // Derived, never stored (ADR 0001) — the same `isMissed` the calendar reads.
+  const missed = recentPlacements.filter((placement) => isMissed(placement, sessions, today));
 
   return (
     <>
@@ -83,6 +113,21 @@ export function TodayScreen() {
             </Link>
           </div>
         </div>
+      )}
+
+      {missed.length > 0 && (
+        <Link className={alert('missed')} to="/calendar">
+          <CalendarX aria-hidden="true" className="mt-0.5 shrink-0" size={18} strokeWidth={ICON_STROKE} />
+          <div className="flex flex-col gap-1">
+            <p className="type-title">
+              {plural(missed.length, 'planned day')} went untrained
+            </p>
+            <p className="type-body-sm">
+              They are still on the calendar, where you can move them to a day you will
+              train. Nothing is recorded against you for them.
+            </p>
+          </div>
+        </Link>
       )}
 
       <div className="flex flex-col gap-1">
@@ -131,6 +176,7 @@ export function TodayScreen() {
                   void start(routine.id, shown.id, exercises, navigate, setFailure)
                 }
                 open={open !== undefined}
+                recordedToday={recordedToday}
                 workout={shown}
               />
               <LastSession sessions={sessions} workoutId={shown.id} />
@@ -159,10 +205,12 @@ interface WorkoutCardProps {
   readonly workout: Workout;
   /** Whether a Session is already open — then the action is to resume, not start. */
   readonly open: boolean;
+  /** A finished Session for this Workout, today, if there is one (§11.4). */
+  readonly recordedToday: Session | undefined;
   readonly onStart: (exercises: readonly PlannedExercise[]) => void;
 }
 
-function WorkoutCard({ workout, open, onStart }: WorkoutCardProps) {
+function WorkoutCard({ workout, open, recordedToday, onStart }: WorkoutCardProps) {
   const exercises = usePlannedExercises(workout.id) ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
 
@@ -205,6 +253,21 @@ function WorkoutCard({ workout, open, onStart }: WorkoutCardProps) {
             Resume session
           </Link>
         </Button>
+      ) : recordedToday !== undefined ? (
+        // Trained, and settled. The way to what happened is the primary control;
+        // training it a second time in one day is legitimate but rare, so it
+        // keeps a control rather than the control.
+        <>
+          <Button asChild size="block" variant="primary">
+            <Link to={`/sessions/${recordedToday.id}`}>
+              <CheckCircle2 aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+              Trained today — see the session
+            </Link>
+          </Button>
+          <Button onClick={() => onStart(exercises)} size="block" type="button" variant="quiet">
+            Train it again
+          </Button>
+        </>
       ) : (
         <Button
           onClick={() => onStart(exercises)}
@@ -264,7 +327,7 @@ function LastSession({
         </p>
       ) : (
         <p className="type-body-sm text-ink">
-          {shortDate(formatLocalDate(new Date(last.startedAt)))} · {last.status.replace('_', ' ')}
+          {shortDate(formatLocalDate(new Date(last.startedAt)))} · {sessionStatusLabel(last.status)}
         </p>
       )}
     </section>

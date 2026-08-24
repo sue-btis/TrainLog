@@ -82,7 +82,12 @@ function Dot({
     <circle
       cx={cx}
       cy={cy}
-      fill={payload?.isRecord ? 'var(--color-actual)' : 'var(--color-card)'}
+      // A record is Derived Violet, not Foil Green. The line is what was
+      // performed; whether a session beat every one before it is something the
+      // app worked out, and DESIGN.md reserves violet for exactly that — a
+      // number nobody entered. Filling it green said the two were the same
+      // kind of fact.
+      fill={payload?.isRecord ? 'var(--color-progress)' : 'var(--color-card)'}
       r={index === last ? 6 : 4.5}
       stroke="var(--color-actual)"
       strokeWidth={2.5}

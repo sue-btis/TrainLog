@@ -21,6 +21,7 @@ import { CalendarDays, Check, Dumbbell, FileUp, ListChecks } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
+import { ensurePersistentStorage } from '@/pwa/persistence';
 import { formatLocalDate } from '@/domain/dates';
 import {
   deleteExercise,
@@ -149,6 +150,12 @@ export function ImportWizard() {
       });
 
       await importRoutine(draft, placements);
+
+      // The database now holds something a lifter would mind losing, and an
+      // accepted import is a moment of real engagement — which is what browsers
+      // weigh when deciding to grant persistence. Fire and forget: the answer
+      // changes nothing on this screen, and a refusal is not an import failure.
+      void ensurePersistentStorage();
 
       dispatch({
         type: 'accepted',

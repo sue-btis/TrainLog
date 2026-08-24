@@ -31,10 +31,18 @@ export const STATE_ORDER: readonly DayState[] = [
 ];
 
 /** The product's own words for each state (CONTEXT.md). */
+/**
+ * What each day state is called — in the lifter's words, not the model's.
+ *
+ * `partial` was the stored enum reaching the screen: it is the one state whose
+ * name explains nothing, and it is also the one carrying a consequence (the
+ * session is left out of progression). This label and `sessionStatusLabel` say
+ * the same thing about the same fact, deliberately.
+ */
 export const STATE_LABEL: Record<DayState, string> = {
   planned: 'planned',
   completed: 'completed',
-  partial: 'partial',
+  partial: 'work left undone',
   in_progress: 'training now',
   missed: 'missed',
   rest: 'rest',

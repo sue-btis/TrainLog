@@ -283,6 +283,7 @@ const settings = z.object({
   timerVibration: z.boolean().optional(),
   timerSound: z.boolean().optional(),
   keepScreenAwake: z.boolean().optional(),
+  lastBackupAt: timestamp.nullable().optional(),
 });
 
 /**

@@ -25,7 +25,7 @@ import type { ExerciseId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
 import type { CompletedSet } from '@/domain/types';
 import { useExerciseHistory, useExerciseNames } from '@/features/data/queries';
-import { longDate, plural, shortDate } from '@/features/ui/format';
+import { longDate, plural, sessionStatusLabel, shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
 import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -158,7 +158,7 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
           </span>
           {entry.session.status !== 'completed' && (
             <span className={chip(entry.session.status === 'partial' ? 'neutral' : 'planned')}>
-              {entry.session.status.replace('_', ' ')}
+              {sessionStatusLabel(entry.session.status)}
             </span>
           )}
         </div>

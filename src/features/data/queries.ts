@@ -93,6 +93,26 @@ export function useExerciseHistory(exerciseId: ExerciseId) {
   return useLiveQuery(() => listExerciseHistory(exerciseId), [exerciseId]);
 }
 
+/**
+ * The full history of several Exercises at once, keyed by `exerciseId` — what
+ * a Session summary needs to say which of its exercises beat everything before.
+ *
+ * One query per Exercise, like `useExerciseHistory`, because that is the shape
+ * of the `exerciseSessions.exerciseId` index; a Session holds a handful of
+ * exercises, so the loop is the cheaper answer over a table scan.
+ *
+ * Keyed on the joined ids, the way `useExerciseNames` is: an array literal
+ * re-created every render would re-run the query every render.
+ */
+export function useExerciseHistories(ids: readonly ExerciseId[]) {
+  const key = [...new Set(ids)].sort().join(',');
+  return useLiveQuery(async () => {
+    const unique = key === '' ? [] : (key.split(',') as ExerciseId[]);
+    const histories = await Promise.all(unique.map((id) => listExerciseHistory(id)));
+    return new Map(unique.map((id, index) => [id, histories[index]!] as const));
+  }, [key]);
+}
+
 export function usePreviousPerformance(exerciseId: ExerciseId, excludeSessionId: SessionId | null) {
   return useLiveQuery(
     () => getPreviousPerformance(exerciseId, excludeSessionId ?? undefined),

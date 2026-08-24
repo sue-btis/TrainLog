@@ -173,7 +173,7 @@ export const MENU_ITEM = cn(
  * hairline stays — it is what the invalid ring replaces — but the tint is what
  * finds the control now, the same tint the weeks readout wears.
  */
-export const FIELD_BASE = `w-full min-h-12 rounded-field bg-well text-ink ring-1 ring-rule px-3 ${FOCUS_RING}`;
+export const FIELD_BASE = `w-full min-h-12 rounded-field bg-well text-ink ring-1 ring-edge px-3 ${FOCUS_RING}`;
 
 /** Invalid adds a ring in Errata Red — the hue that owns a validation error. */
 export function field(invalid: boolean, extra?: string): string {
@@ -187,6 +187,15 @@ const CHIP_TONE = {
   planned: 'bg-planned-ink text-on-fill',
   actual: 'bg-actual-ink text-on-fill',
   missed: 'bg-missed-ink text-on-fill',
+  /**
+   * Derived Violet — a number nobody entered (DESIGN.md).
+   *
+   * The hue exists so a computed figure is never dressed as an observed one. It
+   * had no chip until a progression suggestion and a session record needed to
+   * sit beside sets that were actually performed, which is exactly the
+   * distinction the fifth hue was reserved for.
+   */
+  progress: 'bg-progress-ink text-on-fill',
 } as const;
 
 export type ChipTone = keyof typeof CHIP_TONE;
@@ -235,7 +244,7 @@ const DOME_STATE = {
    * rather than a body, because there is nothing there yet: a solid circle
    * would claim a set exists. Dashed says "this could be one".
    */
-  add: 'bg-transparent text-ink-3 border-2 border-dashed border-rule hover:border-planned hover:text-planned-ink shadow-none',
+  add: 'bg-transparent text-ink-3 border-2 border-dashed border-edge hover:border-planned hover:text-planned-ink shadow-none',
 } as const;
 
 const DOME_SIZE = {
@@ -284,7 +293,10 @@ export const STEPPER = cn(
  * `SetLogger`.
  */
 export const READOUT = cn(
-  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well px-2 py-3',
+  // The three gym-mode readouts had no boundary at all — `bg-well` on `bg-card`
+  // is 1.13:1, so the field a lifter aims a thumb at mid-set was findable only
+  // by the label above it.
+  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well ring-1 ring-edge px-2 py-3',
   // The value inside is typed into as well as stepped, so the cavity takes the
   // focus halo on behalf of the borderless input it holds.
   'focus-within:ring-1 focus-within:ring-planned focus-within:shadow-[0_0_0_3px_var(--color-planned-wash)]',

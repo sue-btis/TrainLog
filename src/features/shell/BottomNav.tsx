@@ -26,7 +26,12 @@ export function BottomNav() {
             <NavLink
               className={({ isActive }) =>
                 cn(
-                  'flex min-h-12 flex-1 flex-col items-center justify-center gap-1 rounded-control py-1',
+                  // `min-w-0` is what lets a tab shrink below its label's
+                  // intrinsic width. Without it the four labels forced the row
+                  // to 436px inside a 375px container at 200% text zoom, and
+                  // the primary navigation clipped its own words. Wrapping
+                  // costs height; clipping costs the label.
+                  'flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-control py-1 px-0.5',
                   'transition-[box-shadow,transform,background-color] duration-[110ms] ease-snap',
                   'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-planned',
                   'focus-visible:shadow-[0_0_0_3px_var(--color-planned-wash)]',
@@ -37,7 +42,7 @@ export function BottomNav() {
               to={to}
             >
               <Icon aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-              <span className="type-micro">{label}</span>
+              <span className="type-micro text-center [overflow-wrap:anywhere]">{label}</span>
             </NavLink>
           ))}
         </div>

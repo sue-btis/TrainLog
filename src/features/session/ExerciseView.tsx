@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import type { CompletedSetId } from '@/domain/ids';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import type { LoadSuggestion } from '@/domain/progression';
-import { suggestLoad } from '@/domain/progression';
+import { projectNextLoad, suggestLoad } from '@/domain/progression';
 import type { Unit } from '@/domain/units';
 import { SetEditor } from '@/features/session/SetEditor';
 import { SetLogger, type SetValues } from '@/features/session/SetLogger';
@@ -86,6 +86,10 @@ export function ExerciseView({
   const [editing, setEditing] = useState<CompletedSetId | null>(null);
   const editedSet = sets.find((set) => set.id === editing) ?? null;
 
+  // What the sets already logged will make the next load — shown while the
+  // lifter can still change it, never on the row they are entering.
+  const projected = projectNextLoad(exerciseSession, sets);
+
   const opening = openingValues(exerciseSession, sets, suggestion, previousSets, defaultRir);
   const current = values ?? opening;
   const setNumber = sets.length + 1;
@@ -131,6 +135,7 @@ export function ExerciseView({
         onAddSet={() => setAddingExtra(true)}
         onEdit={(set) => setEditing(set.id)}
         plannedSets={planned?.plannedSets ?? 0}
+        previousSets={previousSets}
         sets={sets}
       />
 
@@ -178,6 +183,20 @@ export function ExerciseView({
           />
         )}
       </div>
+
+      {/* The consequence of the sets in hand, at the foot of the exercise.
+          Progression is derived and explainable (Principle 6), and until now the
+          explaining happened a week later, when the load simply arrived heavier.
+          Violet, because neither number here was entered by anybody.
+
+          It says nothing at all unless the rule has been satisfied — a line
+          reading "no change" is not news, and §21 forbids anything that does
+          not serve the set in front of you. Absence is the message. */}
+      {projected !== null && sets[0] !== undefined && (
+        <p className="type-measure text-progress-ink">
+          next time · {sets[0].weight} → {projected.weight} {projected.unit}
+        </p>
+      )}
     </section>
   );
 }
@@ -199,6 +218,7 @@ export function ExerciseView({
 function DomeStrip({
   plannedSets,
   sets,
+  previousSets,
   entering,
   canAdd,
   onEdit,
@@ -206,6 +226,17 @@ function DomeStrip({
 }: {
   readonly plannedSets: number;
   readonly sets: readonly CompletedSet[];
+  /**
+   * The same exercise's sets from the last Session it was performed in, in the
+   * order they were logged — so set 2 sits under set 2.
+   *
+   * Last time's numbers used to live in a panel below the finish control, off
+   * the bottom of the screen and reduced to a heaviest and a lightest. That
+   * answers "what was I working at" but not "did my reps fall off across the
+   * sets", which is the question that actually decides the next load. Per set,
+   * above the fold, answers both without a scroll (Principle 3).
+   */
+  readonly previousSets: readonly CompletedSet[];
   /** Whether the logger is open for a new set — the live dome's only reason. */
   readonly entering: boolean;
   /**
@@ -229,36 +260,52 @@ function DomeStrip({
       {Array.from({ length: count }, (_, index) => {
         const number = index + 1;
         const set = sets[index];
+        const before = previousSets[index];
 
         if (set !== undefined) {
           // A logged dome is the way into correcting it (R-4). The set it shows
           // is the set you would be editing, so it is its own affordance and
           // nothing else has to be added to the screen to carry one.
           return (
-            <button
-              aria-label={`Edit set ${number}, ${set.weight} ${set.unit} for ${set.reps} reps at RIR ${set.rir}`}
-              className={dome('logged', 'compact')}
-              key={set.id}
-              onClick={() => onEdit(set)}
-              type="button"
-            >
-              <span>{set.weight}</span>
-              <span className="type-label opacity-80">
-                {set.reps}·{set.rir}
-              </span>
-            </button>
+            <Cell before={before} key={set.id}>
+              <button
+                aria-label={`Edit set ${number}, ${set.weight} ${set.unit} for ${set.reps} reps at RIR ${set.rir}${ghostLabel(before)}`}
+                className={dome('logged', 'compact')}
+                onClick={() => onEdit(set)}
+                type="button"
+              >
+                <span>{set.weight}</span>
+                <span className="type-label opacity-80">
+                  {set.reps}·{set.rir}
+                </span>
+              </button>
+            </Cell>
           );
         }
 
         const live = entering && number === liveNumber;
         return (
-          <div
-            aria-label={`Set ${number}, ${live ? 'in progress' : 'planned'}`}
-            className={dome(live ? 'live' : 'planned', live ? 'default' : 'compact')}
-            key={number}
-          >
-            <span>{number}</span>
-          </div>
+          <Cell before={before} key={number}>
+            <div
+              aria-label={`Set ${number}, ${live ? 'in progress' : 'planned'}${ghostLabel(before)}`}
+              // `default` (76px), not the `live` 96px DESIGN.md calls "the
+              // largest thing on screen" — measured, and deliberate.
+              //
+              // With the rest timer mounted, 96px plus the ghost row put
+              // "Complete set" at y=801 in an 812px viewport: the most-pressed
+              // control in the product, half off the bottom of the screen. The
+              // usage scene outranks the flourish, and PRODUCT.md binds primary
+              // controls to comfortable thumb zones.
+              //
+              // The 96px dome becomes affordable the moment the timer stops
+              // being a 170px block: its second row exists only to hold a
+              // "seconds to add" field, and folding that into the control
+              // cluster returns more height than the dome costs.
+              className={dome(live ? 'live' : 'planned', live ? 'default' : 'compact')}
+            >
+              <span>{number}</span>
+            </div>
+          </Cell>
         );
       })}
 
@@ -267,17 +314,50 @@ function DomeStrip({
           these circles, so it belongs among them rather than in a row of prose
           competing with the primary action (§21). */}
       {canAdd && (
-        <button
-          aria-label={`Add set ${liveNumber}`}
-          className={dome('add', 'compact')}
-          onClick={onAddSet}
-          type="button"
-        >
-          <Plus aria-hidden="true" size={22} strokeWidth={ICON_STROKE} />
-        </button>
+        <Cell before={undefined}>
+          <button
+            aria-label={`Add set ${liveNumber}`}
+            className={dome('add', 'compact')}
+            onClick={onAddSet}
+            type="button"
+          >
+            <Plus aria-hidden="true" size={22} strokeWidth={ICON_STROKE} />
+          </button>
+        </Cell>
       )}
     </div>
   );
+}
+
+/**
+ * One dome, and under it what that set number was last time.
+ *
+ * The ghost line is reference, never a control: it is not pressable, it is
+ * `text-ink-3` rather than any of the five semantic hues, and it holds its
+ * height when there is nothing to show so the domes stay on one baseline
+ * instead of jittering as a session fills in.
+ */
+function Cell({
+  before,
+  children,
+}: {
+  readonly before: CompletedSet | undefined;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {children}
+      <span className="type-micro text-ink-3 tabular-nums">
+        {before === undefined ? ' ' : `${before.weight}×${before.reps}`}
+      </span>
+    </div>
+  );
+}
+
+/** The ghost value, spoken. A dome with nothing before it says nothing extra. */
+function ghostLabel(before: CompletedSet | undefined): string {
+  if (before === undefined) return '';
+  return `. Last time ${before.weight} ${before.unit} for ${before.reps} reps`;
 }
 
 /** The plate granularity to step the load by (§29, DEC-5). */

@@ -74,6 +74,7 @@ import {
 import { TopBar } from '@/features/shell/TopBar';
 import { plural } from '@/features/ui/format';
 import { COLUMN, ICON_STROKE, LABEL, RULED, SCREEN, WELL } from '@/features/ui/styles';
+import { ensurePersistentStorage } from '@/pwa/persistence';
 import { cn } from '@/lib/utils';
 
 export function SessionScreen() {
@@ -262,7 +263,19 @@ export function SessionScreen() {
         finishSession(session, exerciseSessions, Date.now()),
         exerciseSessions,
       );
-      await navigate('/today');
+      // To the record, not to Today. Finishing used to land on a screen that
+      // looked exactly as it had an hour earlier, still offering to start the
+      // Workout it had just recorded — the one moment repeated after every
+      // training session, and the only one that said nothing.
+      //
+      // `replace`, because gym mode is over: this Session's record takes its
+      // place in the history stack, so Back leaves the session behind rather
+      // than returning to a screen that no longer has one open.
+      await navigate(`/sessions/${session.id}?finished=1`, { replace: true });
+
+      // A recorded Session is the least replaceable thing this app holds — it
+      // cannot be re-derived from anything. Ask the browser not to evict it.
+      void ensurePersistentStorage();
     });
   }
 
@@ -336,6 +349,7 @@ export function SessionScreen() {
               one before it. */}
           {rest !== null && (
             <RestTimer
+              exerciseName={names?.get(rest.exerciseId) ?? null}
               key={rest.since}
               onSkip={() => setSkippedRest(rest.since)}
               seconds={rest.seconds}
@@ -566,24 +580,32 @@ function Pager({
 function pendingRest(
   entries: readonly { readonly exerciseSession: ExerciseSession; readonly sets: readonly CompletedSet[] }[],
   skipped: Timestamp | null,
-): { readonly since: Timestamp; readonly seconds: number } | null {
-  let latest: { since: Timestamp; seconds: number | null } | null = null;
+): { readonly since: Timestamp; readonly seconds: number; readonly exerciseId: ExerciseId } | null {
+  let latest: { since: Timestamp; seconds: number; exerciseId: ExerciseId } | null = null;
 
   for (const entry of entries) {
     const planned = entry.exerciseSession.plannedExerciseId === null ? null : entry.exerciseSession;
     const seconds = planned?.plannedRestSeconds ?? null;
 
+    // A set that declares no rest starts none — and, just as importantly, ends
+    // none either. Letting it decide is what used to delete a running rest: the
+    // lifter slots a light accessory set into a three-minute squat rest, the
+    // accessory declares no rest, and the countdown they were pacing by
+    // vanished with nothing said and no way back.
+    //
+    // The objection this replaces was that the surviving timer would belong to
+    // a different exercise than the one on screen. It does, and that was always
+    // true of a rest paged away from — so the timer names its exercise instead
+    // of being thrown away for it.
+    if (seconds === null) continue;
+
     for (const set of entry.sets) {
       if (latest === null || set.completedAt > latest.since) {
-        latest = { since: set.completedAt, seconds };
+        latest = { since: set.completedAt, seconds, exerciseId: entry.exerciseSession.exerciseId };
       }
     }
   }
 
-  // The most recent set decides, even when it declares no rest. Skipping the
-  // restless ones instead would leave the previous exercise's timer running
-  // after a set of something else entirely — a countdown to a rest the lifter
-  // is already three minutes past.
-  if (latest === null || latest.seconds === null || latest.since === skipped) return null;
-  return { since: latest.since, seconds: latest.seconds };
+  if (latest === null || latest.since === skipped) return null;
+  return latest;
 }

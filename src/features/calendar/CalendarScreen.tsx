@@ -30,14 +30,14 @@ import {
   type LocalDate,
 } from '@/domain/dates';
 import type { WorkoutId } from '@/domain/ids';
-import { dayState, type DayState } from '@/domain/scheduling';
+import { dayState, isMissed, type DayState } from '@/domain/scheduling';
 import type { Placement, Session, Workout } from '@/domain/types';
 import {
   usePlacementsBetween,
   useSessionsBetween,
   useWorkoutsById,
 } from '@/features/data/queries';
-import { longDate, monthName, plural } from '@/features/ui/format';
+import { longDate, monthName, plural, sessionStatusLabel } from '@/features/ui/format';
 import { DayCell, Glyph, STATE_LABEL, STATE_ORDER, STATE_STYLE } from '@/features/calendar/DayCell';
 import {
   FOCUS_RING,
@@ -162,6 +162,7 @@ export function CalendarScreen() {
       ) : (
         <DaySheet
           date={selected}
+          today={today}
           onMoved={(moved) => {
             // Follow the Placement to where it landed, month included: a sheet
             // left on the day it just left is a question nobody asked.
@@ -186,7 +187,12 @@ export function CalendarScreen() {
  */
 function Legend() {
   return (
-    <details className="group">
+    // Open. Five colours over 42 cells, decoded through a key that started
+    // collapsed — a first-time lifter had no way to know a red cell meant a
+    // missed day rather than an error. Anyone who already knows closes it once;
+    // `<details>` is not remembered across visits, and a legend that has to be
+    // hunted for is a legend nobody reads.
+    <details className="group" open>
       <summary
         className={cn(
           'inline-flex min-h-12 cursor-default list-none items-center gap-1.5 rounded-chip px-3 type-label text-ink-2',
@@ -212,6 +218,8 @@ function Legend() {
 
 interface DaySheetProps {
   readonly date: LocalDate;
+  /** Today, so a past Placement with no Session can be named for what it is. */
+  readonly today: LocalDate;
   readonly placements: readonly Placement[];
   readonly sessions: readonly Session[];
   readonly workouts: ReadonlyMap<WorkoutId, Workout> | undefined;
@@ -224,7 +232,7 @@ interface DaySheetProps {
  * Inline rather than a modal: nothing here needs protected focus, and a sheet
  * that covers the grid hides the very thing the move is relative to.
  */
-function DaySheet({ date, placements, sessions, workouts, onMoved }: DaySheetProps) {
+function DaySheet({ date, today, placements, sessions, workouts, onMoved }: DaySheetProps) {
   const nameOf = (workoutId: WorkoutId): string => workouts?.get(workoutId)?.name ?? '…';
 
   return (
@@ -238,6 +246,11 @@ function DaySheet({ date, placements, sessions, workouts, onMoved }: DaySheetPro
           {placements.map((placement) => (
             <PlacementRow
               key={placement.id}
+              // The grid above already draws this day red with an X and tells a
+              // screen reader "missed". The panel used to answer the tap with a
+              // blue `planned` chip — the app contradicting its own derived
+              // state one press later. One definition, `isMissed`, decides both.
+              missed={isMissed(placement, sessions, today)}
               name={nameOf(placement.workoutId)}
               onMoved={onMoved}
               placement={placement}
@@ -253,19 +266,22 @@ function DaySheet({ date, placements, sessions, workouts, onMoved }: DaySheetPro
 }
 
 interface PlacementRowProps {
+  readonly missed: boolean;
   readonly placement: Placement;
   readonly name: string;
   readonly onMoved: (date: LocalDate) => void;
 }
 
-function PlacementRow({ placement, name, onMoved }: PlacementRowProps) {
+function PlacementRow({ placement, name, missed, onMoved }: PlacementRowProps) {
   const [confirming, setConfirming] = useState(false);
   const moveId = `move-${placement.id}`;
 
   return (
     <article className={cn(ROW, 'gap-3')}>
       <div className="flex items-center gap-2">
-        <span className={chip('planned')}>planned</span>
+        <span className={chip(missed ? 'missed' : 'planned')}>
+          {missed ? 'missed' : 'planned'}
+        </span>
         <span className="min-w-0 flex-1 truncate type-title">{name}</span>
       </div>
 
@@ -331,7 +347,7 @@ function SessionRow({ session, name }: { readonly session: Session; readonly nam
   return (
     <Link className={cn(ROW, PRESS, 'rounded-field')} to={`/sessions/${session.id}`}>
       <div className="flex items-center gap-2">
-        <span className={chip(tone)}>{session.status.replace('_', ' ')}</span>
+        <span className={chip(tone)}>{sessionStatusLabel(session.status)}</span>
         <span className="min-w-0 flex-1 truncate type-title">{name}</span>
         <ChevronRight aria-hidden="true" className="text-ink-3" size={18} strokeWidth={ICON_STROKE} />
       </div>

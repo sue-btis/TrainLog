@@ -9,46 +9,7 @@ import type {
 } from '@/domain/routine-file/schema';
 
 /** The §12 example, verbatim. TST-001 parses this. */
-export const EXAMPLE_YAML = `version: 1
-
-routine:
-  name: "Hybrid Strength - September"
-  weeks: 4
-
-  workouts:
-    - name: "Push - Quad + Shoulder Strength"
-      suggested_days: [monday, friday]
-
-      exercises:
-
-        - name: "Front Squat"
-          exercise_id: "front-squat"
-          category: "quadriceps"
-          goal: "strength"
-          unit: "kg"
-
-          sets: 4
-
-          reps:
-            min: 4
-            max: 6
-
-          rir:
-            min: 1
-            max: 2
-
-          rest_seconds: 210
-
-          focus: "Quadriceps Strength"
-
-          notes:
-            - "Maintain upright torso"
-            - "Avoid technical failure"
-
-          progression:
-            type: "double_progression"
-            increment: 2.5
-`;
+export { EXAMPLE_ROUTINE_YAML as EXAMPLE_YAML } from '@/domain/routine-file/example';
 
 /** A valid parsed exercise, as the schema produces it. */
 export function anExercise(

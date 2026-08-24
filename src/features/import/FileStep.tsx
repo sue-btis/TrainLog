@@ -11,6 +11,7 @@ import { useRef } from 'react';
 import { FileUp, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatPath, type StructuralError } from '@/domain/routine-file';
+import { EXAMPLE_ROUTINE_YAML, FIELD_NOTES } from '@/domain/routine-file/example';
 import { ICON_STROKE, LABEL, WELL, alert } from '@/features/ui/styles';
 
 interface FileStepProps {
@@ -93,6 +94,42 @@ export function FileStep({ fileName, errors, unreadable, onFile }: FileStepProps
         <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
         {rejected ? 'Choose another file' : 'Choose a routine file'}
       </Button>
+
+      {/* What the file has to look like, shipped.
+          Nothing here is retyped: the example is the same string
+          `parse.test.ts` feeds to the parser, so a reference that stops being
+          true fails the build rather than misleading someone in a gym. Closed
+          by default — it is for the moment a file is wrong, not for every
+          import. */}
+      <details className={WELL}>
+        <summary className="type-title cursor-pointer list-none">
+          What a routine file looks like
+        </summary>
+
+        <p className="type-body-sm text-ink-2">
+          A programme is plain YAML. This one is complete and valid — start from it,
+          or check a file that was refused against it.
+        </p>
+
+        <pre className="overflow-x-auto rounded-field bg-well p-3 type-measure-sm text-ink">
+          <code>{EXAMPLE_ROUTINE_YAML}</code>
+        </pre>
+
+        <div className="flex flex-col gap-2 border-t border-rule pt-3">
+          <p className={LABEL}>the fields</p>
+          <dl className="flex flex-col gap-2">
+            {FIELD_NOTES.map((field) => (
+              <div className="flex flex-col gap-0.5" key={field.name}>
+                <dt className="type-measure-sm text-ink">
+                  {field.name}
+                  {!field.required && <span className="text-ink-3"> · optional</span>}
+                </dt>
+                <dd className="type-body-sm text-ink-2">{field.note}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </details>
     </>
   );
 }

@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { CATALOG, normalizeExerciseName } from '@/domain/catalog';
 import type { ExerciseId } from '@/domain/ids';
 import type { Exercise } from '@/domain/types';
-import { useUserExercises } from '@/features/data/queries';
+import { usePerformedExercises, useUserExercises } from '@/features/data/queries';
 import { ICON_STROKE, LABEL, ROW, ROW_LIST, WELL } from '@/features/ui/styles';
 
 /** Enough to scan at arm's length; the search narrows to what is wanted. */
@@ -36,17 +36,39 @@ export function ExercisePicker({ onPick, onCancel, busy }: ExercisePickerProps) 
   const user = useUserExercises();
   const [query, setQuery] = useState('');
 
+  const performed = usePerformedExercises();
+
   // The catalog ships in the build and is never in the table (DEC-007), so the
   // two lists are disjoint and concatenate rather than merge. A lifter's own
   // exercises come first — they are the ones the catalog did not have.
-  const matches = useMemo(() => {
+  //
+  // Then the part that matters mid-session: **what you have actually trained,
+  // first.** The list used to be the catalog in catalog order, so the top of
+  // the largest decision point in the product was "Back Squat, Front Squat, Box
+  // Squat…" whether or not a lifter had ever done any of them. Their own twenty
+  // movements were somewhere below the fold, behind a search box, while a rest
+  // timer ran. Membership is enough to fix that; true recency would cost a
+  // second query for an ordering a labelled section already conveys.
+  const { trained, rest, total } = useMemo(() => {
     const all: readonly Exercise[] = [...(user ?? []), ...CATALOG];
     const needle = normalizeExerciseName(query);
-    if (needle === '') return all.slice(0, SHOWN);
-    return all
-      .filter((exercise) => normalizeExerciseName(exercise.name).includes(needle))
-      .slice(0, SHOWN);
-  }, [user, query]);
+    const matching =
+      needle === ''
+        ? all
+        : all.filter((exercise) => normalizeExerciseName(exercise.name).includes(needle));
+
+    const known = new Set(performed ?? []);
+    return {
+      trained: matching.filter((exercise) => known.has(exercise.id)),
+      rest: matching.filter((exercise) => !known.has(exercise.id)),
+      total: matching.length,
+    };
+  }, [user, performed, query]);
+
+  // Trained exercises are never cut — there are only ever a few dozen, and they
+  // are the answer. The catalog takes whatever room is left.
+  const shownRest = rest.slice(0, Math.max(0, SHOWN - trained.length));
+  const hidden = total - trained.length - shownRest.length;
 
   return (
     <section className="flex flex-col gap-4">
@@ -62,15 +84,17 @@ export function ExercisePicker({ onPick, onCancel, busy }: ExercisePickerProps) 
           <Search aria-hidden="true" className="mr-1.5 inline" size={13} strokeWidth={ICON_STROKE} />
           search
         </span>
+        {/* No `autoFocus`. It raised the keyboard over the list it had just
+            rendered, so the first thing a lifter saw of their own exercises was
+            nothing. Typing is one tap away for anyone who wants it. */}
         <Input
-          autoFocus
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Front squat, dip, row…"
           value={query}
         />
       </label>
 
-      {matches.length === 0 ? (
+      {total === 0 ? (
         <section className={WELL}>
           <p className="type-title">No exercise matches “{query}”</p>
           <p className="type-body-sm text-ink-2">
@@ -78,23 +102,63 @@ export function ExercisePicker({ onPick, onCancel, busy }: ExercisePickerProps) 
           </p>
         </section>
       ) : (
-        <div className={ROW_LIST}>
-          {matches.map((exercise) => (
-            <button
-              className={`${ROW} text-left disabled:opacity-60`}
-              disabled={busy}
-              key={exercise.id}
-              onClick={() => onPick(exercise.id)}
-              type="button"
-            >
-              <span className="type-title">{exercise.name}</span>
-              {exercise.category !== null && (
-                <span className="type-measure-sm text-ink-3">{exercise.category}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        <>
+          {trained.length > 0 && (
+            <Group busy={busy} exercises={trained} label="you have trained" onPick={onPick} />
+          )}
+          {shownRest.length > 0 && (
+            <Group
+              busy={busy}
+              exercises={shownRest}
+              label={trained.length > 0 ? 'everything else' : 'the catalog'}
+              onPick={onPick}
+            />
+          )}
+          {/* The list used to end silently at forty, so an exercise ranked
+              forty-first simply was not there for anyone who scrolled rather
+              than typed. */}
+          {hidden > 0 && (
+            <p className="type-measure-sm text-ink-3">
+              {hidden} more — search to narrow the list.
+            </p>
+          )}
+        </>
       )}
+    </section>
+  );
+}
+
+/** One labelled block of the list. Two of these are the whole ordering. */
+function Group({
+  label,
+  exercises,
+  busy,
+  onPick,
+}: {
+  readonly label: string;
+  readonly exercises: readonly Exercise[];
+  readonly busy: boolean;
+  readonly onPick: (exerciseId: ExerciseId) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <span className={LABEL}>{label}</span>
+      <div className={ROW_LIST}>
+        {exercises.map((exercise) => (
+          <button
+            className={`${ROW} text-left disabled:opacity-60`}
+            disabled={busy}
+            key={exercise.id}
+            onClick={() => onPick(exercise.id)}
+            type="button"
+          >
+            <span className="type-title">{exercise.name}</span>
+            {exercise.category !== null && (
+              <span className="type-measure-sm text-ink-3">{exercise.category}</span>
+            )}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
