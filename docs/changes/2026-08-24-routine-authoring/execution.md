@@ -35,7 +35,7 @@ write code; none were simulated. Waves A–E in order.
 | Wave / WS | REQ IDs | Status | Files Changed | Checks | Evidence |
 |---|---|---|---|---|---|
 | A / WS-1 | REQ-100…110, 902, 909 | **Completed** | 7 | typecheck, test, lint, build — all green | 471 tests (458 → +13); UI observed, below |
-| B / Gate 0 + WS-2 | REQ-001…014, 200…212, 900, 901, 903, 906, 908 | **Completed** | 12 | all four green | 494 tests (471 → +23); UI observed, below |
+| B / Gate 0 + WS-2 | REQ-001…014, 200…212, 900, 901, 903, 906, 908 | **Completed** | 12 | all four green | **490** tests (471 → +19); UI observed, below |
 | C / WS-3 | REQ-300…312 | Not started | | | |
 | D / WS-4 | REQ-400…417 | Not started | | | |
 | E / WS-5 | REQ-500…516 | Not started | | | |
@@ -222,7 +222,7 @@ is recorded as an inference at that last step rather than as an observation.
 | Command | Result |
 |---|---|
 | `pnpm typecheck` | Pass |
-| `pnpm test` | Pass — **494** tests (471 → +23) |
+| `pnpm test` | Pass — **490** tests (471 → +19), measured in a clean worktree; see Ownership below |
 | `pnpm lint` | Pass |
 | `pnpm build` | Pass |
 
@@ -231,7 +231,7 @@ is recorded as an inference at that last step rather than as an observation.
 | Gate | Owner | Diff inspected? | Checks | Result |
 |---|---|---:|---|---|
 | Wave A | this writer | Yes | four green, 471 tests | **Pass** |
-| Wave B | this writer | Yes | four green, 494 tests | **Pass** |
+| Wave B | this writer | Yes | four green, 490 tests | **Pass** |
 
 ## Deviations
 
@@ -241,13 +241,48 @@ is recorded as an inference at that last step rather than as an observation.
 
 ## Ownership / Contract Conflicts
 
-None. `src/db/index.ts` was appended to, as its shared-file rule requires.
+**A second session is working in this same tree, and it overlaps WS-5.**
+
+Found at Wave B's integration gate, by reading `git status` rather than assuming
+it: five files are modified that no wave of this change owns —
+`src/domain/session-summary.ts` and its test,
+`src/features/history/SessionDetailScreen.tsx`, `CONTEXT.md` and `docs/PRD.md`.
+They implement an unrelated feature (a session **Effort** metric — Foster's
+session load). All five are uncommitted.
+
+Two consequences, both handled:
+
+1. **Nothing of theirs was committed.** Every commit in this change used an
+   explicit pathspec, which plan §1 made a standing rule for a different reason
+   (`docs/PRD-DMS.md`) and which turns out to have covered this too. The staged
+   set was diffed against the owned set before each commit.
+2. **The reported test count was wrong, and is corrected.** Their work adds 4
+   tests to `session-summary.test.ts` (10 → 14), so the 494 the suite reported
+   in the shared tree was not all mine. Re-measured in a clean detached
+   worktree at each commit: `40e0c02` = 458, Wave A `8f979ae` = **471**, Wave B
+   `8ab1082` = **490**. Wave A's figure was already right; Wave B's was inflated
+   by 4 and now reads +19.
+
+**This is a stop condition for Wave E, not for Wave C.** `CONTEXT.md` and
+`docs/PRD.md` are in WS-5's May-Edit set (REQ-500, REQ-504, REQ-507, REQ-509),
+and both carry another session's in-flight edits — `CONTEXT.md` has a new
+**Effort** glossary entry, `docs/PRD.md` one added line. Wave E cannot safely
+rewrite either until that work has landed or been withdrawn. Waves C and D touch
+neither file and are unaffected.
+
+Otherwise: `src/db/index.ts` and `src/domain/routine-file/index.ts` were appended
+to, as their shared-file rules require.
 
 ## Blockers
 
-None.
+**Wave E is blocked** until the concurrent Effort work in `CONTEXT.md` and
+`docs/PRD.md` lands or is withdrawn. See Ownership above. This needs the owner's
+decision, not an implementer's: overwriting another session's uncommitted edits
+to shared documents is exactly what plan §11's "unrelated user changes overlap a
+required write set" forbids.
 
 ## Independent Verification Readiness
 
-Waves A and B: ready. Diff range `git diff 40e0c02..HEAD -- src/`.
-Waves C–E: not started.
+Waves A and B: ready. Diff range `git diff 40e0c02..8ab1082`.
+Waves C and D: not started, unblocked.
+Wave E: not started, **blocked** — see Blockers.
