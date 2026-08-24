@@ -93,7 +93,17 @@ export function MonthGrid({
       {/* A group of buttons, not a `role="grid"`: the grid role promises rows
           and gridcells to a screen reader, and there were never any. Each cell
           already names its own day and state. */}
-      <div aria-label={monthName(month)} className="grid grid-cols-7 gap-1.5" role="group">
+      {/* Keyed on the month so React remounts the grid and the entrance runs
+          again: paging used to swap forty-two cells between two frames with
+          nothing to say a month had changed. The fade also covers the frame
+          where `useLiveQuery` still holds the previous month's Placements —
+          it keeps its last result across a dependency change. */}
+      <div
+        aria-label={monthName(month)}
+        className="arrive grid grid-cols-7 gap-1.5"
+        key={month}
+        role="group"
+      >
         {monthGrid(month).map((date) => (
           <DayCell
             date={date}

@@ -394,7 +394,7 @@ export function SessionScreen() {
       )}
 
       {failure !== null && (
-        <p className="type-measure text-missed-ink" role="alert">
+        <p className="arrive type-measure text-missed-ink" role="alert">
           {failure}
         </p>
       )}

@@ -38,6 +38,7 @@ import {
   useWorkouts,
 } from '@/features/data/queries';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
+import { Reading } from '@/features/ui/Reading';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
   longDate,
@@ -47,14 +48,17 @@ import {
   shortDate,
 } from '@/features/ui/format';
 import {
+  FOCUS_RING,
   ICON_STROKE,
   LABEL,
+  PRESS,
   ROW,
   ROW_LIST,
   WELL,
   alert,
   chip,
 } from '@/features/ui/styles';
+import { cn } from '@/lib/utils';
 
 /** How far back Today looks for a planned day that went untrained. */
 const MISSED_WINDOW_DAYS = 28;
@@ -117,7 +121,8 @@ export function TodayScreen() {
       )}
 
       {missed.length > 0 && (
-        <Link className={alert('missed')} to="/calendar">
+        // A whole banner that navigates, and it answered a thumb with nothing.
+        <Link className={cn(alert('missed'), PRESS, FOCUS_RING)} to="/calendar">
           <CalendarX aria-hidden="true" className="mt-0.5 shrink-0" size={18} strokeWidth={ICON_STROKE} />
           <div className="flex flex-col gap-1">
             <p className="type-title">
@@ -139,13 +144,16 @@ export function TodayScreen() {
       </div>
 
       {failure !== null && (
-        <p className="type-measure text-missed-ink" role="alert">
+        <p className="arrive type-measure text-missed-ink" role="alert">
           {failure}
         </p>
       )}
 
+      {/* `useActiveRoutine` answers `undefined` while it reads and `null` when
+          there is nothing to read. One branch covering both is why the app
+          used to open on "No active routine" for lifters who had one. */}
       {routine === undefined ? (
-        <Reading />
+        <Reading>today</Reading>
       ) : routine === null ? (
         <NoRoutine />
       ) : shown === null ? (
@@ -209,22 +217,6 @@ export function TodayScreen() {
   );
 }
 
-/**
- * The first read, still running.
- *
- * Not `NoRoutine`, which is what stood here: `useActiveRoutine` answers
- * `undefined` while it reads and `null` when there is nothing to read, and one
- * branch covering both meant the app opened on "No active routine — import a
- * routine file" for every lifter who already had one.
- */
-function Reading() {
-  return (
-    <section className={WELL}>
-      <p className="type-body-sm text-ink-2">Reading today…</p>
-    </section>
-  );
-}
-
 function NoRoutine() {
   return (
     <section className={WELL}>
@@ -250,13 +242,20 @@ interface WorkoutCardProps {
 }
 
 function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCardProps) {
-  const exercises = usePlannedExercises(workout.id) ?? [];
+  // The same distinction the screen above makes, one card down: `undefined` is
+  // the read, `[]` is a Workout that really holds nothing. Collapsed into one,
+  // this card opened on "0 exercises · This Workout has no exercises" for the
+  // Workout it was about to list.
+  const planned = usePlannedExercises(workout.id);
+  const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
 
   return (
     <Card>
       <div className="flex flex-wrap items-center gap-2">
-        <span className={chip('planned')}>{plural(exercises.length, 'exercise')}</span>
+        {planned !== undefined && (
+          <span className={chip('planned')}>{plural(exercises.length, 'exercise')}</span>
+        )}
         {exercises.length > 0 && (
           <span className={chip('neutral')}>
             <Timer aria-hidden="true" size={12} strokeWidth={ICON_STROKE} />~
@@ -265,7 +264,12 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
         )}
       </div>
 
-      {exercises.length === 0 ? (
+      {/* The bare sentence rather than `Reading`: that component brings a
+          `WELL` with it, and a well inside a card is the nested surface
+          DESIGN.md forbids (see `styles.ts`). */}
+      {planned === undefined ? (
+        <p className="type-body-sm text-ink-2">Reading the exercises…</p>
+      ) : exercises.length === 0 ? (
         <p className="type-body-sm text-ink-2">This Workout has no exercises.</p>
       ) : (
         <div className={ROW_LIST}>

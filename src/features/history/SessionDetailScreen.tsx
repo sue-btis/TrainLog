@@ -36,6 +36,7 @@ import {
   sessionStatusLabel,
   snapshotLine,
 } from '@/features/ui/format';
+import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -61,11 +62,7 @@ export function SessionDetailScreen() {
   // `undefined` is a read still in flight; `null` is a session that is not
   // there. A screen must not flash "no such session" during a running read.
   if (detail === undefined) {
-    return (
-      <section className={WELL}>
-        <p className="type-body-sm text-ink-2">Reading session…</p>
-      </section>
-    );
+    return <Reading>session</Reading>;
   }
 
   if (detail === null) {
@@ -157,7 +154,10 @@ function FinishSummary({
   readonly names: ReadonlyMap<ExerciseId, string> | undefined;
 }) {
   return (
-    <section className="flex flex-col gap-4">
+    // The whole summary arrives as one thing. It is reached by finishing a
+    // session — the app's own ending — and it used to be simply present, which
+    // reads as a screen that was always there rather than as a result.
+    <section className="arrive flex flex-col gap-4">
       {summary.records.length > 0 && (
         <div className="flex flex-col gap-3 rounded-card bg-progress-wash p-4">
           <span className={cn(LABEL, 'text-progress-ink')}>

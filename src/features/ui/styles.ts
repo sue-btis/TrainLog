@@ -77,9 +77,21 @@ export const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-planned ' +
   'focus-visible:shadow-[0_0_0_3px_var(--color-planned-wash)]';
 
-/** The press: 110ms, once, on every control. The system's only motion moment. */
+/**
+ * The press: 110ms, once, on every control. The system's only motion moment.
+ *
+ * `scale` and `translate` are named because Tailwind v4 writes neither through
+ * `transform` any more: `scale-[.975]` compiles to `scale: .975` and
+ * `-translate-y-0.5` to `translate: …`, each its own animatable property. This
+ * list is an arbitrary value, so it takes no expansion — it *is* the literal
+ * `transition-property`. Naming only `transform` therefore transitioned nothing
+ * the press or the hover lift actually change, and the system's one motion
+ * moment snapped in both directions on every control in the app. The *named*
+ * `transition-transform` utility does expand to all four, which is why the
+ * chevrons and the switch thumb were never affected by this.
+ */
 export const PRESS =
-  'transition-[box-shadow,transform,background-color] duration-[110ms] ease-snap active:scale-[.975]';
+  'transition-[box-shadow,transform,scale,translate,background-color] duration-[110ms] ease-snap active:scale-[.975]';
 
 /**
  * A button is fully round. `rounded-chip` is the same 999px the cells and the

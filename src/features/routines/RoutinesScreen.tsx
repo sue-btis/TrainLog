@@ -31,8 +31,10 @@ import { useRoutines, useSessionsByRoutine } from '@/features/data/queries';
 import { ConversionPromptButton } from '@/features/import/ConversionPromptButton';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
 import { plural, shortDate } from '@/features/ui/format';
+import { Reading } from '@/features/ui/Reading';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
+import { cn } from '@/lib/utils';
 import { formatLocalDate } from '@/domain/dates';
 
 export function RoutinesScreen() {
@@ -70,12 +72,17 @@ export function RoutinesScreen() {
       <ConversionPromptButton />
 
       {failure !== null && (
-        <p className="type-body-sm text-missed-ink" role="alert">
+        <p className="arrive type-body-sm text-missed-ink" role="alert">
           {failure}
         </p>
       )}
 
-      {routines === undefined ? null : routines.length === 0 ? (
+      {/* `undefined` is the read, not an answer to it. Rendering nothing for it
+          left the screen as an Import button over blank board — the same
+          picture a lifter with no routines gets, and the wrong one. */}
+      {routines === undefined ? (
+        <Reading>your routines</Reading>
+      ) : routines.length === 0 ? (
         <section className={WELL}>
           <p className="type-title">No routines yet</p>
           <p className="type-body-sm text-ink-2">
@@ -169,6 +176,7 @@ function RoutineRow({ routine, refusal, busy, onActivate, onArchive, onDelete }:
         <div className="ml-auto flex items-center gap-2">
           {confirming && (
             <Button
+              className="arrive"
               onClick={() => setConfirming(false)}
               size="compact"
               type="button"
@@ -213,7 +221,7 @@ function RoutineRow({ routine, refusal, busy, onActivate, onArchive, onDelete }:
       )}
 
       {confirming && (
-        <p className={LABEL}>
+        <p className={cn(LABEL, 'arrive')}>
           this removes the routine, its workouts and its days on the calendar — sessions
           are never touched
         </p>

@@ -33,6 +33,7 @@ import { useExerciseHistory, useExerciseNames, usePerformedExercises } from '@/f
 import { ExerciseChart, METRICS, round, type Metric } from '@/features/progress/ExerciseChart';
 import { shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
+import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, WELL } from '@/features/ui/styles';
 
 export function ProgressScreen() {
@@ -44,11 +45,7 @@ export function ProgressScreen() {
   // `undefined` is a read still in flight; an empty array is a lifter who has
   // not trained yet. They must not render the same thing.
   if (performed === undefined || names === undefined) {
-    return (
-      <section className={WELL}>
-        <p className="type-body-sm text-ink-2">Reading history…</p>
-      </section>
-    );
+    return <Reading>history</Reading>;
   }
 
   if (performed.length === 0) {
@@ -123,11 +120,7 @@ function ExerciseProgress({
   const history = useExerciseHistory(exerciseId);
 
   if (history === undefined) {
-    return (
-      <section className={WELL}>
-        <p className="type-body-sm text-ink-2">Reading history…</p>
-      </section>
-    );
+    return <Reading>history</Reading>;
   }
 
   const points = exerciseSeries(history);

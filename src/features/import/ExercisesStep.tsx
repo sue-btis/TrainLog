@@ -271,7 +271,7 @@ function ExerciseRow({
       </div>
 
       {confirmingDelete && (
-        <div className={cn(RULED, 'flex-row flex-wrap items-center gap-2')}>
+        <div className={cn(RULED, 'arrive flex-row flex-wrap items-center gap-2')}>
           <p className="type-body-sm text-ink-2">Remove {exercise.name} from this Workout?</p>
           <div className="ml-auto flex items-center gap-2">
             <Button onClick={() => setConfirmingDelete(false)} size="compact" variant="quiet">

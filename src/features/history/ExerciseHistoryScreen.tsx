@@ -27,6 +27,7 @@ import { useExerciseHistory, useExerciseNames } from '@/features/data/queries';
 import { Figure } from '@/features/ui/Figure';
 import { load, longDate, plural, sessionStatusLabel, setLine, shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
+import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -41,11 +42,7 @@ export function ExerciseHistoryScreen() {
   // `undefined` is a read still in flight; an empty array is an exercise never
   // performed. They must not render the same thing.
   if (history === undefined) {
-    return (
-      <section className={WELL}>
-        <p className="type-body-sm text-ink-2">Reading history…</p>
-      </section>
-    );
+    return <Reading>history</Reading>;
   }
 
   const summary = summarizeExercise(history);

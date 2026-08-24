@@ -222,6 +222,32 @@ details[open]::details-content {
   box-shadow: var(--inset-shadow-glass), var(--shadow-glass);
 }
 
+/* ── Arrival — the one entrance ───────────────────────────────────────────
+   Everything in this app that appears, appeared instantly: the line confirming
+   a backup was written, the refusal saying it was not, the second button that
+   turns Delete into a decision, the summary of the hour a lifter just trained.
+   A thing that is simply *there* on the next frame does not read as new — it
+   reads as something that had been there all along and was missed, which is
+   the one thing a confirmation must never read as.
+
+   So: 180ms, up four pixels, once. Deliberately smaller than the press (110ms)
+   is quick and the domes are theatrical — this is punctuation, not an event,
+   and it runs on things a lifter is about to read. Keyframes rather than
+   `@starting-style` because an element mounted by React is exactly what
+   `animation` already covers, with none of the entry-transition footnotes.
+
+   Nothing is needed for reduced motion: the blanket rule above clamps every
+   animation in the app to 1ms, and a confirmation that arrives instantly is
+   the honest fallback rather than a degraded one. */
+
+@keyframes arrive {
+  from { opacity: 0; translate: 0 4px; }
+}
+
+@utility arrive {
+  animation: arrive 180ms var(--ease-press) both;
+}
+
 /* A strip of controls that runs past the screen edge. The scrollbar is a
    desktop artefact on a surface that is dragged with a thumb, and it drew a
    grey line under the Workout tabs; the tab cut off at the edge is the hint. */

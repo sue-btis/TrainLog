@@ -246,7 +246,9 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
           home indicator. */}
       <div className={cn(TIMER_TRACK, 'timer-rail-in')}>
         <div
-          className={TIMER_RAIL}
+          // Half strength while held, so a rail that has stopped shortening
+          // reads as held rather than as a rail that stopped working.
+          className={cn(TIMER_RAIL, paused && 'opacity-50')}
           // Named so the reduced-motion block can spare it: the rail is the
           // remaining time drawn as a length, not decoration.
           data-rail="rest"
@@ -267,8 +269,13 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
           <span aria-live="off" className="type-readout">
             {minutes}:{String(remaining % 60).padStart(2, '0')}
           </span>
+          {/* Pausing stopped the clock, stopped the rail, and swapped one
+              11px glyph inside a control — which is not enough to tell a held
+              rest from an app that has stopped working. The word is under the
+              number that looks stuck, which is where a lifter is already
+              looking. */}
           <span className={cn(LABEL, 'truncate text-on-fill/80')}>
-            {remaining === 0 ? 'rest is up' : 'rest'}
+            {paused ? 'paused' : remaining === 0 ? 'rest is up' : 'rest'}
             {exerciseName !== null && <span className="text-on-fill/60"> · {exerciseName}</span>}
           </span>
         </div>

@@ -14,14 +14,15 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { LoaderCircle, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CATALOG, normalizeExerciseName } from '@/domain/catalog';
 import type { ExerciseId } from '@/domain/ids';
 import type { Exercise } from '@/domain/types';
 import { usePerformedExercises, useUserExercises } from '@/features/data/queries';
-import { ICON_STROKE, LABEL, ROW, ROW_LIST, WELL } from '@/features/ui/styles';
+import { FOCUS_RING, ICON_STROKE, LABEL, PRESS, ROW, ROW_LIST, WELL } from '@/features/ui/styles';
+import { cn } from '@/lib/utils';
 
 /** Enough to scan at arm's length; the search narrows to what is wanted. */
 const SHOWN = 40;
@@ -35,6 +36,20 @@ interface ExercisePickerProps {
 export function ExercisePicker({ onPick, onCancel, busy }: ExercisePickerProps) {
   const user = useUserExercises();
   const [query, setQuery] = useState('');
+  /**
+   * Which row was pressed, so the write has somewhere to show.
+   *
+   * `busy` arrives as one flag for the whole screen and the list read it as
+   * `disabled`: every row dimmed together, and the exercise a lifter had just
+   * chosen looked exactly like the forty they had not. Read only while `busy`,
+   * so nothing ever has to clear it.
+   */
+  const [pressed, setPressed] = useState<ExerciseId | null>(null);
+
+  function pick(exerciseId: ExerciseId) {
+    setPressed(exerciseId);
+    onPick(exerciseId);
+  }
 
   const performed = usePerformedExercises();
 
@@ -104,14 +119,21 @@ export function ExercisePicker({ onPick, onCancel, busy }: ExercisePickerProps) 
       ) : (
         <>
           {trained.length > 0 && (
-            <Group busy={busy} exercises={trained} label="you have trained" onPick={onPick} />
+            <Group
+              busy={busy}
+              exercises={trained}
+              label="you have trained"
+              onPick={pick}
+              pressed={pressed}
+            />
           )}
           {shownRest.length > 0 && (
             <Group
               busy={busy}
               exercises={shownRest}
               label={trained.length > 0 ? 'everything else' : 'the catalog'}
-              onPick={onPick}
+              onPick={pick}
+              pressed={pressed}
             />
           )}
           {/* The list used to end silently at forty, so an exercise ranked
@@ -133,31 +155,56 @@ function Group({
   label,
   exercises,
   busy,
+  pressed,
   onPick,
 }: {
   readonly label: string;
   readonly exercises: readonly Exercise[];
   readonly busy: boolean;
+  /** The row the write belongs to. Every other one is what dims. */
+  readonly pressed: ExerciseId | null;
   readonly onPick: (exerciseId: ExerciseId) => void;
 }) {
   return (
     <section className="flex flex-col gap-2">
       <span className={LABEL}>{label}</span>
       <div className={ROW_LIST}>
-        {exercises.map((exercise) => (
-          <button
-            className={`${ROW} text-left disabled:opacity-60`}
-            disabled={busy}
-            key={exercise.id}
-            onClick={() => onPick(exercise.id)}
-            type="button"
-          >
-            <span className="type-title">{exercise.name}</span>
-            {exercise.category !== null && (
-              <span className="type-measure-sm text-ink-3">{exercise.category}</span>
-            )}
-          </button>
-        ))}
+        {exercises.map((exercise) => {
+          const adding = busy && pressed === exercise.id;
+          return (
+            <button
+              className={cn(
+                ROW,
+                'text-left',
+                // The list is the largest decision point in the product, and its
+                // rows were the only pressable surface in the app wearing no
+                // press at all — forty rows answering a thumb with nothing.
+                PRESS,
+                FOCUS_RING,
+                busy && !adding && 'opacity-60',
+              )}
+              disabled={busy}
+              key={exercise.id}
+              onClick={() => onPick(exercise.id)}
+              type="button"
+            >
+              <span className="flex items-center gap-2 type-title">
+                {exercise.name}
+                {adding && (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="ml-auto shrink-0 animate-spin text-ink-3"
+                    size={16}
+                    strokeWidth={ICON_STROKE}
+                  />
+                )}
+              </span>
+              {exercise.category !== null && (
+                <span className="type-measure-sm text-ink-3">{exercise.category}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </section>
   );

@@ -69,6 +69,7 @@ import { formatPath, parseBackup, toCsv } from '@/domain/backup';
 import type { BackupDocument, StructuralError } from '@/domain/backup';
 import { formatLocalDate } from '@/domain/dates';
 import { longDate, plural } from '@/features/ui/format';
+import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
@@ -247,13 +248,13 @@ export function SettingsScreen() {
       </section>
 
       {failure !== null && (
-        <p className="type-body-sm text-missed-ink" role="alert">
+        <p className="arrive type-body-sm text-missed-ink" role="alert">
           {failure}
         </p>
       )}
 
       {done !== null && (
-        <p aria-live="polite" className="type-body-sm text-ink-2">
+        <p aria-live="polite" className="arrive type-body-sm text-ink-2">
           {done}
         </p>
       )}
@@ -288,11 +289,7 @@ function SettingsSection() {
   // One read, in flight. Rendering the controls at their defaults first would
   // show a lifter their settings reset for a frame before snapping back.
   if (settings === undefined) {
-    return (
-      <section className={WELL}>
-        <p className="type-body-sm text-ink-2">Reading your settings…</p>
-      </section>
-    );
+    return <Reading>your settings</Reading>;
   }
 
   const { defaultUnit, defaultRir, timerVibration, timerSound, keepScreenAwake } = settings;

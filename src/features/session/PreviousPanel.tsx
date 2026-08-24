@@ -26,7 +26,7 @@ import type { ExerciseSession } from '@/domain/types';
 import { useExerciseHistory } from '@/features/data/queries';
 import { Figure } from '@/features/ui/Figure';
 import { setLine } from '@/features/ui/format';
-import { FOCUS_RING, ICON_STROKE, LABEL, PANEL_CARD, WELL } from '@/features/ui/styles';
+import { FOCUS_RING, ICON_STROKE, LABEL, PANEL_CARD, PRESS, WELL } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 export function PreviousPanel({ exerciseSession }: { readonly exerciseSession: ExerciseSession }) {
@@ -57,7 +57,7 @@ export function PreviousPanel({ exerciseSession }: { readonly exerciseSession: E
     // The whole card is the door to the rest of the history, so the whole card
     // presses: a raised panel rather than a flat well, which is how DESIGN.md
     // says a surface admits it is pressable (§11.10, §21).
-    <Link className={cn(PANEL_CARD, FOCUS_RING)} to={`/exercises/${exerciseSession.exerciseId}`}>
+    <Link className={cn(PANEL_CARD, PRESS, FOCUS_RING)} to={`/exercises/${exerciseSession.exerciseId}`}>
       <span className={cn(LABEL, 'flex items-center')}>
         <History aria-hidden="true" className="mr-1.5 inline" size={13} strokeWidth={ICON_STROKE} />
         previous · all history

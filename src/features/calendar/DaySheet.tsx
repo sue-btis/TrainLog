@@ -182,6 +182,7 @@ function PlacementRow({ placement, name, state, today, onMoved }: PlacementRowPr
         <div className="ml-auto flex items-center gap-2">
           {confirming && (
             <Button
+              className="arrive"
               disabled={busy}
               onClick={() => setConfirming(false)}
               size="compact"
@@ -216,11 +217,13 @@ function PlacementRow({ placement, name, state, today, onMoved }: PlacementRowPr
       </div>
 
       {confirming && (
-        <p className={LABEL}>this removes the plan for that day — any session you recorded stays</p>
+        <p className={cn(LABEL, 'arrive')}>
+          this removes the plan for that day — any session you recorded stays
+        </p>
       )}
 
       {failure !== null && (
-        <p className="type-body-sm text-missed-ink" role="alert">
+        <p className="arrive type-body-sm text-missed-ink" role="alert">
           {failure}
         </p>
       )}

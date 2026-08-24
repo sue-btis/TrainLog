@@ -47,6 +47,7 @@ import {
 } from '@/features/data/queries';
 import { DayPlan, DayRecord } from '@/features/calendar/DaySheet';
 import { MonthGrid, firstOfMonth, monthGrid, sameMonth } from '@/features/calendar/MonthGrid';
+import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, WELL } from '@/features/ui/styles';
 
 export function CalendarScreen() {
@@ -61,8 +62,18 @@ export function CalendarScreen() {
   const first = grid[0] ?? month;
   const last = grid[grid.length - 1] ?? month;
 
-  const placements = usePlacementsBetween(first, last) ?? [];
-  const sessions = useSessionsBetween(first, last) ?? [];
+  // Held apart from the `?? []` below on purpose. Collapsing the read into an
+  // empty array made a query still running indistinguishable from a month with
+  // nothing in it, and the empty state does not hedge — it says "Nothing
+  // planned this month" and offers to import a routine, over a calendar that
+  // was about to draw one. `useLiveQuery` keeps its last result across a month
+  // change, so this is the cold open and nothing else.
+  const monthPlacements = usePlacementsBetween(first, last);
+  const monthSessions = useSessionsBetween(first, last);
+  const reading = monthPlacements === undefined || monthSessions === undefined;
+
+  const placements = monthPlacements ?? [];
+  const sessions = monthSessions ?? [];
   const workouts = useWorkoutsById([
     ...placements.map((placement) => placement.workoutId),
     ...sessions.map((session) => session.workoutId),
@@ -95,7 +106,13 @@ export function CalendarScreen() {
     <>
       <Card>
         <MonthGrid
-          caption={<p className="text-center type-measure-sm text-ink-3">{tallyLine(tally)}</p>}
+          // The tally is the same sentence in miniature: "nothing planned"
+          // under the month name, for a month whose Placements are in flight.
+          caption={
+            <p className="text-center type-measure-sm text-ink-3">
+              {reading ? 'reading…' : tallyLine(tally)}
+            </p>
+          }
           month={month}
           onMonthChange={goToMonth}
           onSelect={setSelected}
@@ -118,7 +135,7 @@ export function CalendarScreen() {
         )}
 
         {/* The day a cell contains, inside the card that was pressed. */}
-        {!empty && (
+        {!empty && !reading && (
           <DayPlan
             date={selected}
             onMoved={followMove}
@@ -130,7 +147,9 @@ export function CalendarScreen() {
         )}
       </Card>
 
-      {empty ? (
+      {reading ? (
+        <Reading>this month</Reading>
+      ) : empty ? (
         <section className={WELL}>
           <CalendarOff aria-hidden="true" className="text-ink-3" size={24} strokeWidth={ICON_STROKE} />
           <p className="type-title">Nothing planned this month</p>

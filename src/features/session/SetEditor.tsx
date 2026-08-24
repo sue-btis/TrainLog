@@ -88,7 +88,10 @@ export function SetEditor({
       />
 
       {armed ? (
-        <>
+        // One `arrive` on the group, not three racing each other: the warning and
+        // the two buttons that follow it are a single change of what this panel
+        // is asking.
+        <div className="arrive flex flex-col gap-3">
           <p className="type-body-sm text-ink-2">
             Set {set.setNumber} goes for good, and the sets after it move up a place.
           </p>
@@ -104,7 +107,7 @@ export function SetEditor({
           >
             Keep it
           </Button>
-        </>
+        </div>
       ) : (
         <Button
           disabled={busy || values.reps === 0}
