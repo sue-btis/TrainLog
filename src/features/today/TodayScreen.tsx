@@ -17,13 +17,13 @@
 
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Activity, CalendarX, CheckCircle2, FileUp, Play, Timer } from 'lucide-react';
+import { Activity, CalendarX, CheckCircle2, FileUp, LoaderCircle, Play, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createStartedWorkout } from '@/db';
 import { addDays, formatLocalDate } from '@/domain/dates';
-import type { RoutineId, WorkoutId } from '@/domain/ids';
+import type { WorkoutId } from '@/domain/ids';
 import { estimateDuration, isMissed, nextWorkoutInRotation } from '@/domain/scheduling';
 import { startWorkout } from '@/domain/session';
 import type { PlannedExercise, Session, Workout } from '@/domain/types';
@@ -38,6 +38,7 @@ import {
   useWorkouts,
 } from '@/features/data/queries';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
+import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
   longDate,
   plural,
@@ -75,7 +76,7 @@ export function TodayScreen() {
   const sessions = useSessionsByRoutine(routineId) ?? [];
 
   const [picked, setPicked] = useState<WorkoutId | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  const { busy, failure, run } = useAsyncAction();
   const suggested = suggestWorkout(workouts, todaysPlacements.map((p) => p.workoutId), lastPerformed);
   const shown = workouts.find((workout) => workout.id === picked) ?? suggested;
   const placed = todaysPlacements.some((placement) => placement.workoutId === shown?.id);
@@ -132,7 +133,9 @@ export function TodayScreen() {
 
       <div className="flex flex-col gap-1">
         <p className="type-lede text-ink-2">{longDate(today)}</p>
-        {routine !== undefined && <p className="type-lot text-ink-3">{routine.name}</p>}
+        {routine !== undefined && routine !== null && (
+          <p className="type-lot text-ink-3">{routine.name}</p>
+        )}
       </div>
 
       {failure !== null && (
@@ -142,6 +145,8 @@ export function TodayScreen() {
       )}
 
       {routine === undefined ? (
+        <Reading />
+      ) : routine === null ? (
         <NoRoutine />
       ) : shown === null ? (
         <section className={WELL}>
@@ -172,8 +177,24 @@ export function TodayScreen() {
 
             <TabsContent value={shown.id}>
               <WorkoutCard
+                busy={busy}
                 onStart={(exercises) =>
-                  void start(routine.id, shown.id, exercises, navigate, setFailure)
+                  // R-2 — the Session and every snapshotted exercise are written
+                  // in one transaction, so `/session` cannot arrive before the
+                  // rows it reads exist. A refusal (REQ-058: another session is
+                  // already open) surfaces through `failure` rather than being
+                  // swallowed into a screen that silently did nothing.
+                  void run(async () => {
+                    await createStartedWorkout(
+                      startWorkout({
+                        routineId: routine.id,
+                        workoutId: shown.id,
+                        planned: exercises,
+                        startedAt: Date.now(),
+                      }),
+                    );
+                    await navigate('/session');
+                  })
                 }
                 open={open !== undefined}
                 recordedToday={recordedToday}
@@ -185,6 +206,22 @@ export function TodayScreen() {
         </>
       )}
     </>
+  );
+}
+
+/**
+ * The first read, still running.
+ *
+ * Not `NoRoutine`, which is what stood here: `useActiveRoutine` answers
+ * `undefined` while it reads and `null` when there is nothing to read, and one
+ * branch covering both meant the app opened on "No active routine — import a
+ * routine file" for every lifter who already had one.
+ */
+function Reading() {
+  return (
+    <section className={WELL}>
+      <p className="type-body-sm text-ink-2">Reading today…</p>
+    </section>
   );
 }
 
@@ -207,10 +244,12 @@ interface WorkoutCardProps {
   readonly open: boolean;
   /** A finished Session for this Workout, today, if there is one (§11.4). */
   readonly recordedToday: Session | undefined;
+  /** Whether the start is already in flight — the control it belongs to says so. */
+  readonly busy: boolean;
   readonly onStart: (exercises: readonly PlannedExercise[]) => void;
 }
 
-function WorkoutCard({ workout, open, recordedToday, onStart }: WorkoutCardProps) {
+function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCardProps) {
   const exercises = usePlannedExercises(workout.id) ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
 
@@ -264,47 +303,34 @@ function WorkoutCard({ workout, open, recordedToday, onStart }: WorkoutCardProps
               Trained today — see the session
             </Link>
           </Button>
-          <Button onClick={() => onStart(exercises)} size="block" type="button" variant="quiet">
-            Train it again
+          <Button
+            disabled={busy}
+            onClick={() => onStart(exercises)}
+            size="block"
+            type="button"
+            variant="quiet"
+          >
+            {busy ? 'Starting…' : 'Train it again'}
           </Button>
         </>
       ) : (
         <Button
+          disabled={busy}
           onClick={() => onStart(exercises)}
           size="block"
           type="button"
           variant="primary"
         >
-          <Play aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Start workout
+          {busy ? (
+            <LoaderCircle aria-hidden="true" className="animate-spin" size={20} strokeWidth={ICON_STROKE} />
+          ) : (
+            <Play aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          )}
+          {busy ? 'Starting…' : 'Start workout'}
         </Button>
       )}
     </Card>
   );
-}
-
-/**
- * R-2 — starts the Workout and leaves for gym mode.
- *
- * The Session and every snapshotted exercise are written in one transaction, so
- * navigating into `/session` cannot arrive before the rows it reads exist. A
- * refusal (REQ-058: another session is already open) surfaces its own message
- * rather than being swallowed into a screen that silently did nothing.
- */
-async function start(
-  routineId: RoutineId,
-  workoutId: WorkoutId,
-  planned: readonly PlannedExercise[],
-  navigate: (to: string) => void | Promise<void>,
-  onFailure: (message: string | null) => void,
-): Promise<void> {
-  onFailure(null);
-  try {
-    await createStartedWorkout(startWorkout({ routineId, workoutId, planned, startedAt: Date.now() }));
-    await navigate('/session');
-  } catch (error) {
-    onFailure(error instanceof Error ? error.message : String(error));
-  }
 }
 
 /** The last time this Workout was trained — §11.4's "última sesión". */

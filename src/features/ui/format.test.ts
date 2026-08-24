@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { toId } from '@/domain/ids';
 import type { ExerciseId, ExerciseSessionId, PlannedExerciseId, SessionId } from '@/domain/ids';
 import type { PlannedExerciseSession } from '@/domain/types';
-import { snapshotLine } from '@/features/ui/format';
+import { snapshotFigures, snapshotLine } from '@/features/ui/format';
 
 const snapshot: PlannedExerciseSession = {
   id: toId<ExerciseSessionId>('es-1'),
@@ -57,5 +57,19 @@ describe('snapshotLine (AC-6)', () => {
         plannedRestSeconds: null,
       }),
     ).toBe('3×8');
+  });
+});
+
+describe('snapshotFigures', () => {
+  it('holds its three columns whatever the snapshot omits', () => {
+    // The point of the em dash: `snapshotLine` may drop a part, a row of three
+    // may not — losing the middle column would slide `rest` under `RIR`.
+    expect(
+      snapshotFigures({ ...snapshot, plannedMinRir: null, plannedMaxRir: null }).map((f) => f.value),
+    ).toEqual(['4 × 4–6', '—', '210s']);
+
+    expect(
+      snapshotFigures({ ...snapshot, plannedRestSeconds: null }).map((f) => f.value),
+    ).toEqual(['4 × 4–6', '1–2', '—']);
   });
 });

@@ -8,7 +8,7 @@
  */
 
 import { useRef } from 'react';
-import { FileUp, TriangleAlert } from 'lucide-react';
+import { FileUp, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatPath, type StructuralError } from '@/domain/routine-file';
 import { EXAMPLE_ROUTINE_YAML, FIELD_NOTES } from '@/domain/routine-file/example';
@@ -18,10 +18,12 @@ interface FileStepProps {
   readonly fileName: string | null;
   readonly errors: readonly StructuralError[] | null;
   readonly unreadable: string | null;
+  /** The chosen file is being read and parsed. The control it came from says so. */
+  readonly reading: boolean;
   readonly onFile: (file: File) => void;
 }
 
-export function FileStep({ fileName, errors, unreadable, onFile }: FileStepProps) {
+export function FileStep({ fileName, errors, unreadable, reading, onFile }: FileStepProps) {
   const input = useRef<HTMLInputElement>(null);
   const rejected = errors !== null || unreadable !== null;
 
@@ -86,13 +88,22 @@ export function FileStep({ fileName, errors, unreadable, onFile }: FileStepProps
         type="file"
       />
       <Button
+        disabled={reading}
         onClick={() => input.current?.click()}
         size="block"
         type="button"
         variant={rejected ? 'secondary' : 'primary'}
       >
-        <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-        {rejected ? 'Choose another file' : 'Choose a routine file'}
+        {reading ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" size={20} strokeWidth={ICON_STROKE} />
+        ) : (
+          <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+        )}
+        {reading
+          ? 'Reading the file…'
+          : rejected
+            ? 'Choose another file'
+            : 'Choose a routine file'}
       </Button>
 
       {/* What the file has to look like, shipped.

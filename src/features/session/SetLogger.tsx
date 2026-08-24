@@ -24,16 +24,50 @@
  * because that is the granularity its plates actually come in (§29).
  */
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Check, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { ExerciseSession } from '@/domain/types';
 import type { Unit } from '@/domain/units';
 import { ICON_STROKE, LABEL, READOUT, READOUT_INPUT, STEPPER } from '@/features/ui/styles';
+import { cn } from '@/lib/utils';
 
 export interface SetValues {
   readonly weight: number;
   readonly reps: number;
   readonly rir: number;
+}
+
+/**
+ * The window the programme asked for, per value — `null` where it asked for
+ * nothing. Weight has none on purpose: §29 makes the load the thing that moves,
+ * and a plan states reps and RIR, never a weight to hit.
+ *
+ * Read off the ExerciseSession's own snapshot, never through
+ * `plannedExerciseId` (ADR 0002), so a routine edited mid-session cannot change
+ * what the set in front of you was measured against.
+ */
+export interface SetTargets {
+  readonly reps: readonly [number, number] | null;
+  readonly rir: readonly [number, number] | null;
+}
+
+/** No plan, so nothing to deviate from — an unplanned exercise (FR-14). */
+export const NO_TARGETS: SetTargets = { reps: null, rir: null };
+
+/**
+ * The targets an ExerciseSession carries. An unplanned exercise has none, and
+ * RIR is optional even on a planned one: §32 lets a programme leave it unsaid,
+ * and an unsaid range must not be drawn as a range you are outside of.
+ */
+export function targetsOf(exerciseSession: ExerciseSession): SetTargets {
+  if (exerciseSession.plannedExerciseId === null) return NO_TARGETS;
+  const { plannedMinReps, plannedMaxReps, plannedMinRir, plannedMaxRir } = exerciseSession;
+  return {
+    reps: [plannedMinReps, plannedMaxReps],
+    rir:
+      plannedMinRir === null || plannedMaxRir === null ? null : [plannedMinRir, plannedMaxRir],
+  };
 }
 
 interface SetLoggerProps {
@@ -43,6 +77,7 @@ interface SetLoggerProps {
   readonly unit: Unit;
   /** The plate granularity of this exercise (§29), or 2.5 where none is declared. */
   readonly weightStep: number;
+  readonly targets: SetTargets;
   readonly onComplete: () => void;
   readonly busy: boolean;
 }
@@ -60,11 +95,13 @@ export function SetFields({
   onChange,
   unit,
   weightStep,
+  targets,
 }: {
   readonly values: SetValues;
   readonly onChange: (values: SetValues) => void;
   readonly unit: Unit;
   readonly weightStep: number;
+  readonly targets: SetTargets;
 }) {
   return (
     <>
@@ -83,12 +120,14 @@ export function SetFields({
           label="reps"
           onChange={(reps) => onChange({ ...values, reps })}
           step={1}
+          target={targets.reps}
           value={values.reps}
         />
         <Field
           label="RIR"
           onChange={(rir) => onChange({ ...values, rir })}
           step={1}
+          target={targets.rir}
           value={values.rir}
         />
       </div>
@@ -102,6 +141,7 @@ export function SetLogger({
   onChange,
   unit,
   weightStep,
+  targets,
   onComplete,
   busy,
 }: SetLoggerProps) {
@@ -109,7 +149,13 @@ export function SetLogger({
     <section className="flex flex-col gap-3">
       <span className={LABEL}>set {setNumber}</span>
 
-      <SetFields onChange={onChange} unit={unit} values={values} weightStep={weightStep} />
+      <SetFields
+        onChange={onChange}
+        targets={targets}
+        unit={unit}
+        values={values}
+        weightStep={weightStep}
+      />
 
       {/* Zero reps is the one combination that is not a set. A load of zero is
           a bodyweight exercise and an RIR of zero is a set taken to failure —
@@ -133,6 +179,8 @@ interface FieldProps {
   readonly value: number;
   readonly step: number;
   readonly unit?: Unit;
+  /** The programme's window for this value, or `null` where it stated none. */
+  readonly target?: readonly [number, number] | null;
   readonly onChange: (value: number) => void;
 }
 
@@ -162,8 +210,15 @@ function normalize(value: number): number {
  * not a non-negative number falls back to the last good value rather than
  * announcing an error nobody can read mid-set.
  */
-function Field({ label, value, step, unit, onChange }: FieldProps) {
+function Field({ label, value, step, unit, target, onChange }: FieldProps) {
   const [draft, setDraft] = useState<string | null>(null);
+  const hintId = useId();
+
+  // Deviating is legitimate training (FR-14): the field says so and stays
+  // editable. Nothing here disables a stepper, refuses a value or blocks the
+  // green button — a lifter who got eight reps on a four-to-six set did eight
+  // reps, and a log that argues with them is a log that gets falsified.
+  const off = target !== null && target !== undefined && (value < target[0] || value > target[1]);
 
   const shift = (by: number) => {
     setDraft(null);
@@ -192,12 +247,23 @@ function Field({ label, value, step, unit, onChange }: FieldProps) {
         <Minus aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
       </button>
 
-      <label className={READOUT}>
+      <label className={cn(READOUT, off && 'ring-1 ring-missed')}>
         <span className={LABEL}>
           {label}
           {unit !== undefined && <span className="text-ink-3"> · {unit}</span>}
+          {/* The mark, and only the mark. The window itself is already in the
+              header snapshot — `4×4–6 · RIR 1–2` — and repeating the numbers
+              here put the same two figures on screen twice, three lines apart.
+              What the header cannot say is whether the value in this field is
+              inside them. */}
+          {off && (
+            <span className="text-missed-ink" id={hintId}>
+              {' · off plan'}
+            </span>
+          )}
         </span>
         <input
+          aria-describedby={off ? hintId : undefined}
           aria-label={unit === undefined ? label : `${label} in ${unit}`}
           className={READOUT_INPUT}
           // `decimal` rather than `numeric`: reps and RIR are whole, but weight

@@ -19,12 +19,15 @@ import { Check, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CompletedSet } from '@/domain/types';
 import type { Unit } from '@/domain/units';
-import { SetFields, type SetValues } from '@/features/session/SetLogger';
+import { SetFields, type SetTargets, type SetValues } from '@/features/session/SetLogger';
 import { ICON_STROKE, LABEL } from '@/features/ui/styles';
 
 interface SetEditorProps {
   readonly set: CompletedSet;
   readonly weightStep: number;
+  /** The same windows the logger marks against — a correction is measured by
+      the plan too, or the marking would vanish the moment you fixed a typo. */
+  readonly targets: SetTargets;
   readonly onSave: (values: SetValues, unit: Unit) => void;
   readonly onDelete: () => void;
   readonly onCancel: () => void;
@@ -34,6 +37,7 @@ interface SetEditorProps {
 export function SetEditor({
   set,
   weightStep,
+  targets,
   onSave,
   onDelete,
   onCancel,
@@ -77,6 +81,7 @@ export function SetEditor({
 
       <SetFields
         onChange={setValues}
+        targets={targets}
         unit={set.unit}
         values={values}
         weightStep={weightStep}

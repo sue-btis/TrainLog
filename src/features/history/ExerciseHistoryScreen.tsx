@@ -23,9 +23,9 @@ import { formatLocalDate } from '@/domain/dates';
 import { summarizeExercise, type ExerciseSummary } from '@/domain/history';
 import type { ExerciseId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
-import type { CompletedSet } from '@/domain/types';
 import { useExerciseHistory, useExerciseNames } from '@/features/data/queries';
-import { longDate, plural, sessionStatusLabel, shortDate } from '@/features/ui/format';
+import { Figure } from '@/features/ui/Figure';
+import { load, longDate, plural, sessionStatusLabel, setLine, shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
 import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -95,15 +95,6 @@ function Figures({ summary }: { readonly summary: ExerciseSummary }) {
         <Figure label="lightest" value={setLine(summary.lightest)} />
       </div>
     </Card>
-  );
-}
-
-function Figure({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className={LABEL}>{label}</span>
-      <span className="type-readout text-ink">{value}</span>
-    </div>
   );
 }
 
@@ -186,11 +177,3 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
 }
 
 /** `75 kg`, in the unit it was actually lifted in (§11.7). */
-function load(set: CompletedSet | null): string {
-  return set === null ? '—' : `${set.weight} ${set.unit}`;
-}
-
-/** `77.5 × 5` — §11.10's own notation for a set. */
-function setLine(set: CompletedSet | null): string {
-  return set === null ? '—' : `${set.weight} × ${set.reps}`;
-}

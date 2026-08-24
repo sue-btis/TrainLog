@@ -8,6 +8,7 @@
 
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import type {
+  CompletedSet,
   ExerciseSessionStatus,
   PlannedExercise,
   PlannedExerciseSession,
@@ -47,6 +48,40 @@ export function snapshotLine(planned: PlannedExerciseSession): string {
   }
   if (planned.plannedRestSeconds !== null) parts.push(`rest ${planned.plannedRestSeconds}s`);
   return parts.join(' · ');
+}
+
+/**
+ * The same snapshot as three labelled figures rather than one line — what gym
+ * mode draws above the domes.
+ *
+ * `snapshotLine` is kept and untouched: session history reads a sentence, and
+ * AC-6 pins its notation. This is the same facts for a screen that reads them
+ * one at a time, between sets, with a barbell in the other hand.
+ *
+ * An em dash where the programme said nothing. `snapshotLine` drops those parts
+ * instead, because a sentence can be shorter; a row of three cannot lose its
+ * middle column without the two beside it moving.
+ */
+export function snapshotFigures(
+  planned: PlannedExerciseSession,
+): readonly { readonly label: string; readonly value: string }[] {
+  return [
+    {
+      label: 'sets × reps',
+      value: `${planned.plannedSets} × ${range(planned.plannedMinReps, planned.plannedMaxReps)}`,
+    },
+    {
+      label: 'RIR',
+      value:
+        planned.plannedMinRir === null || planned.plannedMaxRir === null
+          ? '—'
+          : range(planned.plannedMinRir, planned.plannedMaxRir),
+    },
+    {
+      label: 'rest',
+      value: planned.plannedRestSeconds === null ? '—' : `${planned.plannedRestSeconds}s`,
+    },
+  ];
 }
 
 /** `Wed, 19 Aug` */
@@ -115,4 +150,14 @@ export function exerciseStatusLabel(status: ExerciseSessionStatus): string {
     case 'skipped':
       return 'skipped';
   }
+}
+
+/** `52.5 kg` — a load on its own, without the reps it was done for. */
+export function load(set: CompletedSet | null): string {
+  return set === null ? '—' : `${set.weight} ${set.unit}`;
+}
+
+/** `77.5 × 5` — §11.10's own notation for a set. */
+export function setLine(set: CompletedSet | null): string {
+  return set === null ? '—' : `${set.weight} × ${set.reps}`;
 }

@@ -30,6 +30,41 @@ import { cn } from '@/lib/utils';
 const DEFAULT_BUMP = 30;
 
 /**
+ * How long the dock takes to drain, in step with `§ …and drains`.
+ *
+ * Skip does not remove the timer directly — it starts the exit and hands the
+ * removal to the end of it. React unmounts on the parent's say-so and gives an
+ * element no chance to animate on the way out, so the component has to own the
+ * delay itself. Under `prefers-reduced-motion` there is no exit to wait for and
+ * the dismissal is immediate.
+ */
+const EXIT_MS = 360;
+
+/**
+ * How long the spent dock stays before it drains itself, in milliseconds.
+ *
+ * A rest that is up does not need its dock any more — gym mode hides the
+ * navigation precisely to leave the thumb zone clear, and a countdown reading
+ * 0:00 for the rest of the session is the opposite of that. But it cannot
+ * leave on the beep either: `Restart` at zero is "I am taking another full
+ * rest" and `Add 30s` is "I am not ready", and those are the two things a
+ * lifter is most likely to want in the seconds right after it. So it waits.
+ *
+ * Two seconds: long enough to read "rest is up" and to catch a thumb already
+ * moving toward the dock, short enough that the beep and the dock leaving are
+ * one event rather than two. It is deliberately not long enough to decide in —
+ * a lifter who wants another rest presses Restart on the next screen's `+`, or
+ * logs the set and gets a fresh one. Waiting is the countdown's job, not the
+ * spent dock's.
+ *
+ * Touching either control still cancels the wait — both put time back on the
+ * clock, `remaining` stops being zero, and the effect below tears the pending
+ * dismissal down. That is what keeps them from being taken away rather than
+ * the length of the wait.
+ */
+const GRACE_MS = 2_000;
+
+/**
  * The rest-is-up beep (§32), synthesised rather than played.
  *
  * An audio file would be one more asset the service worker has to have cached
@@ -96,6 +131,21 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
   const [bump, setBump] = useState(DEFAULT_BUMP);
   const [bumpDraft, setBumpDraft] = useState<string | null>(null);
   const buzzed = useRef(false);
+  /**
+   * Whether the dock is draining. Two things start it — Skip, and the rest
+   * running out — and one effect finishes it, so both ways out look the same
+   * and neither has to know about the other.
+   */
+  const [leaving, setLeaving] = useState(false);
+
+  // Held in a ref because the removal effect must key on `leaving` alone. This
+  // component re-renders every second, and an effect that also depended on the
+  // callback's identity would restart its own timeout on every tick — a
+  // dismissal that reschedules itself forever and never fires.
+  const dismiss = useRef(onSkip);
+  useEffect(() => {
+    dismiss.current = onSkip;
+  }, [onSkip]);
 
   // Each tick *re-reads* the clock rather than adding a second to the last
   // value. That is what survives a suspended timer: the interval may fire late,
@@ -127,9 +177,34 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
     if (sound) beep();
   }, [remaining, vibrate, sound]);
 
+  // A spent rest sees itself out. Adding time or restarting puts the clock back
+  // above zero, which re-runs this and clears the pending exit — which is why
+  // the controls survive the wait rather than being taken away with the dock.
+  useEffect(() => {
+    if (remaining > 0 || leaving) return undefined;
+    const grace = window.setTimeout(() => setLeaving(true), GRACE_MS);
+    return () => window.clearTimeout(grace);
+  }, [remaining, leaving]);
+
+  // The one place the dock is actually removed, for both ways out. React
+  // unmounts on the parent's say-so and gives an element no chance to animate
+  // on the way out, so the removal is held back until the drain has run. Under
+  // `prefers-reduced-motion` there is no drain to wait for. The cleanup also
+  // covers being replaced mid-drain by a new rest: the dismissal would fire
+  // against a `since` that is no longer current, which `pendingRest` ignores,
+  // but a timer outliving its component stays harmless only until it doesn't.
+  useEffect(() => {
+    if (!leaving) return undefined;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    const id = window.setTimeout(() => dismiss.current(), reduced ? 0 : EXIT_MS);
+    return () => window.clearTimeout(id);
+  }, [leaving]);
+
   const total = seconds + added;
   const minutes = Math.floor(remaining / 60);
   const paused = pausedAt !== null;
+
+
 
   function commitBump() {
     if (bumpDraft === null) return;
@@ -140,13 +215,36 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
   }
 
   return (
-    <section aria-label="Rest timer" className={TIMER_SHELL}>
+    <section
+      aria-label="Rest timer"
+      className={cn(TIMER_SHELL, leaving ? 'timer-leaving' : 'timer-arrive')}
+    >
+      <TimerGoo />
+
+      {/* The amber the dock arrives as. Three overlapping lobes rather than one
+          rectangle: the goo fuses them into a single surface whose top edge
+          undulates while they rise and levels as they land, which is where the
+          squash and the settle come from — a full-width rectangle can only
+          translate. Three droplets are thrown ahead of it and swallowed.
+
+          They draw the fill for as long as they run and the dock's own
+          `bg-live-ink` waits underneath; once they are flat and above the top
+          edge the two trade places, and by then both are the same rectangle. */}
+      <span aria-hidden="true" className="timer-liquid">
+        <span className="timer-lobe timer-lobe-a bg-live-ink" />
+        <span className="timer-lobe timer-lobe-b bg-live-ink" />
+        <span className="timer-lobe timer-lobe-c bg-live-ink" />
+        <span className="timer-drop timer-drop-a bg-live-ink" />
+        <span className="timer-drop timer-drop-b bg-live-ink" />
+        <span className="timer-drop timer-drop-c bg-live-ink" />
+      </span>
+
       {/* The rail *scales*; it does not resize. DESIGN.md forbids animating
           width, and a transform is what the GPU can carry for three minutes
           without waking the main thread. It rides the dock's top edge, the one
           border the lifter can see — along the bottom it would sit under the
           home indicator. */}
-      <div className={TIMER_TRACK}>
+      <div className={cn(TIMER_TRACK, 'timer-rail-in')}>
         <div
           className={TIMER_RAIL}
           // Named so the reduced-motion block can spare it: the rail is the
@@ -162,7 +260,7 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
           and 56px type would cost the set being logged the space the dock was
           moved here to give back. */}
       <div
-        className="mx-auto flex w-full max-w-lg items-center gap-1 px-4 pt-3"
+        className="timer-content mx-auto flex w-full max-w-lg items-center gap-1 px-4 pt-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
         <div className="flex min-w-0 flex-1 flex-col">
@@ -193,7 +291,7 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
         >
           <RotateCcw aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </Control>
-        <Control label="Skip rest" onClick={onSkip}>
+        <Control label="Skip rest" onClick={() => setLeaving(true)}>
           <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </Control>
 
@@ -227,6 +325,35 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
         </Control>
       </div>
     </section>
+  );
+}
+
+/**
+ * The gooey filter for the dock. Same recipe as the rest of the system's: blur
+ * the shapes together, then ramp the alpha back to a hard edge so a droplet
+ * fuses into the rising surface instead of fading into it.
+ *
+ * `stdDeviation` is 5 rather than the 3–4 used elsewhere because this surface
+ * is the width of the screen: at the smaller radius the droplets meet it in a
+ * seam rather than a merge, and the seams between the three lobes stay
+ * readable as seams instead of fusing. The region has to cover lobes that are
+ * both taller and wider than the dock they are declared inside — the outer two
+ * deliberately overhang its left and right edges.
+ */
+function TimerGoo() {
+  return (
+    <svg aria-hidden="true" className="pointer-events-none absolute size-0" focusable="false">
+      <defs>
+        <filter height="200%" id="timer-goo" width="140%" x="-20%" y="-80%">
+          <feGaussianBlur in="SourceGraphic" result="blur" stdDeviation="5" />
+          <feColorMatrix
+            in="blur"
+            mode="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"
+          />
+        </filter>
+      </defs>
+    </svg>
   );
 }
 

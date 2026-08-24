@@ -65,8 +65,10 @@ export {
 } from '@/db/repositories/settings';
 
 export {
+  SessionHasSetsError,
   SessionInProgressError,
   createStartedWorkout,
+  discardSession,
   getInProgressSession,
   getLastPerformedWorkout,
   getSession,

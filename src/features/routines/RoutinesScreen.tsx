@@ -31,11 +31,17 @@ import { useRoutines, useSessionsByRoutine } from '@/features/data/queries';
 import { ConversionPromptButton } from '@/features/import/ConversionPromptButton';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
 import { plural, shortDate } from '@/features/ui/format';
+import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
 import { formatLocalDate } from '@/domain/dates';
 
 export function RoutinesScreen() {
   const routines = useRoutines();
+  // Activating and archiving used to be bare promises handed to an `onClick`
+  // typed `() => void`: nothing awaited them, nothing caught them, and nothing
+  // on screen said a write was running. Archiving the active Routine changes
+  // what Today shows, so it is worth more than silence.
+  const { busy, failure, run } = useAsyncAction();
   const [refusal, setRefusal] = useState<{ routineId: RoutineId; message: string } | null>(null);
 
   async function remove(routine: Routine) {
@@ -63,6 +69,12 @@ export function RoutinesScreen() {
 
       <ConversionPromptButton />
 
+      {failure !== null && (
+        <p className="type-body-sm text-missed-ink" role="alert">
+          {failure}
+        </p>
+      )}
+
       {routines === undefined ? null : routines.length === 0 ? (
         <section className={WELL}>
           <p className="type-title">No routines yet</p>
@@ -74,10 +86,11 @@ export function RoutinesScreen() {
       ) : (
         routines.map((routine) => (
           <RoutineRow
+            busy={busy}
             key={routine.id}
-            onActivate={() => activateRoutine(routine.id)}
-            onArchive={() => archiveRoutine(routine.id)}
-            onDelete={() => remove(routine)}
+            onActivate={() => void run(() => activateRoutine(routine.id))}
+            onArchive={() => void run(() => archiveRoutine(routine.id))}
+            onDelete={() => void run(() => remove(routine))}
             refusal={refusal?.routineId === routine.id ? refusal.message : null}
             routine={routine}
           />
@@ -90,12 +103,14 @@ export function RoutinesScreen() {
 interface RoutineRowProps {
   readonly routine: Routine;
   readonly refusal: string | null;
+  /** A write is running somewhere on this screen — no row offers a second one. */
+  readonly busy: boolean;
   readonly onActivate: () => void;
   readonly onArchive: () => void;
   readonly onDelete: () => void;
 }
 
-function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: RoutineRowProps) {
+function RoutineRow({ routine, refusal, busy, onActivate, onArchive, onDelete }: RoutineRowProps) {
   const [confirming, setConfirming] = useState(false);
   const active = routine.status === 'active';
 
@@ -140,12 +155,12 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
         </Button>
 
         {active ? (
-          <Button onClick={onArchive} size="compact" type="button" variant="secondary">
+          <Button disabled={busy} onClick={onArchive} size="compact" type="button" variant="secondary">
             <Archive aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
             Archive
           </Button>
         ) : (
-          <Button onClick={onActivate} size="compact" type="button" variant="secondary">
+          <Button disabled={busy} onClick={onActivate} size="compact" type="button" variant="secondary">
             <Play aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
             Make active
           </Button>
@@ -171,7 +186,7 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
                   : `Delete ${routine.name}`
             }
             className={confirming ? 'shadow-none' : undefined}
-            disabled={blocked}
+            disabled={blocked || busy}
             onClick={() => {
               if (confirming) {
                 setConfirming(false);
@@ -193,9 +208,7 @@ function RoutineRow({ routine, refusal, onActivate, onArchive, onDelete }: Routi
       {blocked && (
         <p className="type-body-sm text-ink-2">
           {plural(sessions.length, 'session')} in your history{' '}
-          {sessions.length === 1 ? 'references' : 'reference'} this routine, so it cannot be
-          deleted. Archive it instead — it leaves Today and the calendar, and your history
-          keeps pointing at something real.
+          {sessions.length === 1 ? 'uses' : 'use'} this routine. Archive it instead — it leaves Today and the calendar, your history stays intact.
         </p>
       )}
 

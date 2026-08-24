@@ -122,9 +122,16 @@ export function usePreviousPerformance(exerciseId: ExerciseId, excludeSessionId:
 
 /* ── The app shell's reads ─────────────────────────────────────────────── */
 
-/** The Routine the app is currently running, or `undefined` (§11.2). */
+/**
+ * The Routine the app is currently running (§11.2). `undefined` while the query
+ * is in flight, `null` when no Routine is active — the same distinction
+ * `useRoutine` makes, and for a sharper reason: Today renders "No active
+ * routine — import a routine file" for the empty case, so a read that was
+ * merely still running used to open the app on an invitation to import a
+ * routine the lifter already had.
+ */
 export function useActiveRoutine() {
-  return useLiveQuery(() => getActiveRoutine(), []);
+  return useLiveQuery(async () => (await getActiveRoutine()) ?? null, []);
 }
 
 /**

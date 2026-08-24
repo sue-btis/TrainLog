@@ -29,6 +29,7 @@ import {
   FileUp,
   Gauge,
   HardDrive,
+  LoaderCircle,
   RotateCcw,
   Scale,
   Smartphone,
@@ -70,6 +71,7 @@ import { formatLocalDate } from '@/domain/dates';
 import { longDate, plural } from '@/features/ui/format';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
+import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
   isInstalled,
   readStorageDurability,
@@ -97,6 +99,9 @@ function stamp(prefix: string, extension: string): string {
 
 export function SettingsScreen() {
   const input = useRef<HTMLInputElement>(null);
+  // One flag for the whole screen: while a restore is rewriting every table,
+  // an export is not something a lifter should be able to start beside it.
+  const { busy, failure, run } = useAsyncAction();
   const [pending, setPending] = useState<Pending | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -163,9 +168,15 @@ export function SettingsScreen() {
         </p>
         <BackupAge />
 
-        <Button onClick={() => void exportJson()} size="block" type="button" variant="primary">
-          <Download aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Export backup
+        <Button
+          disabled={busy}
+          onClick={() => void run(exportJson)}
+          size="block"
+          type="button"
+          variant="primary"
+        >
+          <Working busy={busy} icon={Download} />
+          {busy ? 'Exporting…' : 'Export backup'}
         </Button>
 
         <div className={RULED}>
@@ -186,7 +197,7 @@ export function SettingsScreen() {
               const chosen = event.target.files?.[0];
               // Clearing the value lets the same file be chosen twice in a row.
               event.target.value = '';
-              if (chosen) void choose(chosen);
+              if (chosen) void run(() => choose(chosen));
             }}
             ref={input}
             tabIndex={-1}
@@ -194,19 +205,21 @@ export function SettingsScreen() {
           />
 
           <Button
+            disabled={busy}
             onClick={() => input.current?.click()}
             size="block"
             type="button"
             variant="secondary"
           >
-            <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            Choose a backup file
+            <Working busy={busy} icon={FileUp} />
+            {busy ? 'Reading the file…' : 'Choose a backup file'}
           </Button>
 
           {pending !== null && (
             <RestoreConfirmation
+              busy={busy}
               onCancel={reset}
-              onConfirm={() => void confirmRestore()}
+              onConfirm={() => void run(confirmRestore)}
               pending={pending}
             />
           )}
@@ -221,11 +234,23 @@ export function SettingsScreen() {
           One line per set, for a spreadsheet. Export only — nothing reads it back.
         </p>
 
-        <Button onClick={() => void exportCsv()} size="block" type="button" variant="secondary">
-          <Upload aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Export history
+        <Button
+          disabled={busy}
+          onClick={() => void run(exportCsv)}
+          size="block"
+          type="button"
+          variant="secondary"
+        >
+          <Working busy={busy} icon={Upload} />
+          {busy ? 'Exporting…' : 'Export history'}
         </Button>
       </section>
+
+      {failure !== null && (
+        <p className="type-body-sm text-missed-ink" role="alert">
+          {failure}
+        </p>
+      )}
 
       {done !== null && (
         <p aria-live="polite" className="type-body-sm text-ink-2">
@@ -448,6 +473,22 @@ function Durability() {
   );
 }
 
+/**
+ * The leading glyph of a control that is working, or the one it wears at rest.
+ *
+ * Every control on this screen reads or writes the whole database, so every one
+ * of them can take long enough to look like nothing happened — and the spinner
+ * is the only thing that separates "exporting" from "pressed and ignored".
+ */
+function Working({ busy, icon: Icon }: { readonly busy: boolean; readonly icon: LucideIcon }) {
+  if (busy) {
+    return (
+      <LoaderCircle aria-hidden="true" className="animate-spin" size={20} strokeWidth={ICON_STROKE} />
+    );
+  }
+  return <Icon aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />;
+}
+
 /** A section heading with the icon that names it at a glance. */
 function Head({
   children,
@@ -515,10 +556,13 @@ function Toggle({
  */
 function RestoreConfirmation({
   pending,
+  busy,
   onCancel,
   onConfirm,
 }: {
   readonly pending: Pending;
+  /** The restore itself, in flight. It replaces every table, so it is never twice. */
+  readonly busy: boolean;
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
 }) {
@@ -555,18 +599,23 @@ function RestoreConfirmation({
         )}
 
         <div className="flex items-center gap-2">
-          <Button onClick={onCancel} size="compact" type="button" variant="quiet">
+          <Button disabled={busy} onClick={onCancel} size="compact" type="button" variant="quiet">
             Keep what I have
           </Button>
           <Button
             className="ml-auto"
+            disabled={busy}
             onClick={onConfirm}
             size="compact"
             type="button"
             variant="danger"
           >
-            <Database aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            Replace it all
+            {busy ? (
+              <LoaderCircle aria-hidden="true" className="animate-spin" size={18} strokeWidth={ICON_STROKE} />
+            ) : (
+              <Database aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            )}
+            {busy ? 'Restoring…' : 'Replace it all'}
           </Button>
         </div>
       </div>
