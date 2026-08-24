@@ -19,7 +19,7 @@ import type {
 } from '@/domain/types';
 import { toKg } from '@/domain/units';
 import { startPlannedExercise, startUnplannedExercise } from '@/domain/session';
-import { suggestLoad, type SessionHistory } from '@/domain/progression';
+import { projectNextLoad, suggestLoad, type SessionHistory } from '@/domain/progression';
 
 const squat = toId<ExerciseId>('front-squat');
 const bench = toId<ExerciseId>('bench-press');
@@ -334,5 +334,90 @@ describe('lastCompletedSets — ordering and the walk backwards (REQ-061, REQ-06
     const suggestion = suggestLoad(planned(), [squatSession, benchOnly]);
 
     expect(suggestion).toEqual({ weight: 102.5, unit: 'kg', weightKg: 102.5, targetMet: true });
+  });
+});
+
+describe('projectNextLoad — what the sets in hand will earn (§29)', () => {
+  /** The Session in progress, as the screen holds it: a snapshot and its sets. */
+  function inProgress(options: {
+    readonly rule?: ProgressionRule;
+    readonly sets: readonly SetSpec[];
+  }) {
+    const entry = history({ status: 'in_progress', rule: options.rule, sets: options.sets });
+    return {
+      exerciseSession: entry.exercises[0]!.exerciseSession,
+      sets: entry.exercises[0]!.sets,
+    };
+  }
+
+  it('projects previous + increment once every planned set has reached max reps', () => {
+    const { exerciseSession, sets } = inProgress({
+      sets: [at(100, 6), at(100, 6), at(100, 6), at(100, 6)],
+    });
+
+    expect(projectNextLoad(exerciseSession, sets)).toEqual({
+      weight: 102.5,
+      unit: 'kg',
+      weightKg: 102.5,
+      targetMet: true,
+    });
+  });
+
+  it('promises nothing while a set is still short of the rep target', () => {
+    const { exerciseSession, sets } = inProgress({
+      sets: [at(100, 6), at(100, 6), at(100, 6), at(100, 5)],
+    });
+
+    expect(projectNextLoad(exerciseSession, sets)).toBeNull();
+  });
+
+  it('promises nothing until every planned set is in — four planned, three logged', () => {
+    const { exerciseSession, sets } = inProgress({ sets: [at(100, 6), at(100, 6), at(100, 6)] });
+
+    expect(projectNextLoad(exerciseSession, sets)).toBeNull();
+  });
+
+  it('ignores sets beyond the planned count, as the rule does', () => {
+    const { exerciseSession, sets } = inProgress({
+      sets: [at(100, 6), at(100, 6), at(100, 6), at(100, 6), at(100, 2)],
+    });
+
+    expect(projectNextLoad(exerciseSession, sets)?.weight).toBe(102.5);
+  });
+
+  it('promises nothing under a manual rule — the load never advances by itself', () => {
+    const { exerciseSession, sets } = inProgress({
+      rule: { type: 'manual' },
+      sets: [at(100, 6), at(100, 6), at(100, 6), at(100, 6)],
+    });
+
+    expect(projectNextLoad(exerciseSession, sets)).toBeNull();
+  });
+
+  it('promises nothing before a single set is logged', () => {
+    const { exerciseSession } = inProgress({ sets: [at(100, 6)] });
+
+    expect(projectNextLoad(exerciseSession, [])).toBeNull();
+  });
+
+  it('projects in the exercise own unit, deriving weightKg from it', () => {
+    const { exerciseSession, sets } = inProgress({
+      sets: [at(200, 6, 'lb'), at(200, 6, 'lb'), at(200, 6, 'lb'), at(200, 6, 'lb')],
+    });
+    const projected = projectNextLoad(exerciseSession, sets);
+
+    expect(projected?.weight).toBe(202.5);
+    expect(projected?.unit).toBe('lb');
+    expect(projected?.weightKg).toBeCloseTo(toKg(202.5, 'lb'), 5);
+  });
+
+  it('gives an unplanned exercise no projection at all (REQ-065)', () => {
+    const unplanned = startUnplannedExercise({
+      sessionId: toId<SessionId>('session-x'),
+      exerciseId: squat,
+      order: 0,
+    });
+
+    expect(projectNextLoad(unplanned, [])).toBeNull();
   });
 });

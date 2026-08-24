@@ -62,6 +62,14 @@
   --color-panel: #F3F8F8;
   --color-well: #EAF2F2;           --color-glass-fill: #FEFEFD8C;
   --color-rule: #7E9EA03D;         --color-scrim: #00000038;
+  /* The same hairline at the weight a *control's* edge has to carry.
+     `--color-rule` is 24% alpha and measures 1.24:1 composited on card — fine
+     for a divider, which WCAG exempts as decoration, and a failure for the
+     visible boundary of a UI component, which SC 1.4.11 puts at 3:1. Every
+     input in the app wore the decorative one, so the field face (1.13:1) and
+     its ring were both effectively invisible. Solid, not alpha, so it does not
+     drift with whatever surface it lands on. */
+  --color-edge: #5F7E80;
 
   /* ink */
   --color-ink: #141A2A;            --color-ink-2: #3C465C;
@@ -165,8 +173,35 @@ details[open]::details-content {
   opacity: 1;
 }
 
+/* The one place motion is refused, and it has to cover all of it.
+   It used to hold this single rule, which left the two infinite animations
+   unguarded — including `breathe`, a 2.6s scale loop on the live set dome,
+   which is precisely the element a lifter stares at between sets. An infinite
+   pulse is the worst thing to leave running for someone with vestibular
+   sensitivity, and WCAG 2.2 AA is binding across the whole app.
+
+   The domes stay legible without it: `live` is already the only amber dome and
+   the only one carrying a lift, so colour and depth still say which set is in
+   front of you. Motion was never the thing distinguishing it. */
 @media (prefers-reduced-motion: reduce) {
   details::details-content { transition: none; }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* The rest timer's rail is the exception the blanket rule would break: it is
+     not decoration, it is the remaining time drawn as a length, and freezing it
+     would leave a full bar over a spent clock. It moves once a second in a
+     straight line — the shape reduced-motion exists to permit, not to forbid. */
+  [data-rail='rest'] {
+    transition-duration: 1000ms !important;
+  }
 }
 
 /* ── Materials — the two named surfaces DESIGN.md describes in prose ──────
@@ -185,6 +220,32 @@ details[open]::details-content {
   background-color: var(--color-glass-fill);
   backdrop-filter: blur(20px) saturate(1.8);
   box-shadow: var(--inset-shadow-glass), var(--shadow-glass);
+}
+
+/* ── Arrival — the one entrance ───────────────────────────────────────────
+   Everything in this app that appears, appeared instantly: the line confirming
+   a backup was written, the refusal saying it was not, the second button that
+   turns Delete into a decision, the summary of the hour a lifter just trained.
+   A thing that is simply *there* on the next frame does not read as new — it
+   reads as something that had been there all along and was missed, which is
+   the one thing a confirmation must never read as.
+
+   So: 180ms, up four pixels, once. Deliberately smaller than the press (110ms)
+   is quick and the domes are theatrical — this is punctuation, not an event,
+   and it runs on things a lifter is about to read. Keyframes rather than
+   `@starting-style` because an element mounted by React is exactly what
+   `animation` already covers, with none of the entry-transition footnotes.
+
+   Nothing is needed for reduced motion: the blanket rule above clamps every
+   animation in the app to 1ms, and a confirmation that arrives instantly is
+   the honest fallback rather than a degraded one. */
+
+@keyframes arrive {
+  from { opacity: 0; translate: 0 4px; }
+}
+
+@utility arrive {
+  animation: arrive 180ms var(--ease-press) both;
 }
 
 /* A strip of controls that runs past the screen edge. The scrollbar is a
@@ -320,11 +381,742 @@ details[open]::details-content {
   text-transform: uppercase;
 }
 
+/* 9px was the smallest type in the product and it sat on the primary
+   navigation, read at arm's length under gym lighting — against a brief that
+   binds sunlight and glare legibility. 11px is the floor; the tracking pays for
+   the width it costs. */
 @utility type-micro {
   font-family: var(--font-measure);
-  font-size: .5625rem;
+  font-size: .6875rem;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: .09em;
   text-transform: uppercase;
+}
+
+/* ── Bottom navigation — the liquid tab ──────────────────────────────────
+   Our Liquid Motion System (docs/animations/luiquid-5-examples.html, §01)
+   applied to the control a lifter presses more than any other.
+
+   The thing that makes it read as liquid rather than as a pop is *what* the
+   filter is deforming: the main blob is not a dot behind the icon, it is the
+   tab's whole fill — the pill itself, at 100% × 100%. A large mass wobbling is
+   liquid. A small mass throwing sparks is confetti. The satellites are the
+   same colour as the pill for the same reason: they are the same body of
+   liquid leaving it and coming back, not particles.
+
+   So: the fill spreads from a flat seed, squashes wide, overshoots tall,
+   settles. Three satellites are ejected outward and then pulled back in and
+   swallowed — the merge happens at the pill's edge, where the goo bridges
+   them. The icon only settles; it does not perform.
+
+   Four things the reference leaves for us to finish, in the order they matter:
+     1. Its satellites travel ~26px out of a filter box that is only 10% larger
+        than the element, so they are clipped in mid-air. The region below is
+        stated explicitly.
+     2. Its blob starts at `scale(.05)` — 4px under a 4px blur, which is
+        nothing. Ours starts as a visible flat lens.
+     3. It has no exit: the outgoing tab's fill snaps out. Ours drains.
+     4. Its press feedback needs a JS class. `:active` already exists.
+
+   Only motion and geometry are here. Every colour is a utility on the element,
+   so the Token-Only Rule still holds. */
+
+.nav-liquid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  filter: url(#nav-goo);
+  pointer-events: none;
+}
+
+/* The fill. Its resting state is a flat lens at the tab's centre, so a tab
+   that loses the route drains instead of blinking out — the exit is the
+   entrance run backwards, which costs a transition rather than a second set of
+   keyframes. */
+.nav-body {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-control);
+  transform: translate(-50%, -50%) scale(.86, .34);
+  opacity: 0;
+  transition:
+    transform 190ms var(--ease-snap),
+    opacity 150ms var(--ease-snap);
+}
+
+/* The satellites. 12px is the smallest that still survives the blur on the way
+   out and still fuses on the way back in. */
+.nav-sat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-cell);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+/* The press is the tab's whole content, 110ms — the system's one press. */
+.nav-press {
+  position: relative;
+  z-index: 1;
+  transition: transform 110ms var(--ease-snap);
+}
+
+.nav-tab:active .nav-press {
+  transform: scale(.94);
+}
+
+.nav-tab[aria-current='page'] .nav-body {
+  transform: translate(-50%, -50%);
+  opacity: 1;
+  animation: nav-fill 560ms cubic-bezier(.2, .8, .2, 1);
+}
+
+/* Desynchronised on purpose: three satellites leaving on the same frame is a
+   mechanism, three leaving a few milliseconds apart is a fluid. */
+.nav-tab[aria-current='page'] .nav-sat-a {
+  animation: nav-sat-a 540ms ease;
+}
+
+.nav-tab[aria-current='page'] .nav-sat-b {
+  animation: nav-sat-b 560ms ease 30ms both;
+}
+
+.nav-tab[aria-current='page'] .nav-sat-c {
+  animation: nav-sat-c 520ms ease 15ms both;
+}
+
+.nav-tab[aria-current='page'] .nav-icon {
+  animation: nav-settle 420ms cubic-bezier(.2, .85, .2, 1.1);
+}
+
+/* Spread, squash, overshoot, settle. */
+@keyframes nav-fill {
+  0%   { transform: translate(-50%, -50%) scale(.34, .18); }
+  34%  { transform: translate(-50%, -50%) scale(1.06, .74); }
+  64%  { transform: translate(-50%, -50%) scale(.95, 1.05); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Out to the left and low, back first. */
+@keyframes nav-sat-a {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  22%  { transform: translate(-50%, -50%) translate(-27px, -9px) scale(1); opacity: 1; }
+  66%  { transform: translate(-50%, -50%) translate(-9px, -3px) scale(.68); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+/* Out to the right, a touch below the centre line. */
+@keyframes nav-sat-b {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  26%  { transform: translate(-50%, -50%) translate(29px, 7px) scale(.9); opacity: 1; }
+  70%  { transform: translate(-50%, -50%) translate(9px, 2px) scale(.6); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+/* Straight up out of the bar — the one that says the press went somewhere. */
+@keyframes nav-sat-c {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  24%  { transform: translate(-50%, -50%) translate(6px, -24px) scale(.82); opacity: 1; }
+  68%  { transform: translate(-50%, -50%) translate(2px, -7px) scale(.5); opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+/* The icon rides the fill and settles. Deliberately small: the liquid is the
+   event, and an icon that performs on top of it is the second animation this
+   interaction does not need. */
+@keyframes nav-settle {
+  0%   { transform: translateY(3px) scale(.94); }
+  55%  { transform: translateY(-1px) scale(1.04); }
+  100% { transform: none; }
+}
+
+/* ── The top bar — the bar opens ─────────────────────────────────────────
+   Rep Snap (docs/animations/button-examples.html, §02) says: a circle, then
+   the same object widens into a pill and its content is uncovered by the
+   widening rather than faded in on top of it. The reference does it by
+   animating `width` on a 46px button. A bar that is as wide as the screen
+   cannot animate its width without relaying out every screen under it, so the
+   reveal is a clip instead: `inset()` with a full round, from a disc at the
+   centre out to the bar's own stadium. Same shape story, no reflow, and the
+   glass's backdrop blur is clipped along with it — so the blur arrives with
+   the bar rather than sitting there ahead of it.
+
+   The liquid is our own system (§ the liquid tab), turned sideways: a body
+   that squashes as it stretches, and two satellites thrown out along the axis
+   of travel and swallowed when the widening edge catches up with them. They
+   are timed to be overtaken — at 44% the body's edge is at ~92px, which is
+   exactly where they are — because a satellite that dies on its own is a
+   spark, and one that dies under an arriving mass is liquid.
+
+   The body wears `glass-fill`, the same translucent white the bar itself
+   resolves to, so the material does not change under it while it runs; it is
+   gone by the time the bar is open.
+
+   It runs on route change because `TopBar` keys this subtree by pathname, so
+   opening a screen mounts it. */
+
+.bar-open {
+  position: relative;
+}
+
+.bar-liquid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  filter: url(#bar-goo);
+  pointer-events: none;
+}
+
+/* Content-free on purpose: a silhouette can squash and stretch, a bar with a
+   heading in it cannot. */
+.bar-body {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-cell);
+  opacity: 0;
+  animation: bar-body 460ms cubic-bezier(.2, .85, .2, 1);
+}
+
+.bar-sat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-cell);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+.bar-sat-a { animation: bar-sat-a 460ms cubic-bezier(.2, .8, .2, 1); }
+.bar-sat-b { animation: bar-sat-b 460ms cubic-bezier(.2, .8, .2, 1) 25ms; }
+
+/* The bar's own face. The clip is the whole reveal. */
+.bar-face {
+  animation: bar-face 460ms cubic-bezier(.2, .85, .2, 1);
+}
+
+/* Uncovered by the widening, then landing — a beat behind the edge that
+   exposed them, so the bar arrives before its contents do. */
+.bar-title {
+  animation: bar-content 340ms var(--ease-press) 110ms both;
+}
+
+.bar-end {
+  animation: bar-content 300ms var(--ease-press) 190ms both;
+}
+
+.bar-icon {
+  animation: bar-settle 420ms cubic-bezier(.2, .85, .2, 1.1);
+}
+
+@keyframes bar-face {
+  0%   { clip-path: inset(0 calc(50% - 32px) round 999px); }
+  100% { clip-path: inset(0 round 999px); }
+}
+
+/* The clip is declared only at the ends, so the body's edge sweeps on exactly
+   the same curve as the face's and the two silhouettes stay registered. The
+   squash is what makes it liquid: at 1.12 the body stands ~4px proud of the
+   glass above and below, which is the only part of it you are meant to
+   notice. */
+@keyframes bar-body {
+  0%   { clip-path: inset(0 calc(50% - 32px) round 999px); transform: scaleY(1.12); opacity: 1; }
+  46%  { transform: scaleY(.9); opacity: 1; }
+  76%  { transform: scaleY(1.04); opacity: 1; }
+  88%  { opacity: 1; }
+  100% { clip-path: inset(0 round 999px); transform: none; opacity: 0; }
+}
+
+/* The satellites are placed against the edge that chases them. On a 343px bar
+   the edge runs from 32px to 171px out, and the easing front-loads it: it is
+   at ~90px by 10%, ~135px by 26%, ~150px by 40%. Each satellite peaks just
+   ahead of that and dies where the edge arrives — a satellite that dies on its
+   own is a spark; one that dies under an arriving mass is liquid.
+
+   Left: out first, furthest, swallowed at 40%. */
+@keyframes bar-sat-a {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  10%  { transform: translate(-50%, -50%) translateX(-112px) scale(1); opacity: 1; }
+  26%  { transform: translate(-50%, -50%) translateX(-142px) scale(.8); opacity: 1; }
+  40%  { transform: translate(-50%, -50%) translateX(-152px) scale(0); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+/* Right: a beat later and a touch shorter. Symmetry is a machine; the offset
+   is what makes it a fluid. */
+@keyframes bar-sat-b {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  12%  { transform: translate(-50%, -50%) translateX(105px) scale(.9); opacity: 1; }
+  28%  { transform: translate(-50%, -50%) translateX(136px) scale(.7); opacity: 1; }
+  42%  { transform: translate(-50%, -50%) translateX(146px) scale(0); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+@keyframes bar-content {
+  0%   { opacity: 0; transform: translateY(3px) scale(.96); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes bar-settle {
+  0%   { transform: scale(.7); }
+  52%  { transform: scale(1.1); }
+  100% { transform: none; }
+}
+
+/* ── The dome — the set floods green ─────────────────────────────────────
+   The one place in the product where a coloured surface changes state and the
+   change *means* something: a set stops being live and becomes recorded. §Do
+   says "record what happened" is the primary action, and until now it was a
+   class swap.
+
+   Our liquid language again, turned radial. The nav's tab travels sideways and
+   the top bar travels along one axis; a set is not going anywhere, so this one
+   arrives from its own centre: a green seed floods out to fill the circle,
+   squashing as it spreads, while three satellites burst clear of the rim and
+   are pulled back in and swallowed. Out then reabsorbed, like the tab — not
+   thrown away, because nothing is leaving.
+
+   The body carries the fill for the length of the animation and the dome's own
+   `bg-actual-ink` is held transparent underneath it; at the last frame the
+   body vanishes and the class's background returns, and because they are the
+   same colour in the same place at the same size the hand-off is not visible.
+   That is why the squash lives on the body and never on the button: the
+   numerals inside it must not distort.
+
+   It fires on mount, and `DomeStrip` only mounts it for a set logged during
+   this visit — opening a session that already has four sets in it must not set
+   off four floods. */
+
+.dome-liquid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  filter: url(#dome-goo);
+  pointer-events: none;
+}
+
+/* Content-free, so it can squash. */
+.dome-body {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-cell);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  /* A gentler curve than the rest of the system's, and the one deliberate
+     exception here. `ease-press` and its relatives front-load hard, which is
+     right for a control answering a thumb; on a 30px radius it put the fill at
+     the rim in 80ms and the flood was over before it could be read as one.
+     This one spends its first third actually spreading. */
+  animation: dome-body 520ms cubic-bezier(.45, .6, .25, 1);
+}
+
+.dome-sat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-cell);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+.dome-sat-a { animation: dome-sat-a 440ms cubic-bezier(.25, .9, .3, 1); }
+.dome-sat-b { animation: dome-sat-b 470ms cubic-bezier(.25, .9, .3, 1) 25ms both; }
+.dome-sat-c { animation: dome-sat-c 450ms cubic-bezier(.25, .9, .3, 1) 45ms both; }
+
+/* The dome's own fill steps aside for as long as the liquid is drawing it. */
+.dome-flood {
+  animation: dome-hold 520ms linear;
+}
+
+/* Uncovered by the flood rather than faded in on top of it. */
+.dome-value {
+  animation: dome-value 300ms var(--ease-press) 150ms both;
+}
+
+@keyframes dome-hold {
+  0%, 100% { background-color: transparent; }
+}
+
+@keyframes dome-body {
+  0%   { transform: translate(-50%, -50%) scale(.18); opacity: 1; }
+  44%  { transform: translate(-50%, -50%) scale(1.12, .84); opacity: 1; }
+  70%  { transform: translate(-50%, -50%) scale(.94, 1.06); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* Three, spread around the rim rather than mirrored: up-left, right, low. The
+   30px rim is what they have to clear to be seen at all, so each peaks past it
+   and then comes back through it. */
+@keyframes dome-sat-a {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  18%  { transform: translate(-50%, -50%) translate(-30px, -21px) scale(1); opacity: 1; }
+  56%  { transform: translate(-50%, -50%) translate(-13px, -9px) scale(.62); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+@keyframes dome-sat-b {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  20%  { transform: translate(-50%, -50%) translate(34px, 11px) scale(.88); opacity: 1; }
+  58%  { transform: translate(-50%, -50%) translate(14px, 4px) scale(.55); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+@keyframes dome-sat-c {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  22%  { transform: translate(-50%, -50%) translate(-5px, 33px) scale(.76); opacity: 1; }
+  60%  { transform: translate(-50%, -50%) translate(-2px, 13px) scale(.5); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+@keyframes dome-value {
+  0%   { opacity: 0; transform: scale(.86); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* ── The rest timer — the dock wells up ──────────────────────────────────
+   The one full-bleed coloured surface in the product (DESIGN.md §Rest timer),
+   and until now it simply appeared: `SessionScreen` mounts it fresh on every
+   rest and there was nothing on the way in.
+
+   The direction is the surface's own. A tab travels sideways, the top bar
+   along one axis, a set floods from its centre — a dock fixed to the bottom
+   edge rises. Amber wells up from under the screen, three droplets thrown
+   ahead of it are swallowed as it arrives.
+
+   **Three lobes, not one body.** The first version of this rose as a single
+   full-width rectangle, and it was the weakest thing in the system: a surface
+   that only translates has no squash, so it read as a rise rather than as a
+   liquid rise — and a 15px droplet meeting a 375px straight edge gives the goo
+   nothing to bridge, which is the merge, which is the whole signature. Three
+   wide overlapping lobes at different heights fuse into one surface whose top
+   edge *undulates and then levels*. That buys all three back at once: the
+   profile changes shape and not just position, the levelling is an elastic
+   settle that happens in view instead of above the clip, and each droplet now
+   meets a local curve it can form a neck with.
+
+   Two constraints shaped the rest. `TIMER_SHELL` carries `overflow-hidden`, so
+   nothing escapes the dock — the droplets play inside it, which is their place
+   anyway. And the dock's corners are square while a rising liquid needs a
+   curved surface, so each lobe is taller than the dock and its arc flattens
+   before it lands: held constant, a curve sitting on the top edge stops
+   reading as a surface and starts reading as a rounded corner on the dock
+   itself, which then squares off. A container that changes shape on arrival
+   looks like a bug. */
+
+.timer-liquid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  filter: url(#timer-goo);
+  pointer-events: none;
+}
+
+/* Each lobe is wider than a third of the dock and overlaps its neighbours by
+   some 20% of the width, which is what lets the goo read them as one body of
+   liquid rather than three columns. The arc is elliptical — a broad shallow
+   dome across the lobe, not a corner radius — and it flattens as the lobes
+   come into line. */
+.timer-lobe {
+  position: absolute;
+  bottom: 0;
+  width: 55%;
+  /* Taller than the dock so the surface can finish above it and the square
+     corner the design system gave this dock is what remains. */
+  height: calc(100% + 44px);
+  /* Invisible at rest. Once the dock has taken its own fill back there is
+     nothing for these to draw, and three opaque boxes under a gaussian blur
+     have no business staying alive for the length of a three-minute rest. */
+  opacity: 0;
+}
+
+.timer-lobe-a { left: -10%; animation: timer-lobe-a 560ms cubic-bezier(.4, .55, .3, 1); }
+.timer-lobe-b { left: 25%;  animation: timer-lobe-b 560ms cubic-bezier(.38, .58, .3, 1); }
+.timer-lobe-c { left: 55%;  animation: timer-lobe-c 560ms cubic-bezier(.42, .52, .3, 1); }
+
+.timer-drop {
+  position: absolute;
+  bottom: 8px;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--radius-cell);
+  transform: translate(-50%, 0) scale(0);
+  opacity: 0;
+}
+
+/* Placed near a lobe's crown rather than at the seams, so each one meets the
+   part of the surface that is curved. */
+.timer-drop-a { left: 20%; animation: timer-drop 560ms cubic-bezier(.25, .9, .3, 1); }
+.timer-drop-b { left: 53%; animation: timer-drop-tall 560ms cubic-bezier(.25, .9, .3, 1); }
+.timer-drop-c { left: 82%; animation: timer-drop-low 560ms cubic-bezier(.25, .9, .3, 1); }
+
+/* The dock's own fill steps aside for as long as the liquid is drawing it. */
+.timer-arrive {
+  animation: timer-hold 560ms linear;
+}
+
+/* Each is uncovered once the surface has actually reached it, which is why the
+   rail waits longest: it rides the dock's *top* edge, and the last lobe does
+   not get there until 66%. The clock sits lower and is covered sooner. */
+.timer-content {
+  animation: timer-content 280ms var(--ease-press) 300ms both;
+}
+
+.timer-rail-in {
+  animation: timer-content 220ms var(--ease-press) 400ms both;
+}
+
+/* The dock takes its own fill back once every lobe is flat and above the top
+   edge, rather than at the very end. From here on what is on screen is the
+   real square dock, so nothing the lobes do afterwards — including the few
+   pixels of corner the goo rounds off any convex shape — can show. */
+@keyframes timer-hold {
+  0%, 72%   { background-color: transparent; }
+  73%, 100% { background-color: var(--color-live-ink); }
+}
+
+/* 38% of a 115px lobe is 44px — the offset that lands its crown exactly on the
+   dock's top edge. The three arrive in sequence, centre first, and that
+   sequence is the undulation; they are level, flat and covering by 70%.
+   Everything after that is out of sight. */
+@keyframes timer-lobe-a {
+  0%   { transform: translateY(102%); border-radius: 50% 50% 0 0 / 34px 34px 0 0; opacity: 1; }
+  46%  { border-radius: 50% 50% 0 0 / 34px 34px 0 0; }
+  60%  { transform: translateY(38%); }
+  70%  { border-radius: 0; }
+  100% { transform: translateY(0); border-radius: 0; opacity: 1; }
+}
+
+@keyframes timer-lobe-b {
+  0%   { transform: translateY(100%); border-radius: 50% 50% 0 0 / 30px 30px 0 0; opacity: 1; }
+  42%  { border-radius: 50% 50% 0 0 / 30px 30px 0 0; }
+  52%  { transform: translateY(38%); }
+  66%  { border-radius: 0; }
+  100% { transform: translateY(0); border-radius: 0; opacity: 1; }
+}
+
+@keyframes timer-lobe-c {
+  0%   { transform: translateY(106%); border-radius: 50% 50% 0 0 / 38px 38px 0 0; opacity: 1; }
+  50%  { border-radius: 50% 50% 0 0 / 38px 38px 0 0; }
+  66%  { transform: translateY(38%); }
+  70%  { border-radius: 0; }
+  100% { transform: translateY(0); border-radius: 0; opacity: 1; }
+}
+
+/* Each droplet is thrown clear of the rising surface and dies where the
+   surface reaches it. They share the lobes' 560ms clock so the two can be read
+   against each other, and none peaks above ~57px from the bottom edge: the
+   dock is 71px tall and `overflow-hidden` would cut a droplet off in mid-air
+   rather than let the surface swallow it. Three heights, so they do not break
+   the surface on one line. */
+@keyframes timer-drop {
+  0%   { transform: translate(-50%, 0) scale(0); opacity: 0; }
+  16%  { transform: translate(-50%, -30px) scale(1); opacity: 1; }
+  30%  { transform: translate(-50%, -34px) scale(.7); opacity: 1; }
+  36%  { transform: translate(-50%, -36px) scale(0); opacity: 0; }
+  100% { transform: translate(-50%, 0) scale(0); opacity: 0; }
+}
+
+@keyframes timer-drop-tall {
+  0%   { transform: translate(-50%, 0) scale(0); opacity: 0; }
+  18%  { transform: translate(-50%, -42px) scale(.9); opacity: 1; }
+  32%  { transform: translate(-50%, -46px) scale(.6); opacity: 1; }
+  38%  { transform: translate(-50%, -48px) scale(0); opacity: 0; }
+  100% { transform: translate(-50%, 0) scale(0); opacity: 0; }
+}
+
+@keyframes timer-drop-low {
+  0%   { transform: translate(-50%, 0) scale(0); opacity: 0; }
+  12%  { transform: translate(-50%, -22px) scale(.8); opacity: 1; }
+  26%  { transform: translate(-50%, -26px) scale(.55); opacity: 1; }
+  32%  { transform: translate(-50%, -28px) scale(0); opacity: 0; }
+  100% { transform: translate(-50%, 0) scale(0); opacity: 0; }
+}
+
+@keyframes timer-content {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* ── …and drains ─────────────────────────────────────────────────────────
+   The way out, at 360ms — shorter than the 560ms way in, because leaving
+   matters less than arriving and a lifter who pressed Skip has already decided.
+
+   Not the entrance played backwards. On the way in the centre lobe leads and
+   the surface *flattens* as it lands; draining reverses both: the outer two go
+   first and the centre clings longest, and the arc *returns* as the surface
+   tears away from the top edge — the same curve, doing the opposite job. Two
+   drips are left behind above it and fall after it, which is the mirror of the
+   merge: a pinch-off rather than a fusion. Two, not three, so the exit stays
+   the lighter of the two moments.
+
+   The dock gives its own fill back up for the duration, exactly as it does on
+   the way in, so the lobes are what is on screen while they sink. */
+
+.timer-leaving {
+  /* Nothing here answers a thumb any more, and Restart pressed halfway out
+     would be a control acting on a dock that is already gone. */
+  pointer-events: none;
+  animation: timer-hold-out 360ms linear both;
+}
+
+.timer-leaving .timer-lobe-a { animation: timer-lobe-out-a 360ms cubic-bezier(.5, 0, .75, .6) both; }
+.timer-leaving .timer-lobe-b { animation: timer-lobe-out-b 360ms cubic-bezier(.5, 0, .75, .6) both; }
+.timer-leaving .timer-lobe-c { animation: timer-lobe-out-c 360ms cubic-bezier(.5, 0, .75, .6) both; }
+
+.timer-leaving .timer-drop-a { animation: timer-drip 360ms cubic-bezier(.4, 0, .8, .5) both; }
+.timer-leaving .timer-drop-c { animation: timer-drip-late 360ms cubic-bezier(.4, 0, .8, .5) both; }
+.timer-leaving .timer-drop-b { animation: none; opacity: 0; }
+
+/* The readout goes before the surface under it does: a clock sitting on
+   draining liquid reads as a clock falling through the floor. */
+.timer-leaving .timer-content,
+.timer-leaving .timer-rail-in {
+  animation: timer-content-out 130ms var(--ease-snap) both;
+}
+
+@keyframes timer-hold-out {
+  0%, 100% { background-color: transparent; }
+}
+
+/* Outer lobes tear away first; the centre is the last to let go. */
+@keyframes timer-lobe-out-c {
+  0%   { transform: translateY(0); border-radius: 0; opacity: 1; }
+  20%  { border-radius: 50% 50% 0 0 / 32px 32px 0 0; }
+  82%  { transform: translateY(106%); opacity: 1; }
+  100% { transform: translateY(112%); border-radius: 50% 50% 0 0 / 32px 32px 0 0; opacity: 1; }
+}
+
+@keyframes timer-lobe-out-a {
+  0%   { transform: translateY(0); border-radius: 0; opacity: 1; }
+  24%  { border-radius: 50% 50% 0 0 / 30px 30px 0 0; }
+  90%  { transform: translateY(104%); opacity: 1; }
+  100% { transform: translateY(110%); border-radius: 50% 50% 0 0 / 30px 30px 0 0; opacity: 1; }
+}
+
+@keyframes timer-lobe-out-b {
+  0%   { transform: translateY(0); border-radius: 0; opacity: 1; }
+  28%  { border-radius: 50% 50% 0 0 / 26px 26px 0 0; }
+  100% { transform: translateY(104%); border-radius: 50% 50% 0 0 / 26px 26px 0 0; opacity: 1; }
+}
+
+/* Left above the receding surface, then falling after it. */
+@keyframes timer-drip {
+  0%   { transform: translate(-50%, -46px) scale(0); opacity: 0; }
+  22%  { transform: translate(-50%, -42px) scale(.85); opacity: 1; }
+  66%  { transform: translate(-50%, -18px) scale(.7); opacity: 1; }
+  100% { transform: translate(-50%, 10px) scale(0); opacity: 0; }
+}
+
+@keyframes timer-drip-late {
+  0%   { transform: translate(-50%, -34px) scale(0); opacity: 0; }
+  30%  { transform: translate(-50%, -30px) scale(.7); opacity: 1; }
+  72%  { transform: translate(-50%, -12px) scale(.55); opacity: 1; }
+  100% { transform: translate(-50%, 8px) scale(0); opacity: 0; }
+}
+
+@keyframes timer-content-out {
+  0%   { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(5px); }
+}
+
+/* ── The dome — the set ignites ──────────────────────────────────────────
+   The other half of the sentence. `§ the set floods green` says "recorded";
+   this says "begins", and the two are one statement in two hues: amber opens a
+   set, green closes it. It is here rather than anywhere else left in the
+   product because it completes a pair instead of opening a subject.
+
+   Same machinery, deliberately not the same performance. The green flood
+   arrives and settles — it is a record, and a record is calm. This one is an
+   ignition: a tighter seed, a harder overshoot (1.16 against 1.12), 440ms
+   against 520ms, and satellites thrown further out with the bias upward
+   rather than spread evenly around the rim. Related, not recoloured.
+
+   The numeral is deliberately left alone. On the green dome the value is new
+   information and is uncovered by the flood; here the number was already on
+   screen and does not change — only the surface under it does. Animating it
+   would be saying something happened to it when nothing did.
+
+   This rule also owns `breathe`, which the `live` face carries. Both want the
+   `animation` property, and the live dome's 2.6s loop starting *underneath* an
+   ignition is two motions arguing on one object — so the loop is declared here
+   too, and waits for the flood to finish. */
+
+.dome-ignite {
+  animation:
+    dome-ignite-hold 440ms linear,
+    breathe 2.6s ease-in-out 440ms infinite;
+}
+
+.dome-ignite-body {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-cell);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  animation: dome-ignite-body 440ms cubic-bezier(.4, .65, .25, 1);
+}
+
+.dome-ignite-sat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-cell);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+.dome-ignite-sat-a { animation: dome-ignite-sat-a 380ms cubic-bezier(.2, .95, .3, 1); }
+.dome-ignite-sat-b { animation: dome-ignite-sat-b 400ms cubic-bezier(.2, .95, .3, 1) 20ms both; }
+.dome-ignite-sat-c { animation: dome-ignite-sat-c 360ms cubic-bezier(.2, .95, .3, 1) 40ms both; }
+
+@keyframes dome-ignite-hold {
+  0%, 100% { background-color: transparent; }
+}
+
+@keyframes dome-ignite-body {
+  0%   { transform: translate(-50%, -50%) scale(.14); opacity: 1; }
+  40%  { transform: translate(-50%, -50%) scale(1.16, .86); opacity: 1; }
+  68%  { transform: translate(-50%, -50%) scale(.93, 1.08); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* The 38px rim is what each has to clear to be seen. Biased upward — a set
+   starting is the one moment in this strip that is about what comes next. */
+@keyframes dome-ignite-sat-a {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  20%  { transform: translate(-50%, -50%) translate(2px, -46px) scale(1); opacity: 1; }
+  58%  { transform: translate(-50%, -50%) translate(1px, -17px) scale(.6); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+@keyframes dome-ignite-sat-b {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  22%  { transform: translate(-50%, -50%) translate(38px, -27px) scale(.85); opacity: 1; }
+  60%  { transform: translate(-50%, -50%) translate(14px, -10px) scale(.55); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+}
+
+@keyframes dome-ignite-sat-c {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  18%  { transform: translate(-50%, -50%) translate(-42px, 15px) scale(.75); opacity: 1; }
+  56%  { transform: translate(-50%, -50%) translate(-15px, 5px) scale(.5); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
 }

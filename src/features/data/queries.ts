@@ -93,6 +93,26 @@ export function useExerciseHistory(exerciseId: ExerciseId) {
   return useLiveQuery(() => listExerciseHistory(exerciseId), [exerciseId]);
 }
 
+/**
+ * The full history of several Exercises at once, keyed by `exerciseId` — what
+ * a Session summary needs to say which of its exercises beat everything before.
+ *
+ * One query per Exercise, like `useExerciseHistory`, because that is the shape
+ * of the `exerciseSessions.exerciseId` index; a Session holds a handful of
+ * exercises, so the loop is the cheaper answer over a table scan.
+ *
+ * Keyed on the joined ids, the way `useExerciseNames` is: an array literal
+ * re-created every render would re-run the query every render.
+ */
+export function useExerciseHistories(ids: readonly ExerciseId[]) {
+  const key = [...new Set(ids)].sort().join(',');
+  return useLiveQuery(async () => {
+    const unique = key === '' ? [] : (key.split(',') as ExerciseId[]);
+    const histories = await Promise.all(unique.map((id) => listExerciseHistory(id)));
+    return new Map(unique.map((id, index) => [id, histories[index]!] as const));
+  }, [key]);
+}
+
 export function usePreviousPerformance(exerciseId: ExerciseId, excludeSessionId: SessionId | null) {
   return useLiveQuery(
     () => getPreviousPerformance(exerciseId, excludeSessionId ?? undefined),
@@ -102,9 +122,16 @@ export function usePreviousPerformance(exerciseId: ExerciseId, excludeSessionId:
 
 /* ── The app shell's reads ─────────────────────────────────────────────── */
 
-/** The Routine the app is currently running, or `undefined` (§11.2). */
+/**
+ * The Routine the app is currently running (§11.2). `undefined` while the query
+ * is in flight, `null` when no Routine is active — the same distinction
+ * `useRoutine` makes, and for a sharper reason: Today renders "No active
+ * routine — import a routine file" for the empty case, so a read that was
+ * merely still running used to open the app on an invitation to import a
+ * routine the lifter already had.
+ */
 export function useActiveRoutine() {
-  return useLiveQuery(() => getActiveRoutine(), []);
+  return useLiveQuery(async () => (await getActiveRoutine()) ?? null, []);
 }
 
 /**

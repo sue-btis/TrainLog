@@ -41,6 +41,9 @@ describe('settings', () => {
       timerVibration: true,
       timerSound: false,
       keepScreenAwake: true,
+      // Never backed up is the state every install starts in, and the one the
+      // settings screen has to be able to say out loud.
+      lastBackupAt: null,
     });
   });
 
@@ -81,6 +84,7 @@ describe('settings', () => {
       timerVibration: false,
       timerSound: true,
       keepScreenAwake: false,
+      lastBackupAt: null,
     });
   });
 

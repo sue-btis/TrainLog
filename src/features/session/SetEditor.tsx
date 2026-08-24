@@ -19,12 +19,15 @@ import { Check, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CompletedSet } from '@/domain/types';
 import type { Unit } from '@/domain/units';
-import { SetFields, type SetValues } from '@/features/session/SetLogger';
+import { SetFields, type SetTargets, type SetValues } from '@/features/session/SetLogger';
 import { ICON_STROKE, LABEL } from '@/features/ui/styles';
 
 interface SetEditorProps {
   readonly set: CompletedSet;
   readonly weightStep: number;
+  /** The same windows the logger marks against — a correction is measured by
+      the plan too, or the marking would vanish the moment you fixed a typo. */
+  readonly targets: SetTargets;
   readonly onSave: (values: SetValues, unit: Unit) => void;
   readonly onDelete: () => void;
   readonly onCancel: () => void;
@@ -34,6 +37,7 @@ interface SetEditorProps {
 export function SetEditor({
   set,
   weightStep,
+  targets,
   onSave,
   onDelete,
   onCancel,
@@ -48,22 +52,46 @@ export function SetEditor({
 
   return (
     <section className="flex flex-col gap-3">
+      {/* Delete sits up here, beside cancel — not under Save.
+          The two used to be stacked full-width and adjacent: solid green
+          "Save the correction" directly above solid red "Delete this set", both
+          landing in the thumb zone, on a screen used with wet hands. The arming
+          step catches the first mis-tap and nothing catches the second, so the
+          answer is distance rather than another confirmation. */}
       <div className="flex items-center justify-between gap-3">
         <span className={LABEL}>editing set {set.setNumber}</span>
-        <Button aria-label="Cancel" onClick={onCancel} size="icon" type="button" variant="ghost">
-          <X aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-        </Button>
+        <div className="flex items-center gap-1">
+          {!armed && (
+            <Button
+              aria-label={`Delete set ${set.setNumber}`}
+              disabled={busy}
+              onClick={() => setArmed(true)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            </Button>
+          )}
+          <Button aria-label="Cancel" onClick={onCancel} size="icon" type="button" variant="ghost">
+            <X aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          </Button>
+        </div>
       </div>
 
       <SetFields
         onChange={setValues}
+        targets={targets}
         unit={set.unit}
         values={values}
         weightStep={weightStep}
       />
 
       {armed ? (
-        <>
+        // One `arrive` on the group, not three racing each other: the warning and
+        // the two buttons that follow it are a single change of what this panel
+        // is asking.
+        <div className="arrive flex flex-col gap-3">
           <p className="type-body-sm text-ink-2">
             Set {set.setNumber} goes for good, and the sets after it move up a place.
           </p>
@@ -79,30 +107,18 @@ export function SetEditor({
           >
             Keep it
           </Button>
-        </>
+        </div>
       ) : (
-        <>
-          <Button
-            disabled={busy || values.reps === 0}
-            onClick={() => onSave(values, set.unit)}
-            size="block"
-            type="button"
-            variant="primary"
-          >
-            <Check aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            {values.reps === 0 ? 'Set the reps first' : 'Save the correction'}
-          </Button>
-          <Button
-            disabled={busy}
-            onClick={() => setArmed(true)}
-            size="block"
-            type="button"
-            variant="danger"
-          >
-            <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            Delete this set
-          </Button>
-        </>
+        <Button
+          disabled={busy || values.reps === 0}
+          onClick={() => onSave(values, set.unit)}
+          size="block"
+          type="button"
+          variant="primary"
+        >
+          <Check aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+          {values.reps === 0 ? 'Set the reps first' : 'Save the correction'}
+        </Button>
       )}
     </section>
   );

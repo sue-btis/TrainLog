@@ -59,13 +59,16 @@ export {
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
+  setLastBackupAt,
   setTimerSound,
   setTimerVibration,
 } from '@/db/repositories/settings';
 
 export {
+  SessionHasSetsError,
   SessionInProgressError,
   createStartedWorkout,
+  discardSession,
   getInProgressSession,
   getLastPerformedWorkout,
   getSession,

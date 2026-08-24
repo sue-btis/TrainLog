@@ -1,0 +1,285 @@
+<div id="liquid-demo">
+  <style>
+    #liquid-demo{
+      --bg:light-dark(#eef1f2,#101214);
+      --surface:light-dark(#f8faf9,#191c1f);
+      --surface-2:light-dark(#ffffff,#22262a);
+      --text:light-dark(#171b2b,#f3f5fa);
+      --muted:light-dark(#7b8290,#9ca3af);
+      --blue:#3651c9;
+      --blue-2:#4965e6;
+      --danger:#d94f55;
+      --shadow:0 16px 40px rgba(24,32,55,.12);
+      background:var(--bg);
+      color:var(--text);
+      border-radius:0;
+      width:100%;
+      padding:28px 18px 42px;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      -webkit-tap-highlight-color:transparent;
+    }
+    #liquid-demo *{box-sizing:border-box}
+    #liquid-demo .shell{max-width:720px;margin:0 auto;display:grid;gap:26px}
+    #liquid-demo .intro{padding:0 4px}
+    #liquid-demo .intro h2{font-size:18px;margin:0 0 6px;font-weight:800;letter-spacing:-.02em}
+    #liquid-demo .intro p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+    #liquid-demo .demo{display:grid;gap:10px}
+    #liquid-demo .label{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    #liquid-demo .phone-zone{background:var(--surface);border-radius:28px;padding:20px;box-shadow:var(--shadow);overflow:hidden;position:relative}
+    #liquid-demo button{font:inherit}
+    #liquid-demo svg{display:block}
+    #liquid-demo .goo{position:absolute;width:0;height:0;pointer-events:none}
+
+    /* shared liquid */
+    #liquid-demo .liquid-host{position:relative;isolation:isolate;overflow:visible}
+    #liquid-demo .liquid-layer{position:absolute;inset:0;z-index:-1;pointer-events:none;filter:url(#gooLiquid)}
+    #liquid-demo .blob{position:absolute;border-radius:999px;background:var(--blue);left:50%;top:50%;transform:translate(-50%,-50%) scale(0)}
+    #liquid-demo .blob.main{width:48px;height:48px}
+    #liquid-demo .blob.dot{width:14px;height:14px}
+    #liquid-demo .pressing{transform:scale(.94)}
+
+    /* 1 bottom nav */
+    #liquid-demo .bottom-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;align-items:center;padding:4px;background:linear-gradient(180deg,rgba(244,246,255,.88),rgba(236,239,251,.9));border-radius:24px;min-height:92px}
+    #liquid-demo .nav-item{border:0;background:transparent;color:#474e63;min-height:78px;border-radius:22px;display:grid;place-items:center;gap:5px;padding:9px 6px;position:relative;cursor:pointer;transition:transform .18s ease,color .18s ease}
+    #liquid-demo .nav-item svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:2;position:relative;z-index:2}
+    #liquid-demo .nav-item span.txt{font-size:11px;font-weight:800;letter-spacing:.13em;position:relative;z-index:2}
+    #liquid-demo .nav-item .liquid-layer{inset:4px;z-index:0}
+    #liquid-demo .nav-item .blob.main{width:100%;height:100%;border-radius:22px;background:var(--blue)}
+    #liquid-demo .nav-item .blob.dot{background:var(--blue)}
+    #liquid-demo .nav-item.active{color:white}
+    #liquid-demo .nav-item.active .blob.main{transform:translate(-50%,-50%) scale(1)}
+    #liquid-demo .nav-item.activating .blob.main{animation:navBlob .62s cubic-bezier(.2,.8,.2,1) forwards}
+    #liquid-demo .nav-item.activating .dot.a{animation:burstA .62s ease forwards}
+    #liquid-demo .nav-item.activating .dot.b{animation:burstB .62s ease forwards}
+    #liquid-demo .nav-item.activating .dot.c{animation:burstC .62s ease forwards}
+
+    /* 2 header navbar */
+    #liquid-demo .header-bar{height:92px;border-radius:46px;background:var(--surface-2);display:grid;grid-template-columns:52px 1fr 52px;align-items:center;padding:0 18px;box-shadow:var(--shadow);position:relative}
+    #liquid-demo .header-center{justify-self:center;display:flex;align-items:center;gap:12px;font-size:23px;font-weight:800;letter-spacing:-.03em}
+    #liquid-demo .header-center svg{width:30px;height:30px;stroke:var(--blue);fill:none;stroke-width:2.4}
+    #liquid-demo .gear-btn{width:48px;height:48px;border:0;background:transparent;border-radius:50%;color:var(--blue);display:grid;place-items:center;cursor:pointer;position:relative;transition:transform .18s ease}
+    #liquid-demo .gear-btn svg{width:27px;height:27px;stroke:currentColor;fill:none;stroke-width:2;position:relative;z-index:2}
+    #liquid-demo .gear-btn .blob.main{width:48px;height:48px;background:var(--blue)}
+    #liquid-demo .gear-btn.active{color:white}
+    #liquid-demo .gear-btn.active .blob.main{transform:translate(-50%,-50%) scale(1)}
+    #liquid-demo .gear-btn.activating .blob.main{animation:gearMorph .68s cubic-bezier(.2,.85,.2,1) forwards}
+    #liquid-demo .gear-btn.activating .dot.a{animation:gearDotA .68s ease forwards}
+    #liquid-demo .gear-btn.activating .dot.b{animation:gearDotB .68s ease forwards}
+    #liquid-demo .gear-btn.activating svg{animation:gearSpin .68s cubic-bezier(.2,.8,.2,1)}
+
+    /* 3 base button */
+    #liquid-demo .base-wrap{display:flex;justify-content:center;padding:12px 0}
+    #liquid-demo .base-btn{min-width:180px;height:54px;border:0;border-radius:18px;background:var(--surface-2);color:var(--blue);font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;position:relative;box-shadow:0 8px 24px rgba(33,49,86,.08);overflow:hidden;transition:transform .16s ease,color .22s ease}
+    #liquid-demo .base-btn span,#liquid-demo .base-btn svg{position:relative;z-index:3}
+    #liquid-demo .base-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2}
+    #liquid-demo .base-btn .liquid-layer{z-index:1;inset:-15px}
+    #liquid-demo .base-btn .blob.main{width:70px;height:70px}
+    #liquid-demo .base-btn.liquid-run{color:white}
+    #liquid-demo .base-btn.liquid-run .blob.main{animation:baseFill .72s cubic-bezier(.2,.85,.2,1) forwards}
+    #liquid-demo .base-btn.liquid-run .dot.a{animation:baseDotA .72s ease forwards}
+    #liquid-demo .base-btn.liquid-run .dot.b{animation:baseDotB .72s ease forwards}
+
+    /* 4 start workout */
+    #liquid-demo .workout-card{background:linear-gradient(150deg,#20283d,#151b2c);border-radius:28px;padding:22px;color:white;display:grid;gap:18px;overflow:hidden;position:relative}
+    #liquid-demo .workout-card small{color:#aeb9dd;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+    #liquid-demo .workout-card h3{margin:4px 0 0;font-size:24px;letter-spacing:-.03em}
+    #liquid-demo .workout-meta{display:flex;gap:14px;color:#bbc5e8;font-size:12px}
+    #liquid-demo .start-btn{height:62px;border:0;border-radius:21px;background:#f7f8fc;color:#1e2742;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;overflow:hidden;cursor:pointer;transition:transform .16s ease,color .22s ease}
+    #liquid-demo .start-btn span,#liquid-demo .start-btn svg{position:relative;z-index:3}
+    #liquid-demo .start-btn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2.2}
+    #liquid-demo .start-btn .liquid-layer{z-index:1;inset:-25px}
+    #liquid-demo .start-btn .blob.main{width:82px;height:82px;background:var(--blue-2)}
+    #liquid-demo .start-btn .blob.dot{background:var(--blue-2)}
+    #liquid-demo .start-btn.starting{color:white}
+    #liquid-demo .start-btn.starting .blob.main{animation:startFill .85s cubic-bezier(.15,.85,.2,1) forwards}
+    #liquid-demo .start-btn.starting .dot.a{animation:startDotA .8s ease forwards}
+    #liquid-demo .start-btn.starting .dot.b{animation:startDotB .8s ease forwards}
+    #liquid-demo .start-btn.starting .dot.c{animation:startDotC .8s ease forwards}
+    #liquid-demo .start-btn.starting svg{animation:startIcon .72s cubic-bezier(.2,.9,.2,1.3)}
+
+    /* 5 timer popup */
+    #liquid-demo .timer-stage{min-height:210px;display:grid;place-items:center;position:relative;overflow:hidden;border-radius:25px;background:linear-gradient(180deg,rgba(225,229,238,.45),rgba(235,238,242,.12))}
+    #liquid-demo .set-btn{height:48px;border:0;border-radius:16px;background:var(--blue);color:white;padding:0 18px;font-weight:850;cursor:pointer}
+    #liquid-demo .timer-pop{position:absolute;width:min(88%,330px);background:var(--surface-2);border-radius:26px;padding:18px 20px;box-shadow:0 18px 50px rgba(19,25,44,.22);display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:13px;opacity:0;transform:translateY(30px) scale(.9);pointer-events:none}
+    #liquid-demo .timer-pop.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;animation:timerPop .72s cubic-bezier(.18,.9,.2,1.2)}
+    #liquid-demo .timer-icon{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;color:white;position:relative;z-index:1}
+    #liquid-demo .timer-icon .liquid-layer{z-index:-1;inset:-10px}
+    #liquid-demo .timer-icon .blob.main{width:52px;height:52px;background:var(--blue)}
+    #liquid-demo .timer-icon .blob.dot{background:var(--blue)}
+    #liquid-demo .timer-pop.show .timer-icon .blob.main{animation:timerLiquid .72s cubic-bezier(.2,.85,.2,1) forwards}
+    #liquid-demo .timer-pop.show .timer-icon .dot.a{animation:timerDotA .72s ease forwards}
+    #liquid-demo .timer-pop.show .timer-icon .dot.b{animation:timerDotB .72s ease forwards}
+    #liquid-demo .timer-icon svg{width:27px;height:27px;stroke:currentColor;fill:none;stroke-width:2.2}
+    #liquid-demo .timer-text strong{display:block;font-size:13px;margin-bottom:2px}
+    #liquid-demo .timer-count{font-variant-numeric:tabular-nums;font-size:25px;font-weight:900;letter-spacing:-.04em}
+    #liquid-demo .timer-close{width:42px;height:42px;border:0;background:transparent;color:var(--muted);border-radius:14px;font-size:22px;cursor:pointer}
+
+    @keyframes navBlob{0%{transform:translate(-50%,-50%) scale(.05)}35%{transform:translate(-50%,-50%) scale(1.05,.72)}65%{transform:translate(-50%,-50%) scale(.94,1.05)}100%{transform:translate(-50%,-50%) scale(1)}}
+    @keyframes burstA{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}24%{opacity:1;transform:translate(-50%,-50%) translate(-26px,-13px) scale(1)}70%{opacity:1;transform:translate(-50%,-50%) translate(-8px,-4px) scale(.7)}100%{opacity:0;transform:translate(-50%,-50%) scale(0)}}
+    @keyframes burstB{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}28%{opacity:1;transform:translate(-50%,-50%) translate(28px,14px) scale(.9)}72%{opacity:1;transform:translate(-50%,-50%) translate(7px,4px) scale(.6)}100%{opacity:0;transform:translate(-50%,-50%) scale(0)}}
+    @keyframes burstC{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}26%{opacity:1;transform:translate(-50%,-50%) translate(14px,-25px) scale(.8)}74%{opacity:.8;transform:translate(-50%,-50%) translate(4px,-6px) scale(.5)}100%{opacity:0;transform:translate(-50%,-50%) scale(0)}}
+    @keyframes gearMorph{0%{transform:translate(-50%,-50%) scale(.08)}38%{transform:translate(-50%,-50%) scale(1.12,.78)}68%{transform:translate(-50%,-50%) scale(.92,1.08)}100%{transform:translate(-50%,-50%) scale(1)}}
+    @keyframes gearDotA{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}28%{opacity:1;transform:translate(-50%,-50%) translate(-18px,12px) scale(1)}80%{opacity:0;transform:translate(-50%,-50%) scale(.2)}}
+    @keyframes gearDotB{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}32%{opacity:1;transform:translate(-50%,-50%) translate(20px,-12px) scale(.9)}82%{opacity:0;transform:translate(-50%,-50%) scale(.2)}}
+    @keyframes gearSpin{0%{transform:scale(.75) rotate(-20deg)}52%{transform:scale(1.12) rotate(145deg)}100%{transform:scale(1) rotate(180deg)}}
+    @keyframes baseFill{0%{transform:translate(-50%,-50%) scale(.05)}32%{transform:translate(-50%,-50%) scale(1.1,.6)}58%{transform:translate(-50%,-50%) scale(2.2,.75)}100%{transform:translate(-50%,-50%) scale(5.3,1.5)}}
+    @keyframes baseDotA{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}25%{opacity:1;transform:translate(-50%,-50%) translate(-65px,14px) scale(1)}65%{opacity:.9;transform:translate(-50%,-50%) translate(-30px,5px) scale(.7)}100%{opacity:0;transform:translate(-50%,-50%) scale(0)}}
+    @keyframes baseDotB{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}24%{opacity:1;transform:translate(-50%,-50%) translate(62px,-13px) scale(.9)}66%{opacity:.9;transform:translate(-50%,-50%) translate(29px,-5px) scale(.6)}100%{opacity:0;transform:translate(-50%,-50%) scale(0)}}
+    @keyframes startFill{0%{transform:translate(-50%,-50%) scale(.04)}30%{transform:translate(-50%,-50%) scale(1.05,.58)}58%{transform:translate(-50%,-50%) scale(2.5,.92)}100%{transform:translate(-50%,-50%) scale(6,1.7)}}
+    @keyframes startDotA{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}28%{opacity:1;transform:translate(-50%,-50%) translate(-85px,-15px) scale(1)}70%{opacity:0;transform:translate(-50%,-50%) translate(-20px,0) scale(.5)}}
+    @keyframes startDotB{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}30%{opacity:1;transform:translate(-50%,-50%) translate(75px,17px) scale(.9)}70%{opacity:0;transform:translate(-50%,-50%) translate(18px,3px) scale(.5)}}
+    @keyframes startDotC{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}32%{opacity:1;transform:translate(-50%,-50%) translate(10px,-27px) scale(.8)}74%{opacity:0;transform:translate(-50%,-50%) scale(.4)}}
+    @keyframes startIcon{0%{transform:translateX(-5px) scale(.85)}50%{transform:translateX(4px) scale(1.16)}100%{transform:translateX(0) scale(1)}}
+    @keyframes timerPop{0%{opacity:0;transform:translateY(35px) scale(.88)}55%{opacity:1;transform:translateY(-5px) scale(1.025)}100%{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes timerLiquid{0%{transform:translate(-50%,-50%) scale(.05)}34%{transform:translate(-50%,-50%) scale(1.16,.78)}68%{transform:translate(-50%,-50%) scale(.92,1.07)}100%{transform:translate(-50%,-50%) scale(1)}}
+    @keyframes timerDotA{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}28%{opacity:1;transform:translate(-50%,-50%) translate(-18px,-17px) scale(.9)}78%{opacity:0;transform:translate(-50%,-50%) scale(.2)}}
+    @keyframes timerDotB{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}30%{opacity:1;transform:translate(-50%,-50%) translate(21px,13px) scale(.9)}80%{opacity:0;transform:translate(-50%,-50%) scale(.2)}}
+
+    @media(max-width:480px){
+      #liquid-demo{padding:20px 12px 34px}
+      #liquid-demo .phone-zone{padding:14px;border-radius:24px}
+      #liquid-demo .bottom-nav{min-height:86px}
+      #liquid-demo .nav-item{min-height:74px}
+      #liquid-demo .nav-item span.txt{font-size:9px;letter-spacing:.1em}
+      #liquid-demo .header-bar{height:82px}
+      #liquid-demo .header-center{font-size:20px}
+    }
+    @media(prefers-reduced-motion:reduce){#liquid-demo *,#liquid-demo *::before,#liquid-demo *::after{animation-duration:1ms!important;transition-duration:1ms!important}}
+  </style>
+
+  <svg class="goo" aria-hidden="true">
+    <defs>
+      <filter id="gooLiquid">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" result="goo"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="shell">
+    <div class="intro">
+      <h2>5 usos del mismo Liquid Motion System</h2>
+      <p>Toca los componentes. Cada uno reutiliza el mismo efecto gooey, pero cambia dirección, escala y timing según la acción.</p>
+    </div>
+
+    <section class="demo">
+      <div class="label">01 · Bottom mobile navigation</div>
+      <div class="phone-zone">
+        <nav class="bottom-nav" aria-label="Mobile navigation">
+          <button type="button" class="nav-item active liquid-host" data-nav>
+            <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span><span class="blob dot c"></span></span>
+            <svg viewBox="0 0 24 24"><path d="M6 9l3-3 9 9-3 3z"/><path d="M4 13l3-3"/><path d="M17 4l3 3"/><path d="M3 16l5 5"/><path d="M16 3l5 5"/></svg><span class="txt">TODAY</span>
+          </button>
+          <button type="button" class="nav-item liquid-host" data-nav>
+            <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span><span class="blob dot c"></span></span>
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="txt">CALENDAR</span>
+          </button>
+          <button type="button" class="nav-item liquid-host" data-nav>
+            <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span><span class="blob dot c"></span></span>
+            <svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/></svg><span class="txt">PROGRESS</span>
+          </button>
+          <button type="button" class="nav-item liquid-host" data-nav>
+            <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span><span class="blob dot c"></span></span>
+            <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span class="txt">MORE</span>
+          </button>
+        </nav>
+      </div>
+    </section>
+
+    <section class="demo">
+      <div class="label">02 · Header navbar action</div>
+      <div class="phone-zone">
+        <div class="header-bar">
+          <div></div>
+          <div class="header-center">
+            <svg viewBox="0 0 24 24"><path d="M6 9l3-3 9 9-3 3z"/><path d="M4 13l3-3"/><path d="M17 4l3 3"/><path d="M3 16l5 5"/><path d="M16 3l5 5"/></svg>
+            <span>Today</span>
+          </div>
+          <button type="button" class="gear-btn liquid-host" aria-label="Settings" id="gearButton">
+            <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span></span>
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.64 9 1.7 1.7 0 0 0 4.3 7.12l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63 1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9 1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15z"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo">
+      <div class="label">03 · Base action button</div>
+      <div class="phone-zone">
+        <div class="base-wrap">
+          <button type="button" class="base-btn liquid-host" id="baseButton">
+            <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span></span>
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg><span>Create exercise</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo">
+      <div class="label">04 · Start Workout CTA</div>
+      <div class="phone-zone">
+        <div class="workout-card">
+          <div><small>Today's training</small><h3>Push Strength</h3></div>
+          <div class="workout-meta"><span>6 exercises</span><span>18 sets</span><span>~55 min</span></div>
+          <button type="button" class="start-btn liquid-host" id="startButton">
+            <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span><span class="blob dot c"></span></span>
+            <svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg><span>Start workout</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo">
+      <div class="label">05 · Rest timer popup after set</div>
+      <div class="phone-zone">
+        <div class="timer-stage">
+          <button type="button" class="set-btn" id="finishSet">Complete set</button>
+          <div class="timer-pop" id="timerPopup" role="status" aria-live="polite">
+            <div class="timer-icon liquid-host">
+              <span class="liquid-layer"><span class="blob main"></span><span class="blob dot a"></span><span class="blob dot b"></span></span>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6M12 5V2"/></svg>
+            </div>
+            <div class="timer-text"><strong>Rest timer</strong><div class="timer-count" id="timerCount">01:30</div></div>
+            <button type="button" class="timer-close" id="timerClose" aria-label="Close timer">×</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (()=>{
+      const root=document.querySelector('#liquid-demo');
+      if(!root||root.dataset.ready)return;
+      root.dataset.ready='1';
+      const restart=(el,cls,duration=700)=>{el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),duration)};
+      root.querySelectorAll('[data-nav]').forEach(btn=>{
+        btn.addEventListener('pointerdown',()=>btn.classList.add('pressing'));
+        ['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,()=>btn.classList.remove('pressing')));
+        btn.addEventListener('click',()=>{
+          root.querySelectorAll('[data-nav]').forEach(x=>x.classList.remove('active','activating'));
+          btn.classList.add('active');
+          restart(btn,'activating',680);
+        });
+      });
+      const gear=root.querySelector('#gearButton');
+      gear.addEventListener('click',()=>{gear.classList.toggle('active');restart(gear,'activating',720)});
+      const base=root.querySelector('#baseButton');
+      base.addEventListener('click',()=>{restart(base,'liquid-run',820);setTimeout(()=>base.classList.remove('liquid-run'),900)});
+      const start=root.querySelector('#startButton');
+      start.addEventListener('click',()=>{restart(start,'starting',940);const text=start.querySelector('span:last-child');const original='Start workout';setTimeout(()=>text.textContent='Workout started',360);setTimeout(()=>{text.textContent=original;start.classList.remove('starting')},1500)});
+      const finish=root.querySelector('#finishSet');
+      const popup=root.querySelector('#timerPopup');
+      const close=root.querySelector('#timerClose');
+      const count=root.querySelector('#timerCount');
+      let timer=null,remaining=90;
+      const render=()=>{const m=Math.floor(remaining/60);const s=remaining%60;count.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')};
+      const stop=()=>{if(timer){clearInterval(timer);timer=null}};
+      finish.addEventListener('click',()=>{
+        stop();remaining=90;render();popup.classList.remove('show');void popup.offsetWidth;popup.classList.add('show');
+        timer=setInterval(()=>{remaining=Math.max(0,remaining-1);render();if(remaining===0)stop()},1000);
+      });
+      close.addEventListener('click',()=>{popup.classList.remove('show');stop()});
+    })();
+  </script>
+</div>

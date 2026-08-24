@@ -13,8 +13,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import { TrainLogDatabase } from '@/db/schema';
 import {
+  SessionHasSetsError,
   SessionInProgressError,
   createStartedWorkout,
+  discardSession,
   getInProgressSession,
   getLastPerformedWorkout,
   getSession,
@@ -470,5 +472,57 @@ describe('session history reads (R-1, R-5)', () => {
       plannedMaxReps: 6,
       plannedRestSeconds: 180,
     });
+  });
+});
+
+describe('discardSession — the way out of a Session started by mistake (§35)', () => {
+  it('erases the Session and its exercises, leaving nothing behind', async () => {
+    const session = startSession({ routineId, workoutId, startedAt: 1_000 });
+    const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
+    await createStartedWorkout({ session, exerciseSessions: [exercise] });
+
+    await discardSession(session.id);
+
+    expect(await getSession(session.id)).toBeUndefined();
+    expect(await getInProgressSession()).toBeUndefined();
+    expect(await listExerciseSessionsBySession(session.id)).toEqual([]);
+    // And the slot is free again: REQ-058 no longer has anything to refuse.
+    const next = startSession({ routineId, workoutId, startedAt: 2_000 });
+    await expect(createStartedWorkout({ session: next, exerciseSessions: [] })).resolves
+      .toBeUndefined();
+  });
+
+  it('refuses a Session that holds a logged set, and changes nothing', async () => {
+    const session = startSession({ routineId, workoutId, startedAt: 1_000 });
+    const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
+    await createStartedWorkout({ session, exerciseSessions: [exercise] });
+
+    const logged = logSet({
+      exerciseSession: exercise,
+      setNumber: 1,
+      weight: 100,
+      unit: 'kg',
+      reps: 5,
+      rir: 2,
+      completedAt: 2_000,
+    });
+    await saveLoggedSet(logged);
+
+    await expect(discardSession(session.id)).rejects.toBeInstanceOf(SessionHasSetsError);
+
+    expect(await getSession(session.id)).toEqual(session);
+    expect(await listExerciseSessionsBySession(session.id)).toHaveLength(1);
+    expect(await listCompletedSetsByExerciseSession(exercise.id)).toHaveLength(1);
+  });
+
+  it('leaves a finished Session alone — history is not deleted here', async () => {
+    const session = startSession({ routineId, workoutId, startedAt: 1_000 });
+    await createStartedWorkout({ session, exerciseSessions: [] });
+    const finished = finishSession(session, [], 3_000);
+    await saveFinishedSession(finished, []);
+
+    await discardSession(session.id);
+
+    expect(await getSession(session.id)).toEqual(finished);
   });
 });

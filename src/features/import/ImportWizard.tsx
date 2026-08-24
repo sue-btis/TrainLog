@@ -21,6 +21,7 @@ import { CalendarDays, Check, Dumbbell, FileUp, ListChecks } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
+import { ensurePersistentStorage } from '@/pwa/persistence';
 import { formatLocalDate } from '@/domain/dates';
 import {
   deleteExercise,
@@ -63,6 +64,7 @@ import {
   SCREEN,
   chip,
 } from '@/features/ui/styles';
+import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import { cn } from '@/lib/utils';
 
 export function ImportWizard() {
@@ -71,6 +73,9 @@ export function ImportWizard() {
   /** Raised by the Leave link, answered in the action bar (DEC: see ActionBar). */
   const [leaving, setLeaving] = useState(false);
   const [openRef, setOpenRef] = useState<ExerciseRef | null>(null);
+  // Reading and parsing the file. Short for a small routine, long enough on a
+  // phone for the file step to look like it had ignored the file it was handed.
+  const { busy: reading, failure: readFailure, run: runRead } = useAsyncAction();
   const column = useRef<HTMLDivElement>(null);
   /** The control an action-bar jump asked for, focused once it has rendered. */
   const pendingFocus = useRef<string | null>(null);
@@ -99,9 +104,10 @@ export function ImportWizard() {
   // renders and asks, which is what it is there for.
   useEffect(() => {
     const handed = takeHandedOffFile();
-    if (handed !== null) void chooseFile(handed);
-    // Once, on mount: the handover is consumed by the first read.
-  }, []);
+    if (handed !== null) void runRead(() => chooseFile(handed));
+    // Once, on mount: the handover is consumed by the first read. `runRead` is
+    // stable, so naming it does not turn this into an every-render effect.
+  }, [runRead]);
 
   async function chooseFile(chosen: File) {
     let text: string;
@@ -149,6 +155,12 @@ export function ImportWizard() {
       });
 
       await importRoutine(draft, placements);
+
+      // The database now holds something a lifter would mind losing, and an
+      // accepted import is a moment of real engagement — which is what browsers
+      // weigh when deciding to grant persistence. Fire and forget: the answer
+      // changes nothing on this screen, and a refusal is not an import failure.
+      void ensurePersistentStorage();
 
       dispatch({
         type: 'accepted',
@@ -221,8 +233,9 @@ export function ImportWizard() {
           <FileStep
             errors={state.errors}
             fileName={state.fileName}
-            onFile={chooseFile}
-            unreadable={state.unreadable}
+            onFile={(chosen) => void runRead(() => chooseFile(chosen))}
+            reading={reading}
+            unreadable={state.unreadable ?? readFailure}
           />
         )}
 

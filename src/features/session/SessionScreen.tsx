@@ -24,6 +24,7 @@ import {
   Dumbbell,
   MoreVertical,
   Plus,
+  Trash2,
   SkipForward,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ import {
   DEFAULT_UNIT,
   addExerciseSession,
   deleteCompletedSet,
+  discardSession,
   saveEditedSet,
   saveExerciseSession,
   saveExerciseSessions,
@@ -73,7 +75,8 @@ import {
 } from '@/features/data/queries';
 import { TopBar } from '@/features/shell/TopBar';
 import { plural } from '@/features/ui/format';
-import { COLUMN, ICON_STROKE, LABEL, RULED, SCREEN, WELL } from '@/features/ui/styles';
+import { COLUMN, ICON_STROKE, LABEL, SCREEN, WELL } from '@/features/ui/styles';
+import { ensurePersistentStorage } from '@/pwa/persistence';
 import { cn } from '@/lib/utils';
 
 export function SessionScreen() {
@@ -105,8 +108,6 @@ export function SessionScreen() {
    * its slot — with the logger pointed at an exercise you did not choose.
    */
   const [returnTo, setReturnTo] = useState<ExerciseSessionId | null>(null);
-  /** Finishing with work left undone asks once; this is the armed state (§37). */
-  const [confirmFinish, setConfirmFinish] = useState(false);
 
   // §11.6 — the screen stays awake for as long as a session is open, unless the
   // lifter has turned that off (§32). Passing the setting through `active` is
@@ -245,28 +246,54 @@ export function SessionScreen() {
   /**
    * R-12 — finishing. The status is derived from the exercises, not chosen
    * here: `completed` when none is still pending, `partial` otherwise (§36).
-   * With work left undone it asks once first, naming what that will record.
+   * The menu names which of the two this will record, so there is nothing left
+   * to confirm once it is chosen.
    */
   function finish() {
     if (session === undefined) return;
     const exerciseSessions = entries.map((it) => it.exerciseSession);
-    const pending = exerciseSessions.filter((it) => it.status === 'pending').length;
-
-    if (pending > 0 && !confirmFinish) {
-      setConfirmFinish(true);
-      return;
-    }
 
     void run(async () => {
       await saveFinishedSession(
         finishSession(session, exerciseSessions, Date.now()),
         exerciseSessions,
       );
-      await navigate('/today');
+      // To the record, not to Today. Finishing used to land on a screen that
+      // looked exactly as it had an hour earlier, still offering to start the
+      // Workout it had just recorded — the one moment repeated after every
+      // training session, and the only one that said nothing.
+      //
+      // `replace`, because gym mode is over: this Session's record takes its
+      // place in the history stack, so Back leaves the session behind rather
+      // than returning to a screen that no longer has one open.
+      await navigate(`/sessions/${session.id}?finished=1`, { replace: true });
+
+      // A recorded Session is the least replaceable thing this app holds — it
+      // cannot be re-derived from anything. Ask the browser not to evict it.
+      void ensurePersistentStorage();
+    });
+  }
+
+  /**
+   * §35 — the way out of a Session started by mistake. It is not the opposite
+   * of finishing: finishing records that something happened, this says nothing
+   * did. Only offered while the Session holds no set at all, so it can never
+   * cost a lifter work; the repository refuses it otherwise.
+   *
+   * Back to Today, replacing gym mode in the stack: the Session it belonged to
+   * no longer exists, so there is nothing behind this screen to return to.
+   */
+  function discard() {
+    if (session === undefined) return;
+    void run(async () => {
+      await discardSession(session.id);
+      await navigate('/today', { replace: true });
     });
   }
 
   const pending = entries.filter((it) => it.exerciseSession.status === 'pending').length;
+  /** Nothing logged anywhere is what makes a Session discardable rather than partial. */
+  const logged = entries.reduce((count, it) => count + it.sets.length, 0);
 
   // Loading, and the case §35 does not cover: arriving here with nothing open.
   if (session === undefined) {
@@ -310,21 +337,24 @@ export function SessionScreen() {
   return (
     <Frame
       action={
-        entry === undefined ? undefined : (
-          <SessionMenu
-            canReorder={entries.length > 1}
-            onAdd={() => setPicking(true)}
-            onReorder={enterReorder}
-            onSkip={skip}
-          />
-        )
+        <SessionMenu
+          logged={logged}
+          canReorder={entries.length > 1}
+          canSkip={entry !== undefined}
+          onAdd={() => setPicking(true)}
+          onDiscard={discard}
+          onFinish={finish}
+          onReorder={enterReorder}
+          onSkip={skip}
+          pending={pending}
+        />
       }
     >
       {entry === undefined ? (
         <section className={WELL}>
           <p className="type-title">This Workout has no exercises</p>
           <p className="type-body-sm text-ink-2">
-            There is nothing to log. Finishing it records that the session happened.
+            There is nothing to log. Finish or discard it from the session menu, above.
           </p>
         </section>
       ) : (
@@ -336,6 +366,7 @@ export function SessionScreen() {
               one before it. */}
           {rest !== null && (
             <RestTimer
+              exerciseName={names?.get(rest.exerciseId) ?? null}
               key={rest.since}
               onSkip={() => setSkippedRest(rest.since)}
               seconds={rest.seconds}
@@ -363,72 +394,16 @@ export function SessionScreen() {
       )}
 
       {failure !== null && (
-        <p className="type-measure text-missed-ink" role="alert">
+        <p className="arrive type-measure text-missed-ink" role="alert">
           {failure}
         </p>
       )}
-
-      <Finish
-        busy={busy}
-        armed={confirmFinish}
-        onCancel={() => setConfirmFinish(false)}
-        onFinish={finish}
-        pending={pending}
-      />
 
       {/* Last time's numbers are reference, not the set in front of you — they
           sit under the finish control rather than between the heading and the
           logger (§21). */}
       {entry !== undefined && <PreviousPanel exerciseSession={entry.exerciseSession} />}
     </Frame>
-  );
-}
-
-/**
- * R-12 — ending the session, and the one place it says what that will record.
- *
- * With exercises still pending it arms first, in Errata Red and flat, naming
- * the consequence in the label the way DESIGN.md's destructive-armed pattern
- * asks. It is not destructive — nothing is lost — but `partial` is a fact about
- * a lifter's history, and recording one by accident is worth one tap to avoid.
- */
-function Finish({
-  busy,
-  armed,
-  pending,
-  onFinish,
-  onCancel,
-}: {
-  readonly busy: boolean;
-  readonly armed: boolean;
-  readonly pending: number;
-  readonly onFinish: () => void;
-  readonly onCancel: () => void;
-}) {
-  if (!armed) {
-    return (
-      <div className={RULED}>
-        <Button disabled={busy} onClick={onFinish} size="block" type="button" variant="secondary">
-          <CheckCircle2 aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Finish session
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className={cn(RULED, 'gap-3')}>
-      <p className="type-body-sm text-ink-2">
-        {plural(pending, 'exercise')} still untouched. Finishing now records this session
-        as partial — it stays in your history and is left out of progression.
-      </p>
-      <Button disabled={busy} onClick={onFinish} size="block" type="button" variant="danger">
-        Finish it as partial
-      </Button>
-      <Button disabled={busy} onClick={onCancel} size="block" type="button" variant="quiet">
-        Keep training
-      </Button>
-    </div>
   );
 }
 
@@ -462,16 +437,43 @@ function Frame({
  * reordering and adding are real and reachable in two taps; none of them earns
  * a permanent place next to the green button.
  */
+/**
+ * The whole-session actions, and the one exercise-level action that is not a
+ * button on screen (§21).
+ *
+ * Ending the session lives here rather than in the column: gym mode's screen is
+ * for the set in front of you, and a permanent "Finish session" under it is an
+ * offer to leave standing next to the work.
+ *
+ * Its two endings are named for what each records, so choosing one is the whole
+ * decision — there is no second screen asking again. `Finish as partial` says
+ * what the derived status will be (DEC-009) rather than hiding it behind a
+ * neutral word. `Discard` is live only while the Session holds no set at all,
+ * which is what makes it safe to take at one tap: there is nothing to lose.
+ * With sets on the record it stays in place, disabled and counting them — the
+ * reason it cannot be taken is the thing a lifter would otherwise be about to
+ * throw away, and an item that vanishes says nothing at all.
+ */
 function SessionMenu({
   onSkip,
   onReorder,
   onAdd,
+  onFinish,
+  onDiscard,
   canReorder,
+  canSkip,
+  logged,
+  pending,
 }: {
   readonly onSkip: () => void;
   readonly onReorder: () => void;
   readonly onAdd: () => void;
+  readonly onFinish: () => void;
+  readonly onDiscard: () => void;
   readonly canReorder: boolean;
+  readonly canSkip: boolean;
+  readonly logged: number;
+  readonly pending: number;
 }) {
   return (
     <DropdownMenu>
@@ -483,7 +485,7 @@ function SessionMenu({
 
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>This exercise</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={onSkip}>
+        <DropdownMenuItem disabled={!canSkip} onSelect={onSkip}>
           <SkipForward aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
           Skip this exercise
         </DropdownMenuItem>
@@ -498,6 +500,22 @@ function SessionMenu({
         <DropdownMenuItem onSelect={onAdd}>
           <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
           Add an exercise
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuLabel>Finish session</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={onFinish}>
+          <CheckCircle2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          {pending > 0 ? 'Finish as partial' : 'Finish and record it'}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={logged === 0 ? 'text-missed-ink' : undefined}
+          disabled={logged > 0}
+          onSelect={onDiscard}
+        >
+          <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          {logged === 0 ? 'Discard, nothing logged' : `Discard — ${plural(logged, 'set')} logged`}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -566,24 +584,32 @@ function Pager({
 function pendingRest(
   entries: readonly { readonly exerciseSession: ExerciseSession; readonly sets: readonly CompletedSet[] }[],
   skipped: Timestamp | null,
-): { readonly since: Timestamp; readonly seconds: number } | null {
-  let latest: { since: Timestamp; seconds: number | null } | null = null;
+): { readonly since: Timestamp; readonly seconds: number; readonly exerciseId: ExerciseId } | null {
+  let latest: { since: Timestamp; seconds: number; exerciseId: ExerciseId } | null = null;
 
   for (const entry of entries) {
     const planned = entry.exerciseSession.plannedExerciseId === null ? null : entry.exerciseSession;
     const seconds = planned?.plannedRestSeconds ?? null;
 
+    // A set that declares no rest starts none — and, just as importantly, ends
+    // none either. Letting it decide is what used to delete a running rest: the
+    // lifter slots a light accessory set into a three-minute squat rest, the
+    // accessory declares no rest, and the countdown they were pacing by
+    // vanished with nothing said and no way back.
+    //
+    // The objection this replaces was that the surviving timer would belong to
+    // a different exercise than the one on screen. It does, and that was always
+    // true of a rest paged away from — so the timer names its exercise instead
+    // of being thrown away for it.
+    if (seconds === null) continue;
+
     for (const set of entry.sets) {
       if (latest === null || set.completedAt > latest.since) {
-        latest = { since: set.completedAt, seconds };
+        latest = { since: set.completedAt, seconds, exerciseId: entry.exerciseSession.exerciseId };
       }
     }
   }
 
-  // The most recent set decides, even when it declares no rest. Skipping the
-  // restless ones instead would leave the previous exercise's timer running
-  // after a set of something else entirely — a countdown to a rest the lifter
-  // is already three minutes past.
-  if (latest === null || latest.seconds === null || latest.since === skipped) return null;
-  return { since: latest.since, seconds: latest.seconds };
+  if (latest === null || latest.since === skipped) return null;
+  return latest;
 }

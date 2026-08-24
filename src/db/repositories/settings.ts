@@ -19,7 +19,7 @@
  */
 
 import { db } from '@/db/database';
-import type { ResolvedSettings, Settings, Unit } from '@/domain/types';
+import type { ResolvedSettings, Settings, Timestamp, Unit } from '@/domain/types';
 
 const SETTINGS_ID = 'settings' as const;
 
@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: ResolvedSettings = {
   timerVibration: true,
   timerSound: false,
   keepScreenAwake: true,
+  lastBackupAt: null,
 };
 
 /** Fills in whatever the stored row does not carry. Never writes. */
@@ -93,4 +94,9 @@ export async function setTimerSound(on: boolean): Promise<void> {
 
 export async function setKeepScreenAwake(on: boolean): Promise<void> {
   await setSetting('keepScreenAwake', on);
+}
+
+/** Stamped by a successful export, and read by the line that says how long ago. */
+export async function setLastBackupAt(at: Timestamp): Promise<void> {
+  await setSetting('lastBackupAt', at);
 }

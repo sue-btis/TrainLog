@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Mobile Tap/Press Routine Buttons</title>
+
+<style>
+  /* =========================================================
+     SHARED DEMO
+     ========================================================= */
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: #eef0f3;
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    color: #17191d;
+    overscroll-behavior: none;
+  }
+
+  button {
+    font: inherit;
+  }
+
+  .demo {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+  }
+
+  .demo-panel {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    position: relative;
+    padding: 32px;
+  }
+
+  .demo-panel + .demo-panel {
+    border-left: 1px solid rgba(20, 22, 26, 0.08);
+  }
+
+  .demo-label {
+    position: absolute;
+    top: 22px;
+    left: 24px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #8a8f98;
+  }
+
+  .phone-shell {
+    width: min(100%, 340px);
+    height: 220px;
+    border-radius: 30px;
+    display: grid;
+    align-items: end;
+    padding: 18px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 18px 45px rgba(23, 25, 29, 0.11),
+      inset 0 0 0 1px rgba(17, 20, 24, 0.06);
+  }
+
+  .mobile-nav {
+    min-height: 76px;
+    border-radius: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+
+  @media (max-width: 760px) {
+    .demo {
+      grid-template-columns: 1fr;
+    }
+
+    .demo-panel {
+      min-height: 50vh;
+      padding: 68px 20px 28px;
+    }
+
+    .demo-panel + .demo-panel {
+      border-left: 0;
+      border-top: 1px solid rgba(20, 22, 26, 0.08);
+    }
+
+    .phone-shell {
+      height: 190px;
+    }
+  }
+
+
+  /* =========================================================
+     CONCEPT 01 — PRECISION RING / MOBILE TAP VERSION
+     Interaction:
+       idle
+       → pointerdown: tactile compression
+       → pointerup/click: one ring sweep + dumbbell tension
+       → active state
+     ========================================================= */
+
+  .c01-panel {
+    --c01-bg: #f4f5f7;
+    --c01-surface: #ffffff;
+    --c01-ink: #17191d;
+    --c01-accent: #7c5cff;
+    background:
+      radial-gradient(circle at 50% 54%, rgba(124, 92, 255, 0.08), transparent 26rem),
+      var(--c01-bg);
+  }
+
+  .c01-panel .phone-shell {
+    background: #f8f9fb;
+  }
+
+  .c01-panel .mobile-nav {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow:
+      0 10px 30px rgba(20, 22, 26, 0.08),
+      inset 0 0 0 1px rgba(18, 20, 25, 0.06);
+    backdrop-filter: blur(14px);
+  }
+
+  .c01-touch-target {
+    width: 64px;
+    height: 64px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .c01-button {
+    width: 46px;
+    height: 46px;
+    border: 0;
+    padding: 0;
+    border-radius: 50%;
+    position: relative;
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+    cursor: pointer;
+
+    color: var(--c01-ink);
+    background: var(--c01-surface);
+
+    box-shadow:
+      0 2px 6px rgba(18, 20, 25, 0.05),
+      0 8px 20px rgba(18, 20, 25, 0.08),
+      inset 0 0 0 1px rgba(18, 20, 25, 0.07);
+
+    transform: translateY(0) scale(1);
+
+    transition:
+      transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1),
+      background 0.24s ease,
+      color 0.24s ease,
+      box-shadow 0.24s ease;
+  }
+
+  .c01-button::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+
+    background:
+      conic-gradient(
+        from var(--c01-ring-angle, -70deg),
+        transparent 0 14%,
+        var(--c01-accent) 14% 38%,
+        transparent 38% 100%
+      );
+
+    opacity: 0;
+    z-index: -2;
+  }
+
+  .c01-button::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: var(--c01-bg);
+    z-index: -1;
+  }
+
+  .c01-button.is-pressing {
+    transform: translateY(1px) scale(0.92);
+    box-shadow:
+      0 1px 3px rgba(18, 20, 25, 0.08),
+      0 4px 10px rgba(18, 20, 25, 0.08),
+      inset 0 0 0 1px rgba(124, 92, 255, 0.16);
+  }
+
+  .c01-button.is-firing::before {
+    opacity: 1;
+    animation:
+      c01-ring-once 0.48s cubic-bezier(0.2, 0.72, 0.2, 1) 1 forwards;
+  }
+
+  .c01-icon {
+    width: 23px;
+    height: 23px;
+    overflow: visible;
+  }
+
+  .c01-bar,
+  .c01-plate {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .c01-button.is-pressing .c01-bar {
+    transform: scaleX(0.93);
+  }
+
+  .c01-button.is-pressing .c01-plate--left {
+    transform: translateX(1px);
+  }
+
+  .c01-button.is-pressing .c01-plate--right {
+    transform: translateX(-1px);
+  }
+
+  .c01-button.is-firing .c01-bar {
+    animation:
+      c01-bar-release 0.46s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .c01-button.is-firing .c01-plate--left {
+    animation:
+      c01-left-release 0.46s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .c01-button.is-firing .c01-plate--right {
+    animation:
+      c01-right-release 0.46s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .c01-button.is-active {
+    color: #ffffff;
+    background: var(--c01-accent);
+
+    box-shadow:
+      0 9px 22px rgba(124, 92, 255, 0.28),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+
+  .c01-button.is-active::after {
+    background: transparent;
+  }
+
+  .c01-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    position: absolute;
+    right: 3px;
+    bottom: 4px;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px var(--c01-accent);
+    transform: scale(0);
+  }
+
+  .c01-button.is-active .c01-status-dot {
+    animation:
+      c01-dot-pop 0.32s 0.16s cubic-bezier(0.2, 1.35, 0.4, 1) forwards;
+  }
+
+  @property --c01-ring-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: -70deg;
+  }
+
+  @keyframes c01-ring-once {
+    0% {
+      --c01-ring-angle: -70deg;
+      opacity: 0;
+    }
+
+    12% {
+      opacity: 1;
+    }
+
+    84% {
+      opacity: 0.75;
+    }
+
+    100% {
+      --c01-ring-angle: 290deg;
+      opacity: 0;
+    }
+  }
+
+  @keyframes c01-bar-release {
+    0% {
+      transform: scaleX(0.92);
+    }
+
+    55% {
+      transform: scaleX(1.14);
+    }
+
+    100% {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes c01-left-release {
+    0% {
+      transform: translateX(1px);
+    }
+
+    55% {
+      transform: translateX(-2px);
+    }
+
+    100% {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes c01-right-release {
+    0% {
+      transform: translateX(-1px);
+    }
+
+    55% {
+      transform: translateX(2px);
+    }
+
+    100% {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes c01-dot-pop {
+    0% {
+      transform: scale(0);
+    }
+
+    70% {
+      transform: scale(1.25);
+    }
+
+    100% {
+      transform: scale(1);
+    }
+  }
+
+
+  /* =========================================================
+     CONCEPT 02 — REP SNAP / MOBILE TAP VERSION
+     Interaction:
+       idle circle
+       → pointerdown: loaded/compressed dumbbell
+       → release/tap: "rep" kick
+       → pill expands without relying on hover
+       → active state
+     ========================================================= */
+
+  .c02-panel {
+    --c02-bg: #f5f3ef;
+    --c02-surface: #ffffff;
+    --c02-ink: #16181c;
+    --c02-accent: #ff5f45;
+    background:
+      radial-gradient(circle at 50% 54%, rgba(255, 95, 69, 0.08), transparent 25rem),
+      var(--c02-bg);
+  }
+
+  .c02-panel .phone-shell {
+    background: #faf8f4;
+  }
+
+  .c02-panel .mobile-nav {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 10px 30px rgba(30, 25, 21, 0.08),
+      inset 0 0 0 1px rgba(20, 20, 20, 0.06);
+    backdrop-filter: blur(14px);
+  }
+
+  .c02-slot {
+    width: 124px;
+    height: 64px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .c02-button {
+    --c02-width: 46px;
+
+    width: var(--c02-width);
+    height: 46px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+
+    color: var(--c02-ink);
+    background: var(--c02-surface);
+
+    box-shadow:
+      0 2px 6px rgba(28, 24, 20, 0.05),
+      0 9px 22px rgba(28, 24, 20, 0.09),
+      inset 0 0 0 1px rgba(20, 20, 20, 0.07);
+
+    transform: scale(1);
+
+    transition:
+      width 0.38s cubic-bezier(0.2, 0.86, 0.2, 1),
+      transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1),
+      background 0.24s ease,
+      color 0.24s ease,
+      box-shadow 0.24s ease;
+  }
+
+  .c02-button.is-pressing {
+    transform: scale(0.92);
+    box-shadow:
+      0 1px 3px rgba(28, 24, 20, 0.08),
+      0 4px 10px rgba(28, 24, 20, 0.08),
+      inset 0 0 0 1px rgba(255, 95, 69, 0.14);
+  }
+
+  .c02-icon-wrap {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+
+  .c02-icon {
+    width: 25px;
+    height: 25px;
+    overflow: visible;
+  }
+
+  .c02-bar,
+  .c02-plate {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.85;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .c02-button.is-pressing .c02-bar {
+    transform: scaleX(0.92);
+  }
+
+  .c02-button.is-pressing .c02-plate--left-outer {
+    transform: translateX(1.5px) rotate(5deg);
+  }
+
+  .c02-button.is-pressing .c02-plate--left-inner {
+    transform: translateX(0.6px);
+  }
+
+  .c02-button.is-pressing .c02-plate--right-outer {
+    transform: translateX(-1.5px) rotate(-5deg);
+  }
+
+  .c02-button.is-pressing .c02-plate--right-inner {
+    transform: translateX(-0.6px);
+  }
+
+  .c02-flash {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+
+    background:
+      radial-gradient(
+        circle at 50% 50%,
+        rgba(255, 255, 255, 0.9) 0 7%,
+        transparent 8%
+      ),
+      var(--c02-accent);
+
+    clip-path: circle(0% at 50% 50%);
+  }
+
+  .c02-label {
+    width: 0;
+    margin-left: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transform: translateX(-5px);
+
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+
+    transition:
+      width 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
+      margin 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 0.2s ease 0.09s,
+      transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .c02-button.is-firing .c02-flash {
+    animation:
+      c02-flash-animation 0.52s cubic-bezier(0.2, 0.75, 0.2, 1);
+  }
+
+  .c02-button.is-firing .c02-icon-wrap {
+    animation:
+      c02-rep 0.52s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .c02-button.is-firing .c02-plate--left-outer {
+    animation:
+      c02-left-kick 0.52s cubic-bezier(0.2, 0.75, 0.2, 1);
+  }
+
+  .c02-button.is-firing .c02-plate--right-outer {
+    animation:
+      c02-right-kick 0.52s cubic-bezier(0.2, 0.75, 0.2, 1);
+  }
+
+  .c02-button.is-active {
+    --c02-width: 108px;
+
+    color: #ffffff;
+    background: var(--c02-accent);
+
+    box-shadow:
+      0 11px 28px rgba(255, 95, 69, 0.25),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+
+  .c02-button.is-active .c02-label {
+    width: 45px;
+    margin-left: 7px;
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .c02-button.is-active .c02-bar {
+    transform: scaleX(1.08);
+  }
+
+  .c02-button.is-active .c02-plate--left-outer {
+    transform: translateX(-1.4px);
+  }
+
+  .c02-button.is-active .c02-plate--right-outer {
+    transform: translateX(1.4px);
+  }
+
+  @keyframes c02-flash-animation {
+    0% {
+      clip-path: circle(0% at 50% 50%);
+      opacity: 0.95;
+    }
+
+    62% {
+      clip-path: circle(74% at 50% 50%);
+      opacity: 0.2;
+    }
+
+    100% {
+      clip-path: circle(84% at 50% 50%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes c02-rep {
+    0% {
+      transform: translateY(1px) scale(0.96);
+    }
+
+    38% {
+      transform: translateY(-4px) scale(1.03);
+    }
+
+    68% {
+      transform: translateY(1px) scale(0.99);
+    }
+
+    100% {
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes c02-left-kick {
+    0% {
+      transform: translateX(1px);
+    }
+
+    42% {
+      transform: translateX(-4px) rotate(-10deg);
+    }
+
+    100% {
+      transform: translateX(-1.4px);
+    }
+  }
+
+  @keyframes c02-right-kick {
+    0% {
+      transform: translateX(-1px);
+    }
+
+    42% {
+      transform: translateX(4px) rotate(10deg);
+    }
+
+    100% {
+      transform: translateX(1.4px);
+    }
+  }
+
+
+  /* =========================================================
+     KEYBOARD / ACCESSIBILITY
+     No hover styling anywhere.
+     ========================================================= */
+
+  .c01-button:focus-visible,
+  .c02-button:focus-visible {
+    outline: 3px solid rgba(124, 92, 255, 0.24);
+    outline-offset: 5px;
+  }
+
+  .c02-button:focus-visible {
+    outline-color: rgba(255, 95, 69, 0.24);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+</style>
+</head>
+
+<body>
+<main class="demo">
+
+  <!-- =======================================================
+       CONCEPT 01
+       ======================================================= -->
+  <section class="demo-panel c01-panel">
+    <div class="demo-label">01 — Precision Ring / Tap</div>
+
+    <div class="phone-shell">
+      <nav class="mobile-nav" aria-label="Demo mobile navigation">
+        <div class="c01-touch-target">
+          <button
+            class="c01-button"
+            id="concept01Button"
+            type="button"
+            aria-label="Rutina"
+            aria-pressed="false"
+          >
+            <svg
+              class="c01-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                class="c01-plate c01-plate--left"
+                d="M4.8 8.7v6.6M7.2 7.3v9.4"
+              />
+              <path
+                class="c01-bar"
+                d="M7.2 12h9.6"
+              />
+              <path
+                class="c01-plate c01-plate--right"
+                d="M16.8 7.3v9.4M19.2 8.7v6.6"
+              />
+            </svg>
+
+            <span
+              class="c01-status-dot"
+              aria-hidden="true"
+            ></span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </section>
+
+
+  <!-- =======================================================
+       CONCEPT 02
+       ======================================================= -->
+  <section class="demo-panel c02-panel">
+    <div class="demo-label">02 — Rep Snap / Tap</div>
+
+    <div class="phone-shell">
+      <nav class="mobile-nav" aria-label="Demo mobile navigation">
+        <div class="c02-slot">
+          <button
+            class="c02-button"
+            id="concept02Button"
+            type="button"
+            aria-label="Rutina"
+            aria-pressed="false"
+          >
+            <span
+              class="c02-flash"
+              aria-hidden="true"
+            ></span>
+
+            <span
+              class="c02-icon-wrap"
+              aria-hidden="true"
+            >
+              <svg
+                class="c02-icon"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  class="c02-plate c02-plate--left-outer"
+                  d="M4.5 8.9v6.2"
+                />
+                <path
+                  class="c02-plate c02-plate--left-inner"
+                  d="M7 7.4v9.2"
+                />
+                <path
+                  class="c02-bar"
+                  d="M7 12h10"
+                />
+                <path
+                  class="c02-plate c02-plate--right-inner"
+                  d="M17 7.4v9.2"
+                />
+                <path
+                  class="c02-plate c02-plate--right-outer"
+                  d="M19.5 8.9v6.2"
+                />
+              </svg>
+            </span>
+
+            <span class="c02-label">
+              Rutina
+            </span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  </section>
+
+</main>
+
+
+<script>
+  /* =========================================================
+     HELPER
+     Mobile-safe press interaction.
+
+     pointerdown:
+       adds .is-pressing
+
+     pointerup / pointercancel:
+       removes .is-pressing
+
+     click:
+       triggers the actual selection animation
+     ========================================================= */
+
+  function attachPressState(button) {
+    const release = () => {
+      button.classList.remove("is-pressing");
+    };
+
+    button.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
+      button.classList.add("is-pressing");
+
+      if (button.setPointerCapture && event.pointerId !== undefined) {
+        try {
+          button.setPointerCapture(event.pointerId);
+        } catch {}
+      }
+    });
+
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("lostpointercapture", release);
+    button.addEventListener("blur", release);
+  }
+
+
+  /* =========================================================
+     CONCEPT 01
+     ========================================================= */
+
+  const concept01Button =
+    document.querySelector("#concept01Button");
+
+  let concept01Timer;
+
+  attachPressState(concept01Button);
+
+  concept01Button.addEventListener("click", () => {
+    const active =
+      !concept01Button.classList.contains("is-active");
+
+    concept01Button.classList.toggle("is-active", active);
+
+    concept01Button.setAttribute(
+      "aria-pressed",
+      String(active)
+    );
+
+    concept01Button.classList.remove("is-firing");
+
+    void concept01Button.offsetWidth;
+
+    concept01Button.classList.add("is-firing");
+
+    clearTimeout(concept01Timer);
+
+    concept01Timer = setTimeout(() => {
+      concept01Button.classList.remove("is-firing");
+    }, 520);
+  });
+
+
+  /* =========================================================
+     CONCEPT 02
+     ========================================================= */
+
+  const concept02Button =
+    document.querySelector("#concept02Button");
+
+  let concept02Timer;
+
+  attachPressState(concept02Button);
+
+  concept02Button.addEventListener("click", () => {
+    const active =
+      !concept02Button.classList.contains("is-active");
+
+    concept02Button.classList.toggle("is-active", active);
+
+    concept02Button.setAttribute(
+      "aria-pressed",
+      String(active)
+    );
+
+    concept02Button.classList.remove("is-firing");
+
+    void concept02Button.offsetWidth;
+
+    concept02Button.classList.add("is-firing");
+
+    clearTimeout(concept02Timer);
+
+    concept02Timer = setTimeout(() => {
+      concept02Button.classList.remove("is-firing");
+    }, 560);
+  });
+</script>
+</body>
+</html>

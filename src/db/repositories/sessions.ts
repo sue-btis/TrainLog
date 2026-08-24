@@ -93,6 +93,46 @@ export async function saveFinishedSession(
   });
 }
 
+/**
+ * Thrown when `discardSession` is refused because the Session holds logged
+ * sets. Discarding is for a Session started by mistake; once a set exists the
+ * way out is finishing it — the record of work done is never deleted silently.
+ */
+export class SessionHasSetsError extends Error {
+  readonly sessionId: SessionId;
+
+  constructor(sessionId: SessionId) {
+    super(`Session ${sessionId} holds logged sets and cannot be discarded. Finish it instead.`);
+    this.name = 'SessionHasSetsError';
+    this.sessionId = sessionId;
+  }
+}
+
+/**
+ * Erases a Session started by mistake: the row and its ExerciseSessions, in one
+ * transaction, leaving nothing in history or on the calendar (§35).
+ *
+ * This is the one place a Session is deleted, and it is deliberately narrow. It
+ * refuses a Session that is not `in_progress` — a recorded one is history, and
+ * history is not editable here — and refuses one that holds any CompletedSet,
+ * checked inside the transaction so no set can land between the check and the
+ * delete. What it removes is therefore always empty of training: the mistake,
+ * and nothing else.
+ */
+export async function discardSession(id: SessionId): Promise<void> {
+  await db.transaction('rw', [db.sessions, db.exerciseSessions, db.completedSets], async () => {
+    const session = await db.sessions.get(id);
+    if (session === undefined || session.status !== 'in_progress') return;
+
+    const ids = await db.exerciseSessions.where('sessionId').equals(id).primaryKeys();
+    const sets = await db.completedSets.where('exerciseSessionId').anyOf(ids).count();
+    if (sets > 0) throw new SessionHasSetsError(id);
+
+    await db.exerciseSessions.bulkDelete(ids);
+    await db.sessions.delete(id);
+  });
+}
+
 /** The Sessions of one Routine, newest first (§11.10, §37). Index: routineId. */
 export async function listSessionsByRoutine(routineId: Session['routineId']): Promise<Session[]> {
   const sessions = await db.sessions.where('routineId').equals(routineId).toArray();

@@ -21,13 +21,15 @@
  * backup is what it is for once.
  */
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   Bell,
   Database,
   Download,
   FileUp,
   Gauge,
+  HardDrive,
+  LoaderCircle,
   RotateCcw,
   Scale,
   Smartphone,
@@ -47,6 +49,7 @@ import {
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
+  setLastBackupAt,
   setTimerSound,
   setTimerVibration,
 } from '@/db';
@@ -65,9 +68,16 @@ import { useSettings } from '@/features/data/queries';
 import { formatPath, parseBackup, toCsv } from '@/domain/backup';
 import type { BackupDocument, StructuralError } from '@/domain/backup';
 import { formatLocalDate } from '@/domain/dates';
-import { plural } from '@/features/ui/format';
+import { longDate, plural } from '@/features/ui/format';
+import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
+import { useAsyncAction } from '@/features/ui/useAsyncAction';
+import {
+  isInstalled,
+  readStorageDurability,
+  type StorageDurability,
+} from '@/pwa/persistence';
 import { cn } from '@/lib/utils';
 
 /** A validated document waiting for the lifter to confirm replacing everything. */
@@ -90,6 +100,9 @@ function stamp(prefix: string, extension: string): string {
 
 export function SettingsScreen() {
   const input = useRef<HTMLInputElement>(null);
+  // One flag for the whole screen: while a restore is rewriting every table,
+  // an export is not something a lifter should be able to start beside it.
+  const { busy, failure, run } = useAsyncAction();
   const [pending, setPending] = useState<Pending | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -102,8 +115,12 @@ export function SettingsScreen() {
 
   async function exportJson() {
     reset();
-    const document = await exportBackup(Date.now());
+    const at = Date.now();
+    const document = await exportBackup(at);
     download(stamp('trainlog-backup', 'json'), JSON.stringify(document), 'application/json');
+    // Stamped after the file is handed over, so a failed export does not claim
+    // a backup that was never taken.
+    await setLastBackupAt(at);
     setDone('Backup saved. Keep it somewhere that is not this phone.');
   }
 
@@ -150,10 +167,17 @@ export function SettingsScreen() {
           One file holding every routine, session and set. Restoring it on another phone
           brings your training across whole.
         </p>
+        <BackupAge />
 
-        <Button onClick={() => void exportJson()} size="block" type="button" variant="primary">
-          <Download aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Export backup
+        <Button
+          disabled={busy}
+          onClick={() => void run(exportJson)}
+          size="block"
+          type="button"
+          variant="primary"
+        >
+          <Working busy={busy} icon={Download} />
+          {busy ? 'Exporting…' : 'Export backup'}
         </Button>
 
         <div className={RULED}>
@@ -174,7 +198,7 @@ export function SettingsScreen() {
               const chosen = event.target.files?.[0];
               // Clearing the value lets the same file be chosen twice in a row.
               event.target.value = '';
-              if (chosen) void choose(chosen);
+              if (chosen) void run(() => choose(chosen));
             }}
             ref={input}
             tabIndex={-1}
@@ -182,19 +206,21 @@ export function SettingsScreen() {
           />
 
           <Button
+            disabled={busy}
             onClick={() => input.current?.click()}
             size="block"
             type="button"
             variant="secondary"
           >
-            <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            Choose a backup file
+            <Working busy={busy} icon={FileUp} />
+            {busy ? 'Reading the file…' : 'Choose a backup file'}
           </Button>
 
           {pending !== null && (
             <RestoreConfirmation
+              busy={busy}
               onCancel={reset}
-              onConfirm={() => void confirmRestore()}
+              onConfirm={() => void run(confirmRestore)}
               pending={pending}
             />
           )}
@@ -209,14 +235,26 @@ export function SettingsScreen() {
           One line per set, for a spreadsheet. Export only — nothing reads it back.
         </p>
 
-        <Button onClick={() => void exportCsv()} size="block" type="button" variant="secondary">
-          <Upload aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          Export history
+        <Button
+          disabled={busy}
+          onClick={() => void run(exportCsv)}
+          size="block"
+          type="button"
+          variant="secondary"
+        >
+          <Working busy={busy} icon={Upload} />
+          {busy ? 'Exporting…' : 'Export history'}
         </Button>
       </section>
 
+      {failure !== null && (
+        <p className="arrive type-body-sm text-missed-ink" role="alert">
+          {failure}
+        </p>
+      )}
+
       {done !== null && (
-        <p aria-live="polite" className="type-body-sm text-ink-2">
+        <p aria-live="polite" className="arrive type-body-sm text-ink-2">
           {done}
         </p>
       )}
@@ -251,11 +289,7 @@ function SettingsSection() {
   // One read, in flight. Rendering the controls at their defaults first would
   // show a lifter their settings reset for a frame before snapping back.
   if (settings === undefined) {
-    return (
-      <section className={WELL}>
-        <p className="type-body-sm text-ink-2">Reading your settings…</p>
-      </section>
-    );
+    return <Reading>your settings</Reading>;
   }
 
   const { defaultUnit, defaultRir, timerVibration, timerSound, keepScreenAwake } = settings;
@@ -307,8 +341,12 @@ function SettingsSection() {
           </SelectContent>
         </Select>
         <p className="type-body-sm text-ink-2">
-          Where the RIR readout opens for an exercise with no plan and no history. A
-          planned exercise still opens on its own target.
+          RIR is <em>reps in reserve</em> — how many more you could have done when you
+          stopped. RIR 2 means two left in the tank; RIR 0 means none.
+        </p>
+        <p className="type-body-sm text-ink-2">
+          This is where the RIR readout opens for an exercise with no plan and no
+          history. A planned exercise still opens on its own target.
         </p>
       </div>
 
@@ -340,8 +378,112 @@ function SettingsSection() {
           onChange={(on) => void setKeepScreenAwake(on)}
         />
       </div>
+
+      <Durability />
     </section>
   );
+}
+
+/**
+ * How long ago the last backup was taken, or that there has never been one.
+ *
+ * An export button with no memory is pressed once and forgotten; the age is
+ * what makes it a habit. The wording gets blunter the older it gets, and the
+ * "never" case is the one that matters most — it is the state every lifter
+ * starts in and the one the app used to say nothing about.
+ */
+function BackupAge() {
+  const settings = useSettings();
+  // Read once, on mount. `Date.now()` in the body would be an impure render,
+  // and the age of a backup does not need to tick — the screen is opened, read,
+  // and left.
+  const [now] = useState(Date.now);
+  if (settings === undefined) return null;
+
+  const at = settings.lastBackupAt ?? null;
+  if (at === null) {
+    return (
+      <p className="type-body-sm text-missed-ink">
+        You have never exported a backup. Nothing outside this phone holds your training.
+      </p>
+    );
+  }
+
+  const days = Math.floor((now - at) / 86_400_000);
+  return (
+    <p className={cn('type-body-sm', days >= 14 ? 'text-missed-ink' : 'text-ink-2')}>
+      Last backup{' '}
+      {days === 0 ? 'today' : days === 1 ? 'yesterday' : `${plural(days, 'day')} ago`} ·{' '}
+      {longDate(formatLocalDate(new Date(at)))}
+    </p>
+  );
+}
+
+/**
+ * Where a lifter's training actually stands on this device.
+ *
+ * The app has no account and no server, so this is the honest answer to "what
+ * happens to my history" — and until now it was answered nowhere. The state is
+ * read, not asked for: the request itself happens where the lifter has just
+ * invested something (`ensurePersistentStorage`, called on import and on
+ * finishing a session), because that is when a browser is willing to grant it.
+ *
+ * Installing is named separately because it is a different mechanism, not a
+ * nicer version of the same one. WebKit deletes a site's IndexedDB after seven
+ * days of Safari use without visiting it, and a home-screen app is the exemption
+ * — no API call reaches that.
+ */
+function Durability() {
+  const [durability, setDurability] = useState<StorageDurability | null>(null);
+  const installed = isInstalled();
+
+  useEffect(() => {
+    let live = true;
+    void readStorageDurability().then((state) => {
+      if (live) setDurability(state);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <div className={cn(RULED, 'gap-2')}>
+      <Head className="pb-1" icon={HardDrive}>this device</Head>
+      <p className="type-body-sm text-ink-2">
+        {durability === null
+          ? 'Checking how this browser is holding your training…'
+          : durability.state === 'persisted'
+            ? 'Your training is stored persistently. This browser will not clear it to reclaim space.'
+            : durability.state === 'unsupported'
+              ? 'This browser does not say whether it will clear stored data to reclaim space. Keep a backup.'
+              : 'This browser may clear your training to reclaim space, and it clears all of it at once. Keeping the app on your home screen and exporting a backup are what prevent that.'}
+      </p>
+      {!installed && (
+        <p className="type-body-sm text-ink-2">
+          You are running in a browser tab. Add TrainLog to your home screen —
+          on iPhone, Share then <em>Add to Home Screen</em> — and it stops being a
+          site the browser can clear after a week of not opening it.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The leading glyph of a control that is working, or the one it wears at rest.
+ *
+ * Every control on this screen reads or writes the whole database, so every one
+ * of them can take long enough to look like nothing happened — and the spinner
+ * is the only thing that separates "exporting" from "pressed and ignored".
+ */
+function Working({ busy, icon: Icon }: { readonly busy: boolean; readonly icon: LucideIcon }) {
+  if (busy) {
+    return (
+      <LoaderCircle aria-hidden="true" className="animate-spin" size={20} strokeWidth={ICON_STROKE} />
+    );
+  }
+  return <Icon aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />;
 }
 
 /** A section heading with the icon that names it at a glance. */
@@ -411,10 +553,13 @@ function Toggle({
  */
 function RestoreConfirmation({
   pending,
+  busy,
   onCancel,
   onConfirm,
 }: {
   readonly pending: Pending;
+  /** The restore itself, in flight. It replaces every table, so it is never twice. */
+  readonly busy: boolean;
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
 }) {
@@ -451,18 +596,23 @@ function RestoreConfirmation({
         )}
 
         <div className="flex items-center gap-2">
-          <Button onClick={onCancel} size="compact" type="button" variant="quiet">
+          <Button disabled={busy} onClick={onCancel} size="compact" type="button" variant="quiet">
             Keep what I have
           </Button>
           <Button
             className="ml-auto"
+            disabled={busy}
             onClick={onConfirm}
             size="compact"
             type="button"
             variant="danger"
           >
-            <Database aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-            Replace it all
+            {busy ? (
+              <LoaderCircle aria-hidden="true" className="animate-spin" size={18} strokeWidth={ICON_STROKE} />
+            ) : (
+              <Database aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+            )}
+            {busy ? 'Restoring…' : 'Replace it all'}
           </Button>
         </div>
       </div>

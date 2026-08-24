@@ -185,6 +185,47 @@ function doubleProgression(
  * ExerciseSession snapshot already taken from it — the same rule and set count
  * either way.
  */
+/**
+ * What the sets logged *so far, in this Session* will make the next load —
+ * `null` when they will not move it.
+ *
+ * The same question `suggestLoad` answers, asked one session earlier: that one
+ * reads the last `completed` Session to decide what to lift now, this one reads
+ * the Session in progress to say what it is about to earn. It exists so a lifter
+ * can see the consequence of the set they are on while they can still change it,
+ * rather than discovering it a week later.
+ *
+ * The rule is not restated — `doubleProgression` is the same function
+ * `suggestLoad` calls, so the two can never come to disagree about what a
+ * target met means. `sets` must be in `setNumber` order, as every caller of the
+ * rule supplies them.
+ *
+ * `null` for three cases, and they are all the same case: nothing to promise.
+ * An unplanned exercise has no rule; a manual rule never advances by itself
+ * (§28); and a double-progression target not yet met would be a projection of
+ * "no change", which is not news. Absence is the message.
+ */
+export function projectNextLoad(
+  exercise: ExerciseSession,
+  sets: readonly CompletedSet[],
+): LoadSuggestion | null {
+  const target = targetOf(exercise);
+  if (target === null) return null;
+
+  const first = sets[0];
+  if (first === undefined) return null;
+  if (target.rule.type === 'manual') return null;
+
+  const projected = doubleProgression(
+    first,
+    sets,
+    target.plannedSets,
+    target.maxReps,
+    target.rule.increment,
+  );
+  return projected.targetMet ? projected : null;
+}
+
 export function suggestLoad(
   exercise: PlannedExercise | ExerciseSession,
   history: readonly SessionHistory[],

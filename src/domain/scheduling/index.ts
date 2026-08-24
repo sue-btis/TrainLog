@@ -118,6 +118,30 @@ export function isMissed(
 }
 
 /**
+ * What became of one Placement (§11.3).
+ *
+ * `isMissed` answers half the question — it says "past and untrained" — and
+ * every caller that needed the other half was labelling an answered Placement
+ * `planned`, which put the word "planned" beside the record of the session that
+ * answered it. Three states, one match rule, stated once.
+ *
+ * Derived, never stored. `kept` is not a link between the two entities: it is
+ * the same workout-and-day comparison `isMissed` makes, read the other way
+ * round (ADR 0001).
+ */
+export type PlacementState = 'planned' | 'kept' | 'missed';
+
+export function placementState(
+  placement: Placement,
+  sessions: readonly Session[],
+  today: LocalDate,
+): PlacementState {
+  // Today is not over, so today's Placement is still ahead of you.
+  if (placement.date >= today) return 'planned';
+  return isMissed(placement, sessions, today) ? 'missed' : 'kept';
+}
+
+/**
  * The six states a calendar day can read as (§11.3).
  *
  * `rest` is simply a day the programme never claimed — not a failure, and not
@@ -186,4 +210,53 @@ export function estimateDuration(plannedExercises: readonly PlannedExercise[]): 
     0,
   );
   return Math.round(seconds / 60 / ROUNDING_MINUTES) * ROUNDING_MINUTES;
+}
+
+/**
+ * What a month came to, in five counts (§11.3).
+ *
+ * The calendar draws six colours over 42 cells; this is the same record stated
+ * in words, so "how am I doing" is answered by reading rather than by decoding.
+ *
+ * Derived like everything else here — nothing below is stored, and the match
+ * between a Placement and a Session is the one `isMissed` already makes
+ * (workout and local day, ADR 0001). `unplanned` is that rule read backwards:
+ * a Session no Placement asked for. Without it the counts would quietly claim a
+ * month was emptier than it was.
+ */
+export interface MonthTally {
+  /** Placements in range — what the programme asked of this month. */
+  readonly planned: number;
+  /** Past Placements a Session answered. */
+  readonly kept: number;
+  readonly missed: number;
+  /** Placements still ahead: today's included, since today is not over. */
+  readonly upcoming: number;
+  /** Sessions in range that no Placement in range asked for. */
+  readonly unplanned: number;
+}
+
+export function tallyMonth(
+  placements: readonly Placement[],
+  sessions: readonly Session[],
+  today: LocalDate,
+): MonthTally {
+  const missed = placements.filter((placement) => isMissed(placement, sessions, today));
+  const upcoming = placements.filter((placement) => placement.date >= today);
+  const unplanned = sessions.filter(
+    (session) =>
+      !placements.some(
+        (placement) =>
+          placement.workoutId === session.workoutId &&
+          placement.date === formatLocalDate(new Date(session.startedAt)),
+      ),
+  );
+
+  return {
+    planned: placements.length,
+    kept: placements.length - missed.length - upcoming.length,
+    missed: missed.length,
+    upcoming: upcoming.length,
+    unplanned: unplanned.length,
+  };
 }

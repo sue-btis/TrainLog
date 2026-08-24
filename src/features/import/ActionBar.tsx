@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 import type { SemanticIssue } from '@/domain/routine-file';
 import { stepOfIssue } from '@/features/import/issues';
 import type { WizardStep } from '@/features/import/state';
-import { FOCUS_RING, ICON_STROKE, alert } from '@/features/ui/styles';
+import { FOCUS_RING, ICON_STROKE, PRESS, alert } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 interface ActionBarProps {
@@ -128,7 +128,10 @@ export function ActionBar({
               <button
                 aria-controls="import-issues"
                 aria-expanded={listOpen}
-                className={alert('missed', 'w-full items-center text-left')}
+                // The one control in the bar wearing neither the press nor the
+                // focus halo, and it is the one that opens the list standing
+                // between a lifter and `Accept`.
+                className={cn(alert('missed', 'w-full items-center text-left'), PRESS, FOCUS_RING)}
                 onClick={() => setListOpen(!listOpen)}
                 type="button"
               >
@@ -152,6 +155,7 @@ export function ActionBar({
                         className={cn(
                           'flex min-h-12 w-full items-center gap-2 rounded-control bg-card px-3 py-2 text-left',
                           'shadow-dome hover:shadow-dome-lift',
+                          PRESS,
                           FOCUS_RING,
                         )}
                         onClick={() => {

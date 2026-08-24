@@ -27,15 +27,25 @@ import {
   WELL,
   chip,
 } from '@/features/ui/styles';
+import { Reading } from '@/features/ui/Reading';
 
 export function RoutineDetailScreen() {
   const params = useParams();
   const routineId = params.routineId === undefined ? null : toId<RoutineId>(params.routineId);
   const routine = useRoutine(routineId);
-  const workouts = useWorkouts(routineId) ?? [];
-  const placements = usePlacements(routineId) ?? [];
+  // Counted in the header, so an in-flight read must not be counted as zero:
+  // "4 weeks · 0 workouts · 0 sessions placed" is a sentence about a Routine
+  // that is not this one.
+  const routineWorkouts = useWorkouts(routineId);
+  const routinePlacements = usePlacements(routineId);
+  const counted = routineWorkouts !== undefined && routinePlacements !== undefined;
 
-  if (routine === undefined) return null; // still reading
+  const workouts = routineWorkouts ?? [];
+  const placements = routinePlacements ?? [];
+
+  // Still reading. `null` below is the Routine that is not there; this is the
+  // one that has not arrived, and a blank screen said neither.
+  if (routine === undefined) return <Reading>this routine</Reading>;
 
   if (routine === null) {
     return (
@@ -57,8 +67,9 @@ export function RoutineDetailScreen() {
         </span>
         <h2 className="type-display">{routine.name}</h2>
         <p className="type-measure-sm text-ink-3">
-          {plural(routine.weeks, 'week')} · {plural(workouts.length, 'workout')} ·{' '}
-          {plural(placements.length, 'session')} placed
+          {plural(routine.weeks, 'week')}
+          {counted &&
+            ` · ${plural(workouts.length, 'workout')} · ${plural(placements.length, 'session')} placed`}
         </p>
       </header>
 
@@ -76,7 +87,8 @@ interface WorkoutCardProps {
 }
 
 function WorkoutCard({ workoutId, name, suggestedDays }: WorkoutCardProps) {
-  const exercises = usePlannedExercises(workoutId) ?? [];
+  const planned = usePlannedExercises(workoutId);
+  const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
 
   return (
@@ -90,7 +102,11 @@ function WorkoutCard({ workoutId, name, suggestedDays }: WorkoutCardProps) {
         </p>
       </div>
 
-      {exercises.length === 0 ? (
+      {/* Bare, not `Reading`: a well inside a card is the nested surface
+          DESIGN.md forbids (see `styles.ts`). */}
+      {planned === undefined ? (
+        <p className="type-body-sm text-ink-2">Reading the exercises…</p>
+      ) : exercises.length === 0 ? (
         <p className="type-body-sm text-ink-2">This Workout has no exercises.</p>
       ) : (
         <div className={ROW_LIST}>

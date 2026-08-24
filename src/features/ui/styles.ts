@@ -77,9 +77,21 @@ export const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-planned ' +
   'focus-visible:shadow-[0_0_0_3px_var(--color-planned-wash)]';
 
-/** The press: 110ms, once, on every control. The system's only motion moment. */
+/**
+ * The press: 110ms, once, on every control. The system's only motion moment.
+ *
+ * `scale` and `translate` are named because Tailwind v4 writes neither through
+ * `transform` any more: `scale-[.975]` compiles to `scale: .975` and
+ * `-translate-y-0.5` to `translate: …`, each its own animatable property. This
+ * list is an arbitrary value, so it takes no expansion — it *is* the literal
+ * `transition-property`. Naming only `transform` therefore transitioned nothing
+ * the press or the hover lift actually change, and the system's one motion
+ * moment snapped in both directions on every control in the app. The *named*
+ * `transition-transform` utility does expand to all four, which is why the
+ * chevrons and the switch thumb were never affected by this.
+ */
 export const PRESS =
-  'transition-[box-shadow,transform,background-color] duration-[110ms] ease-snap active:scale-[.975]';
+  'transition-[box-shadow,transform,scale,translate,background-color] duration-[110ms] ease-snap active:scale-[.975]';
 
 /**
  * A button is fully round. `rounded-chip` is the same 999px the cells and the
@@ -173,7 +185,7 @@ export const MENU_ITEM = cn(
  * hairline stays — it is what the invalid ring replaces — but the tint is what
  * finds the control now, the same tint the weeks readout wears.
  */
-export const FIELD_BASE = `w-full min-h-12 rounded-field bg-well text-ink ring-1 ring-rule px-3 ${FOCUS_RING}`;
+export const FIELD_BASE = `w-full min-h-12 rounded-field bg-well text-ink ring-1 ring-edge px-3 ${FOCUS_RING}`;
 
 /** Invalid adds a ring in Errata Red — the hue that owns a validation error. */
 export function field(invalid: boolean, extra?: string): string {
@@ -187,6 +199,15 @@ const CHIP_TONE = {
   planned: 'bg-planned-ink text-on-fill',
   actual: 'bg-actual-ink text-on-fill',
   missed: 'bg-missed-ink text-on-fill',
+  /**
+   * Derived Violet — a number nobody entered (DESIGN.md).
+   *
+   * The hue exists so a computed figure is never dressed as an observed one. It
+   * had no chip until a progression suggestion and a session record needed to
+   * sit beside sets that were actually performed, which is exactly the
+   * distinction the fifth hue was reserved for.
+   */
+  progress: 'bg-progress-ink text-on-fill',
 } as const;
 
 export type ChipTone = keyof typeof CHIP_TONE;
@@ -235,7 +256,7 @@ const DOME_STATE = {
    * rather than a body, because there is nothing there yet: a solid circle
    * would claim a set exists. Dashed says "this could be one".
    */
-  add: 'bg-transparent text-ink-3 border-2 border-dashed border-rule hover:border-planned hover:text-planned-ink shadow-none',
+  add: 'bg-transparent text-ink-3 border-2 border-dashed border-edge hover:border-planned hover:text-planned-ink shadow-none',
 } as const;
 
 const DOME_SIZE = {
@@ -284,7 +305,10 @@ export const STEPPER = cn(
  * `SetLogger`.
  */
 export const READOUT = cn(
-  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well px-2 py-3',
+  // The three gym-mode readouts had no boundary at all — `bg-well` on `bg-card`
+  // is 1.13:1, so the field a lifter aims a thumb at mid-set was findable only
+  // by the label above it.
+  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-field bg-well ring-1 ring-edge px-2 py-3',
   // The value inside is typed into as well as stepped, so the cavity takes the
   // focus halo on behalf of the borderless input it holds.
   'focus-within:ring-1 focus-within:ring-planned focus-within:shadow-[0_0_0_3px_var(--color-planned-wash)]',
@@ -302,10 +326,16 @@ export const READOUT_INPUT =
  * The rest timer: the one full-bleed coloured surface in the product. The
  * darker `live-ink` rather than `live`, so white Clock type clears it
  * (DESIGN.md §Rest timer).
+ *
+ * It docks to the bottom edge rather than taking a card in the column. Gym mode
+ * hides the navigation (§21), so the thumb zone is free — and rest belongs to
+ * the session, not to the exercise the column happens to be showing, so it has
+ * no business pushing the set being logged down the screen.
  */
-export const TIMER_SHELL = 'relative overflow-hidden rounded-card bg-live-ink p-5 text-on-fill shadow-lift';
+export const TIMER_SHELL =
+  'fixed inset-x-0 bottom-0 z-20 overflow-hidden bg-live-ink text-on-fill shadow-lift';
 
-/** The track along its bottom edge, and the rail that scales down inside it. */
-export const TIMER_TRACK = 'absolute inset-x-0 bottom-0 h-1.5 bg-scrim';
+/** The track along its top edge, and the rail that scales down inside it. */
+export const TIMER_TRACK = 'absolute inset-x-0 top-0 h-1.5 bg-scrim';
 export const TIMER_RAIL =
   'h-full origin-left bg-live-rail transition-transform duration-1000 ease-linear';

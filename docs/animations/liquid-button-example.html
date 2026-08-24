@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Concept 03 — Liquid Beacon</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #f1f2ef;
+    --ink: #111311;
+    --inactive: #9fa29d;
+    --surface: #ffffff;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: grid;
+    place-items: center;
+    background: var(--bg);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nav-btn {
+    width: 78px;
+    height: 72px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    position: relative;
+    display: grid;
+    place-items: center;
+    color: var(--inactive);
+    cursor: pointer;
+    touch-action: manipulation;
+    outline: none;
+  }
+
+  .liquid-layer {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    filter: url(#goo);
+    pointer-events: none;
+  }
+
+  .blob {
+    position: absolute;
+    border-radius: 999px;
+    background: var(--ink);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0);
+  }
+
+  .blob.main { width: 46px; height: 46px; }
+  .blob.one, .blob.two, .blob.three { width: 13px; height: 13px; }
+
+  .icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    z-index: 2;
+    transition: transform 260ms cubic-bezier(.2,.9,.2,1.2), color 180ms ease;
+  }
+
+  .icon {
+    width: 26px;
+    height: 26px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.85;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .ring {
+    position: absolute;
+    width: 55px;
+    height: 55px;
+    border: 1px solid rgba(17,19,17,.14);
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(.65);
+    pointer-events: none;
+  }
+
+  .nav-btn.pressing .icon-wrap { transform: scale(.86) translateY(2px); }
+
+  .nav-btn.active { color: #fff; }
+  .nav-btn.active .icon-wrap { transform: translateY(-4px); }
+
+  .nav-btn.active .blob.main {
+    transform: translate(-50%, -50%) scale(1);
+    transition: transform 380ms cubic-bezier(.2,.85,.2,1.25);
+  }
+
+  .nav-btn.activating .blob.main {
+    animation: blob-main 620ms cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  .nav-btn.activating .blob.one {
+    animation: blob-one 620ms cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  .nav-btn.activating .blob.two {
+    animation: blob-two 620ms cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  .nav-btn.activating .blob.three {
+    animation: blob-three 620ms cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  .nav-btn.activating .ring {
+    animation: ring 520ms ease-out 100ms forwards;
+  }
+  .nav-btn.activating .icon {
+    animation: beacon 560ms cubic-bezier(.2,.9,.2,1.3);
+  }
+
+  .nav-btn.deactivating .blob.main {
+    animation: blob-out 300ms cubic-bezier(.4,0,.8,.2) forwards;
+  }
+
+  @keyframes blob-main {
+    0% { transform: translate(-50%, -50%) scale(.15,.15); }
+    38% { transform: translate(-50%, -50%) scale(1.08,.82); }
+    68% { transform: translate(-50%, -50%) scale(.92,1.04); }
+    100% { transform: translate(-50%, -50%) scale(1,1); }
+  }
+  @keyframes blob-one {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    20% { opacity: 1; transform: translate(-50%, -50%) translate(-17px, 12px) scale(.9); }
+    68% { transform: translate(-50%, -50%) translate(-5px, 3px) scale(.7); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  }
+  @keyframes blob-two {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    24% { opacity: 1; transform: translate(-50%, -50%) translate(18px, -9px) scale(1); }
+    70% { transform: translate(-50%, -50%) translate(5px, -2px) scale(.7); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  }
+  @keyframes blob-three {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    26% { opacity: 1; transform: translate(-50%, -50%) translate(13px, 17px) scale(.8); }
+    72% { transform: translate(-50%, -50%) translate(4px, 4px) scale(.55); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  }
+  @keyframes ring {
+    0% { opacity: .55; transform: scale(.65); }
+    100% { opacity: 0; transform: scale(1.28); }
+  }
+  @keyframes beacon {
+    0% { transform: scale(.82) rotate(-5deg); }
+    45% { transform: scale(1.12) rotate(3deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+  @keyframes blob-out {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    100% { transform: translate(-50%, -50%) scale(0); }
+  }
+
+  .nav-btn:focus-visible .icon-wrap {
+    box-shadow: 0 0 0 3px rgba(17,19,17,.14);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+  }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <filter id="goo">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+        <feColorMatrix in="blur" mode="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 20 -9"
+          result="goo"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <button class="nav-btn" aria-label="Progress" aria-pressed="false">
+    <span class="liquid-layer" aria-hidden="true">
+      <span class="blob main"></span>
+      <span class="blob one"></span>
+      <span class="blob two"></span>
+      <span class="blob three"></span>
+    </span>
+    <span class="ring"></span>
+    <span class="icon-wrap">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 18V9"/>
+        <path d="M12 18V5"/>
+        <path d="M19 18v-7"/>
+        <path d="M3.5 18.5h17"/>
+      </svg>
+    </span>
+  </button>
+
+<script>
+  const btn = document.querySelector('.nav-btn');
+
+  const setPress = (on) => btn.classList.toggle('pressing', on);
+  btn.addEventListener('pointerdown', () => setPress(true));
+  btn.addEventListener('pointerup', () => setPress(false));
+  btn.addEventListener('pointercancel', () => setPress(false));
+
+  btn.addEventListener('click', () => {
+    const goingActive = !btn.classList.contains('active');
+    btn.classList.remove('activating', 'deactivating');
+    void btn.offsetWidth;
+
+    if (goingActive) {
+      btn.classList.add('active', 'activating');
+      setTimeout(() => btn.classList.remove('activating'), 660);
+    } else {
+      btn.classList.add('deactivating');
+      setTimeout(() => {
+        btn.classList.remove('active', 'deactivating');
+      }, 280);
+    }
+
+    btn.setAttribute('aria-pressed', String(goingActive));
+  });
+</script>
+</body>
+</html>

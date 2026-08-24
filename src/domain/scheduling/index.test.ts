@@ -17,6 +17,8 @@ import {
   generatePlacements,
   isMissed,
   nextWorkoutInRotation,
+  placementState,
+  tallyMonth,
 } from '@/domain/scheduling';
 
 const routineId = toId<RoutineId>('routine-1');
@@ -261,5 +263,59 @@ describe('estimateDuration (R-41, §11.4, D2)', () => {
   it('rounds a short Workout to the nearest five minutes, not down to zero', () => {
     // 2 x (60 + 45) = 210s = 3.5 min -> 5
     expect(estimateDuration([planned(2, 60)])).toBe(5);
+  });
+});
+
+describe('tallyMonth (§11.3)', () => {
+  const today = toLocalDate('2026-09-15');
+  const placement = (date: string, workoutId = 'push'): Placement => ({
+    id: toId('placement-' + workoutId + '-' + date),
+    routineId,
+    workoutId: toId<WorkoutId>(workoutId),
+    date: toLocalDate(date),
+  });
+
+  it('names a placement planned ahead of today, kept once answered, missed otherwise', () => {
+    const answered = placement('2026-09-07');
+    const untrained = placement('2026-09-10');
+    const ahead = placement('2026-09-15'); // today, and today is not over
+    const sessions = [session('push', noonOn('2026-09-07'))];
+
+    expect(placementState(answered, sessions, today)).toBe('kept');
+    expect(placementState(untrained, sessions, today)).toBe('missed');
+    expect(placementState(ahead, sessions, today)).toBe('planned');
+  });
+
+  it('counts nothing for a month with nothing in it', () => {
+    expect(tallyMonth([], [], today)).toEqual({
+      planned: 0, kept: 0, missed: 0, upcoming: 0, unplanned: 0,
+    });
+  });
+
+  it('splits placements into kept, missed and still ahead', () => {
+    const placements = [
+      placement('2026-09-07'),                 // answered
+      placement('2026-09-10'),                 // untrained, in the past
+      placement('2026-09-15'),                 // today: not over, so ahead
+      placement('2026-09-21'),                 // ahead
+    ];
+    const sessions = [session('push', noonOn('2026-09-07'))];
+
+    expect(tallyMonth(placements, sessions, today)).toEqual({
+      planned: 4, kept: 1, missed: 1, upcoming: 2, unplanned: 0,
+    });
+  });
+
+  it('counts a session no placement asked for as unplanned', () => {
+    const placements = [placement('2026-09-07')];
+    const sessions = [
+      session('push', noonOn('2026-09-07')),   // the placement's own
+      session('pull', noonOn('2026-09-09')),   // nobody planned this
+      session('push', noonOn('2026-09-08')),   // right workout, wrong day
+    ];
+
+    expect(tallyMonth(placements, sessions, today)).toMatchObject({
+      kept: 1, missed: 0, unplanned: 2,
+    });
   });
 });
