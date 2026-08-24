@@ -141,33 +141,40 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
 
   return (
     <section aria-label="Rest timer" className={TIMER_SHELL}>
-      <div className="flex flex-col gap-1">
-        <span className={cn(LABEL, 'text-on-fill/90')}>
-          {remaining === 0 ? 'rest is up' : 'rest'}
-          {exerciseName !== null && <span className="text-on-fill/70"> · {exerciseName}</span>}
-        </span>
-        <span aria-live="off" className="type-clock">
-          {minutes}:{String(remaining % 60).padStart(2, '0')}
-        </span>
+      {/* The rail *scales*; it does not resize. DESIGN.md forbids animating
+          width, and a transform is what the GPU can carry for three minutes
+          without waking the main thread. It rides the dock's top edge, the one
+          border the lifter can see — along the bottom it would sit under the
+          home indicator. */}
+      <div className={TIMER_TRACK}>
+        <div
+          className={TIMER_RAIL}
+          // Named so the reduced-motion block can spare it: the rail is the
+          // remaining time drawn as a length, not decoration.
+          data-rail="rest"
+          style={{ transform: `scaleX(${total === 0 ? 0 : remaining / total})` }}
+        />
       </div>
 
-      {/* Every control in one band, under a full-width clock.
-          The controls used to flank the clock with the add-time field on a row
-          of its own. Regrouping them costs nothing in height — measured, the
-          shell is ~166px either way — but it gives the clock the full width it
-          is read at arm's length across, and puts all five controls in one
-          horizontal sweep of the thumb rather than two.
+      {/* One band: the clock reads left, every control falls under the thumb on
+          the right. The clock is `type-readout` rather than the full `type-clock`
+          — a dock this tall is glanced at from a rack, not read across a room,
+          and 56px type would cost the set being logged the space the dock was
+          moved here to give back. */}
+      <div
+        className="mx-auto flex w-full max-w-lg items-center gap-1 px-4 pt-3"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span aria-live="off" className="type-readout">
+            {minutes}:{String(remaining % 60).padStart(2, '0')}
+          </span>
+          <span className={cn(LABEL, 'truncate text-on-fill/80')}>
+            {remaining === 0 ? 'rest is up' : 'rest'}
+            {exerciseName !== null && <span className="text-on-fill/60"> · {exerciseName}</span>}
+          </span>
+        </div>
 
-          The height that mattered came from the field beside them: it was a
-          w-16 `type-title` input followed by the word "seconds", and shrinking
-          it to w-12 with the word moved into the accessible name is what put
-          "Complete set" — the most-pressed control in the product — back inside
-          an 812px viewport, at 811px rather than 829px.
-
-          How much to add stays the lifter's rather than becoming a fixed ±15:
-          a heavy single might want three minutes, and a fixed bump makes that
-          six presses. */}
-      <div className="mt-2 flex items-center gap-2">
         <Control label={paused ? 'Resume rest' : 'Pause rest'} onClick={() => setPausedAt(paused ? null : Date.now())}>
           {paused ? (
             <Play aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
@@ -190,12 +197,14 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
           <X aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </Control>
 
-        <span aria-hidden="true" className="flex-1" />
-
+        {/* How much to add stays the lifter's rather than becoming a fixed ±15:
+            a heavy single might want three minutes, and a fixed bump makes that
+            six presses. The word "seconds" lives in the accessible name because
+            the dock has no width to spell it. */}
         <input
           aria-label="Seconds to add"
           className={cn(
-            'w-12 rounded-field bg-on-fill/15 px-1 py-1.5 text-center type-body-sm text-on-fill',
+            'w-11 shrink-0 rounded-field bg-on-fill/15 px-1 py-1.5 text-center type-body-sm text-on-fill',
             'outline-none focus-visible:ring-2 focus-visible:ring-on-fill',
           )}
           inputMode="numeric"
@@ -217,24 +226,11 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
           <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
         </Control>
       </div>
-
-      {/* The rail *scales*; it does not resize. DESIGN.md forbids animating
-          width, and a transform is what the GPU can carry for three minutes
-          without waking the main thread. */}
-      <div className={TIMER_TRACK}>
-        <div
-          className={TIMER_RAIL}
-          // Named so the reduced-motion block can spare it: the rail is the
-          // remaining time drawn as a length, not decoration.
-          data-rail="rest"
-          style={{ transform: `scaleX(${total === 0 ? 0 : remaining / total})` }}
-        />
-      </div>
     </section>
   );
 }
 
-/** A control on the coloured shell: white on amber, so it takes its own face. */
+/** A control on the coloured dock: white on amber, so it takes its own face. */
 function Control({
   label,
   onClick,
@@ -248,7 +244,7 @@ function Control({
     <button
       aria-label={label}
       className={cn(
-        'inline-flex size-11 items-center justify-center rounded-cell',
+        'inline-flex size-11 shrink-0 items-center justify-center rounded-cell',
         'bg-on-fill/15 text-on-fill hover:bg-on-fill/25',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-fill',
         PRESS,

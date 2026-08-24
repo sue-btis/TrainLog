@@ -314,10 +314,16 @@ export const READOUT_INPUT =
  * The rest timer: the one full-bleed coloured surface in the product. The
  * darker `live-ink` rather than `live`, so white Clock type clears it
  * (DESIGN.md §Rest timer).
+ *
+ * It docks to the bottom edge rather than taking a card in the column. Gym mode
+ * hides the navigation (§21), so the thumb zone is free — and rest belongs to
+ * the session, not to the exercise the column happens to be showing, so it has
+ * no business pushing the set being logged down the screen.
  */
-export const TIMER_SHELL = 'relative overflow-hidden rounded-card bg-live-ink p-5 text-on-fill shadow-lift';
+export const TIMER_SHELL =
+  'fixed inset-x-0 bottom-0 z-20 overflow-hidden bg-live-ink text-on-fill shadow-lift';
 
-/** The track along its bottom edge, and the rail that scales down inside it. */
-export const TIMER_TRACK = 'absolute inset-x-0 bottom-0 h-1.5 bg-scrim';
+/** The track along its top edge, and the rail that scales down inside it. */
+export const TIMER_TRACK = 'absolute inset-x-0 top-0 h-1.5 bg-scrim';
 export const TIMER_RAIL =
   'h-full origin-left bg-live-rail transition-transform duration-1000 ease-linear';
