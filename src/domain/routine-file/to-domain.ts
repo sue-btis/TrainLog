@@ -9,11 +9,7 @@
  * passed in rather than read from a database (§26, AGENTS.MD layering).
  */
 
-import {
-  findCatalogExerciseByNormalizedName,
-  getCatalogExercise,
-  normalizeExerciseName,
-} from '@/domain/catalog';
+import { findExerciseByName, getCatalogExercise } from '@/domain/catalog';
 import { newId, toId } from '@/domain/ids';
 import type {
   ExerciseId,
@@ -46,13 +42,19 @@ export interface ResolvedExercise {
  * Resolves one file exercise, in the order of §26 (REQ-022):
  *
  *   1. `exercise_id` against the catalog;
- *   2. otherwise the normalized name against the catalog, then against
- *      `knownExercises` — the user's Exercises, including any created earlier
- *      in the same import;
+ *   2. otherwise `findExerciseByName` — the normalized name against the
+ *      catalog, then against `knownExercises`, which holds the user's
+ *      Exercises including any created earlier in the same import;
  *   3. otherwise a new user Exercise with a generated id.
  *
  * An `exercise_id` that names nothing in the catalog falls through to name
  * resolution rather than failing: the file still describes a real movement.
+ *
+ * Step 2 lives in `@/domain/catalog` rather than here because the create screen
+ * asks the same question before it writes a row (REQ-102). This function is now
+ * that lookup plus the mint, and the mint is the only part it owns — which is
+ * what keeps the two creation paths from drifting apart on what counts as the
+ * same movement.
  */
 export function resolveFileExercise(
   fileExercise: RoutineFileExercise,
@@ -63,13 +65,7 @@ export function resolveFileExercise(
     if (fromCatalog) return { exercise: fromCatalog, created: false };
   }
 
-  const normalized = normalizeExerciseName(fileExercise.name);
-  const fromCatalogByName = findCatalogExerciseByNormalizedName(normalized);
-  if (fromCatalogByName) return { exercise: fromCatalogByName, created: false };
-
-  const known = knownExercises.find(
-    (candidate) => normalizeExerciseName(candidate.name) === normalized,
-  );
+  const known = findExerciseByName(fileExercise.name, knownExercises);
   if (known) return { exercise: known, created: false };
 
   return {

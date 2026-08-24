@@ -45,10 +45,13 @@ export {
 } from '@/db/repositories/placements';
 
 export {
+  ExerciseNameRequiredError,
+  createUserExercise,
   getExercise,
   getExerciseName,
   getExerciseNames,
   listUserExercises,
+  type CreatedExercise,
 } from '@/db/repositories/exercises';
 
 export {

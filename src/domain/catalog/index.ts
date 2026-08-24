@@ -54,8 +54,60 @@ export function findCatalogExerciseByNormalizedName(name: string): CatalogExerci
   return byNormalizedName.get(normalizeExerciseName(name));
 }
 
+/**
+ * "Does this movement already exist?" — the §26 lookup, in one place (REQ-102).
+ *
+ * The catalog first, then the lifter's own Exercises, both by normalized name.
+ * This is the first two thirds of `resolveFileExercise`; that function is now
+ * "this lookup, else mint", and the create screen asks the same question before
+ * writing a row. One implementation rather than two, because two would drift —
+ * and a drifted name match splits a lifter's history in two, silently (§26,
+ * PRD §39 item 7).
+ *
+ * The order is not incidental. The catalog wins, so a lifter cannot shadow a
+ * shipped movement with one of their own; a row that did shadow one (only
+ * `restoreBackup` can produce it) stays unreachable by name, which is a stated
+ * ceiling this does not close.
+ *
+ * `userExercises` is passed in rather than read: the catalog module knows
+ * nothing about persistence, and callers already hold the list — the import
+ * pipeline grows its own as it walks a file.
+ */
+export function findExerciseByName(
+  name: string,
+  userExercises: readonly Exercise[],
+): Exercise | undefined {
+  const normalized = normalizeExerciseName(name);
+  const fromCatalog = byNormalizedName.get(normalized);
+  if (fromCatalog) return fromCatalog;
+
+  return userExercises.find(
+    (candidate) => normalizeExerciseName(candidate.name) === normalized,
+  );
+}
+
 /** The group an Exercise falls into when it names no `category` (§11.12). */
 export const UNCATEGORIZED = 'uncategorized';
+
+/**
+ * The category and equipment vocabularies the shipped catalog itself uses
+ * (REQ-105), sorted, for a form that offers a closed choice instead of free
+ * text.
+ *
+ * Derived from `CATALOG` alone, never from stored Exercises. A routine file may
+ * write anything it likes into `category` — the schema does not constrain it —
+ * and folding those values back into the offer would let one dirty import teach
+ * the form a word the catalog never used. PRD §39 item 8 depends on this
+ * vocabulary staying clean: muscle volume grouped over dirty categories reports
+ * false figures.
+ */
+export const CATALOG_CATEGORIES: readonly string[] = [
+  ...new Set(CATALOG.map((entry) => entry.category).filter((c): c is string => c !== null)),
+].sort();
+
+export const CATALOG_EQUIPMENT: readonly string[] = [
+  ...new Set(CATALOG.map((entry) => entry.equipment).filter((e): e is string => e !== null)),
+].sort();
 
 /** One category's exercises, as the catalog screen draws them. */
 export interface ExerciseGroup {
