@@ -16,7 +16,8 @@ export type SemanticIssueCode =
   | 'rest_seconds_negative'
   | 'sets_not_positive'
   | 'progression_unrecognized'
-  | 'suggested_day_shared';
+  | 'suggested_day_shared'
+  | 'routine_has_no_workouts';
 
 /** One semantic problem, addressed to the field or fields that caused it. */
 export interface SemanticIssue {
@@ -38,6 +39,28 @@ const KNOWN_PROGRESSION_TYPES = new Set(['manual', 'double_progression']);
 /** Returns every semantic issue in `file`. An empty array means it is clean. */
 export function validateRoutineFile(file: RoutineFile): readonly SemanticIssue[] {
   const issues: SemanticIssue[] = [];
+
+  // A routine with no Workouts describes no training, and accepting one is not
+  // harmless: a draft always arrives `active`, so `importRoutine` archives the
+  // lifter's real programme to make room for an empty shell. The structural
+  // tier cannot catch it — `z.array()` carries no minimum — and every loop
+  // below iterates zero times over it, so without this the file is clean.
+  //
+  // `paths` is empty because there is no field to point at: the issue is the
+  // absence of one. The wizard already tolerates that — `indexIssues` skips it
+  // and `jumpToIssue` returns early — so it blocks `Accept` and states why,
+  // which is all it can usefully do.
+  //
+  // A *Workout* with no exercises stays valid on purpose. It runs end to end
+  // (`createStartedWorkout`), and `deleteExercise` deliberately allows emptying
+  // one so the wizard cannot trap a user who removed the last exercise.
+  if (file.routine.workouts.length === 0) {
+    issues.push({
+      code: 'routine_has_no_workouts',
+      paths: [],
+      message: `${file.routine.name} declares no Workouts.`,
+    });
+  }
 
   file.routine.workouts.forEach((workout, workoutIndex) => {
     workout.exercises.forEach((exercise, exerciseIndex) => {

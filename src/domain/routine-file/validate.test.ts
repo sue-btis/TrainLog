@@ -16,6 +16,18 @@ describe('validateRoutineFile — semantic checks (TST-003)', () => {
     expect(validateRoutineFile(aFile())).toEqual([]);
   });
 
+  it('reports a routine that declares no Workouts, addressed to no field', () => {
+    const issues = validateRoutineFile(aFile([]));
+    expect(issues.map((i) => i.code)).toEqual(['routine_has_no_workouts']);
+    // No field to jump to: the issue is that none exists. `indexIssues` skips
+    // an issue with no paths and `jumpToIssue` returns early on one.
+    expect(pathsOf(issues)).toEqual([]);
+  });
+
+  it('accepts a Workout with no exercises — only the routine must be non-empty', () => {
+    expect(validateRoutineFile(aFile([aWorkout({ exercises: [] })]))).toEqual([]);
+  });
+
   it('reports min_reps greater than max_reps, at the exercise reps (AC-032)', () => {
     const file = aFile([
       aWorkout({ exercises: [anExercise({ reps: { min: 8, max: 6 } })] }),
