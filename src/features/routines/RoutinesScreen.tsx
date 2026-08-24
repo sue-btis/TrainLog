@@ -28,6 +28,7 @@ import { Card } from '@/components/ui/card';
 import type { RoutineId } from '@/domain/ids';
 import type { Routine } from '@/domain/types';
 import { useRoutines } from '@/features/data/queries';
+import { ConversionPromptButton } from '@/features/import/ConversionPromptButton';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
 import { plural, shortDate } from '@/features/ui/format';
 import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
@@ -59,6 +60,8 @@ export function RoutinesScreen() {
         <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
         Import routine
       </ImportRoutineButton>
+
+      <ConversionPromptButton />
 
       {routines === undefined ? null : routines.length === 0 ? (
         <section className={WELL}>
