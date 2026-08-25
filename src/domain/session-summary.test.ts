@@ -9,6 +9,7 @@ import {
   type SessionId,
   type WorkoutId,
 } from '@/domain/ids';
+import type { Measurement } from '@/domain/measurement';
 import type { SessionHistory } from '@/domain/progression';
 import { summarizeSession } from '@/domain/session-summary';
 import type { CompletedSet, Session, SessionStatus } from '@/domain/types';
@@ -18,10 +19,19 @@ const routineId = toId<RoutineId>('routine-1');
 const workoutId = toId<WorkoutId>('workout-1');
 const squat = toId<ExerciseId>('front-squat');
 const press = toId<ExerciseId>('overhead-press');
+const run = toId<ExerciseId>('treadmill-run');
+const plank = toId<ExerciseId>('plank');
+const dip = toId<ExerciseId>('assisted-dip');
 
 let counter = 0;
 
-function set(weight: number, reps: number, unit: Unit = 'kg', rir = 2): CompletedSet {
+function set(
+  weight: number,
+  reps: number | null,
+  unit: Unit = 'kg',
+  rir = 2,
+  extra: Partial<CompletedSet> = {},
+): CompletedSet {
   counter += 1;
   return {
     id: toId<CompletedSetId>(`set-${counter}`),
@@ -32,14 +42,19 @@ function set(weight: number, reps: number, unit: Unit = 'kg', rir = 2): Complete
     weightKg: toKg(weight, unit),
     reps,
     rir,
+    durationSeconds: null,
+    distance: null,
+    distanceUnit: null,
+    distanceM: null,
     completedAt: 1_000 + counter,
+    ...extra,
   };
 }
 
 /** One Session holding one entry per exercise given. `startedAt` orders them. */
 function session(
   startedAt: number,
-  entries: readonly (readonly [ExerciseId, readonly CompletedSet[]])[],
+  entries: readonly (readonly [ExerciseId, readonly CompletedSet[], Measurement?])[],
   status: SessionStatus = 'completed',
   statuses: readonly ('performed' | 'skipped' | 'pending')[] = [],
 ): SessionHistory {
@@ -50,21 +65,25 @@ function session(
     startedAt,
     completedAt: status === 'in_progress' ? null : startedAt + 61 * 60_000,
     status,
+    bodyweightKg: null,
   };
   return {
     session: record,
-    exercises: entries.map(([exerciseId, sets], index) => ({
+    exercises: entries.map(([exerciseId, sets, measurement], index) => ({
       exerciseSession: {
         id: toId<ExerciseSessionId>(`es-${startedAt}-${index}`),
         sessionId: record.id,
         exerciseId,
         order: index,
         status: statuses[index] ?? 'performed',
+        measurement: measurement ?? 'weight_reps',
         plannedExerciseId: toId<PlannedExerciseId>('pe-1'),
         plannedUnit: 'kg',
         plannedSets: 3,
         plannedMinReps: 4,
         plannedMaxReps: 6,
+        plannedMinTarget: null,
+        plannedMaxTarget: null,
         plannedMinRir: 1,
         plannedMaxRir: 2,
         plannedRestSeconds: 180,
@@ -177,10 +196,8 @@ describe('summarizeSession', () => {
     expect(summary.records).toHaveLength(1);
     expect(summary.records[0]!.exerciseId).toBe(squat);
     expect(summary.records[0]!.set.weight).toBe(110);
-    expect(summary.records[0]!.previousBestKg).not.toBeNull();
-    expect(summary.records[0]!.estimatedOneRepMaxKg).toBeGreaterThan(
-      summary.records[0]!.previousBestKg!,
-    );
+    expect(summary.records[0]!.previousValue).not.toBeNull();
+    expect(summary.records[0]!.value).toBeGreaterThan(summary.records[0]!.previousValue!);
   });
 
   it('is not a record when the session repeats or falls short of the best before it', () => {
@@ -231,6 +248,91 @@ describe('summarizeSession', () => {
     );
 
     expect(summary.records.map((record) => record.exerciseId)).toEqual([squat, press]);
+  });
+
+  it('keeps a squat in kilogram-reps and a run in metres, with no combined total (TST-107, REQ-116, REQ-117, AC-125)', () => {
+    const detail = session(2_000, [
+      [squat, [set(100, 5), set(100, 5)]],
+      [
+        run,
+        [
+          set(0, null, 'kg', 2, {
+            durationSeconds: 1_500,
+            distance: 5,
+            distanceUnit: 'km',
+            distanceM: 5_000,
+          }),
+          set(0, null, 'kg', 2, {
+            durationSeconds: 900,
+            distance: 3,
+            distanceUnit: 'km',
+            distanceM: 3_000,
+          }),
+        ],
+        'distance_duration',
+      ],
+    ]);
+
+    const summary = summarizeSession(detail, new Map());
+
+    // 100x5 + 100x5 = 1000, the squat alone. The run's 8 km never joins it.
+    expect(summary.volumeKg).toBe(1_000);
+    expect(summary.volumeMetres).toBe(8_000);
+    // A run measures on `distance`, so its 2400 seconds are not duration volume.
+    expect(summary.volumeSeconds).toBe(0);
+    expect(summary.volumeReps).toBe(0);
+  });
+
+  it('keeps a plank in seconds and out of the kilogram-reps of the squat (TST-107, REQ-116, REQ-117, AC-126)', () => {
+    const detail = session(2_000, [
+      [squat, [set(100, 5)]],
+      [
+        plank,
+        [
+          set(0, null, 'kg', 2, { durationSeconds: 60 }),
+          set(0, null, 'kg', 2, { durationSeconds: 45 }),
+        ],
+        'duration',
+      ],
+    ]);
+
+    const summary = summarizeSession(detail, new Map());
+
+    expect(summary.volumeKg).toBe(500);
+    expect(summary.volumeSeconds).toBe(105);
+    expect(summary.volumeMetres).toBe(0);
+    expect(summary.volumeReps).toBe(0);
+  });
+
+  it('leaves a set carrying no reps out of the kilogram-reps rather than reading NaN (TST-108, REQ-117)', () => {
+    const detail = session(2_000, [[squat, [set(100, 5), set(100, null), set(80, 10)]]]);
+
+    const summary = summarizeSession(detail, new Map());
+
+    expect(Number.isFinite(summary.volumeKg)).toBe(true);
+    expect(summary.volumeKg).not.toBeNaN();
+    // 100x5 + 80x10 = 1300. The repless set contributes nothing at all.
+    expect(summary.volumeKg).toBe(1_300);
+  });
+
+  it('reads less assistance as the record on the load axis (AC-122)', () => {
+    const earlier = session(1_000, [[dip, [set(20, 5)], 'assisted_bodyweight']]);
+    const now = session(2_000, [[dip, [set(15, 5)], 'assisted_bodyweight']]);
+
+    const summary = summarizeSession(now, new Map([[dip, [earlier, now]]]));
+
+    expect(summary.records).toHaveLength(1);
+    expect(summary.records[0]!.axis).toBe('load');
+    expect(summary.records[0]!.value).toBe(15);
+    expect(summary.records[0]!.previousValue).toBe(20);
+  });
+
+  it('crowns neither a repeat of the best nor the first session ever (AC-123)', () => {
+    const first = session(1_000, [[plank, [set(0, null, 'kg', 2, { durationSeconds: 60 })], 'duration']]);
+    const repeat = session(2_000, [[plank, [set(0, null, 'kg', 2, { durationSeconds: 60 })], 'duration']]);
+
+    expect(summarizeSession(first, new Map([[plank, [first]]])).records).toEqual([]);
+    expect(summarizeSession(repeat, new Map([[plank, [first, repeat]]])).records).toEqual([]);
   });
 });
 

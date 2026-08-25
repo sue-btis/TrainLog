@@ -27,10 +27,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { exerciseSeries, summarizeExercise } from '@/domain/history';
+import { exerciseSeries, summarizeExercise, type ExercisePoint } from '@/domain/history';
 import type { ExerciseId } from '@/domain/ids';
 import { useExerciseHistory, useExerciseNames, usePerformedExercises } from '@/features/data/queries';
-import { ExerciseChart, METRICS, round, type Metric } from '@/features/progress/ExerciseChart';
+import { ExerciseChart, metricsFor, round, type Metric } from '@/features/progress/ExerciseChart';
 import { shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
 import { Reading } from '@/features/ui/Reading';
@@ -146,12 +146,31 @@ function ExerciseProgress({
   // carries that flag — it has nothing to beat — so a one-session history would
   // name no day at all. A tie keeps the earlier point, which is the day the
   // estimate was reached, and the same strictly-greater rule the flag applies.
-  const best = points.reduce((a, b) => (b.estimatedOneRepMaxKg > a.estimatedOneRepMaxKg ? b : a));
+  //
+  // `null` where the type has no estimate at all, which is how the figure below
+  // knows not to state one (REQ-114, AC-120): a plank has no 1RM and no figure
+  // substitutes for it. Read off the points rather than re-asked of the type —
+  // `estimatedOneRepMaxKg` is already that answer.
+  const best = points.reduce<{ point: ExercisePoint; estimate: number } | null>(
+    (found, point) =>
+      point.estimatedOneRepMaxKg !== null &&
+      (found === null || point.estimatedOneRepMaxKg > found.estimate)
+        ? { point, estimate: point.estimatedOneRepMaxKg }
+        : found,
+    null,
+  );
+
+  // The switch offers only what the type defines (AC-127), and the selection
+  // falls back when the lifter picks an exercise of a type that has no values
+  // for the metric they were looking at — otherwise the chart draws an axis the
+  // type never reads. `metricsFor` is never empty, so the fallback always lands.
+  const metrics = metricsFor(points[0]!.measurement);
+  const shown = metrics.some((entry) => entry.id === metric) ? metric : metrics[0]!.id;
 
   return (
     <section className={WELL}>
       <div className="flex flex-wrap items-center gap-2">
-        <SetPill label="best" set={summary.bestSet} />
+        <SetPill label="best" measurement={summary.measurement} set={summary.bestSet} />
         <Link className="type-body-sm text-ink-2 underline" to={`/exercises/${exerciseId}`}>
           Full history
         </Link>
@@ -163,25 +182,27 @@ function ExerciseProgress({
           but it is derived from the same points the chart draws, so §11.10's
           `ExerciseSummary` is left exactly as that screen renders it. The day
           is in the axis's own notation, so it is findable on the line below. */}
-      <div className="flex flex-col gap-1">
-        <span className={LABEL}>best estimated 1RM</span>
-        <span className="type-readout text-ink">{round(best.estimatedOneRepMaxKg)} kg</span>
-        <span className="type-measure text-ink-3">{shortDate(best.date)}</span>
-      </div>
+      {best !== null && (
+        <div className="flex flex-col gap-1">
+          <span className={LABEL}>best estimated 1RM</span>
+          <span className="type-readout text-ink">{round(best.estimate)} kg</span>
+          <span className="type-measure text-ink-3">{shortDate(best.point.date)}</span>
+        </div>
+      )}
 
       {/* Radix owns the strip: arrow keys move between metrics, and the chart
           below is the panel of the one that is selected. */}
-      <Tabs onValueChange={(value) => onMetric(value as Metric)} value={metric}>
+      <Tabs onValueChange={(value) => onMetric(value as Metric)} value={shown}>
         <TabsList aria-label="Metric">
-          {METRICS.map((entry) => (
+          {metrics.map((entry) => (
             <TabsTrigger key={entry.id} value={entry.id}>
               {entry.label}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        <TabsContent value={metric}>
-          <ExerciseChart metric={metric} name={name} points={points} />
+        <TabsContent value={shown}>
+          <ExerciseChart metric={shown} name={name} points={points} />
         </TabsContent>
       </Tabs>
     </section>

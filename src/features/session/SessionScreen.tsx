@@ -58,14 +58,13 @@ import {
   startUnplannedExercise,
 } from '@/domain/session';
 import type { Timestamp } from '@/domain/dates';
-import type { CompletedSet, ExerciseSession } from '@/domain/types';
-import type { Unit } from '@/domain/units';
+import type { CompletedSet, Exercise, ExerciseSession } from '@/domain/types';
 import { ExercisePicker } from '@/features/session/ExercisePicker';
 import { ExerciseReorder } from '@/features/session/ExerciseReorder';
 import { ExerciseView } from '@/features/session/ExerciseView';
 import { PreviousPanel } from '@/features/session/PreviousPanel';
 import { RestTimer } from '@/features/session/RestTimer';
-import type { SetValues } from '@/features/session/SetLogger';
+import { valuesFor, type SetValues } from '@/features/session/SetLogger';
 import { useWakeLock } from '@/features/session/useWakeLock';
 import {
   useSettings,
@@ -137,17 +136,19 @@ export function SessionScreen() {
     }
   }
 
-  async function log(values: SetValues, unit: Unit, setNumber: number) {
+  async function log(values: SetValues, setNumber: number) {
     if (entry === undefined) return;
+    // The projection to the domain's nulls is `valuesFor`'s, reading the
+    // measurement's own shape table — this screen states no per-type fact of
+    // its own (REQ-102, REQ-106).
     await run(() =>
       saveLoggedSet(
         logSet({
           exerciseSession: entry.exerciseSession,
           setNumber,
-          weight: values.weight,
-          unit,
-          reps: values.reps,
+          unit: values.unit,
           rir: values.rir,
+          ...valuesFor(entry.exerciseSession.measurement, values),
           completedAt: Date.now(),
         }),
       ),
@@ -158,10 +159,17 @@ export function SessionScreen() {
    * R-4 — a correction to a set already logged. The values are the domain's;
    * this only stores them, and `weightKg` is re-derived there rather than here.
    */
-  async function editLoggedSet(set: CompletedSet, values: SetValues, unit: Unit) {
+  async function editLoggedSet(set: CompletedSet, values: SetValues) {
+    const owner = entries.find((it) => it.exerciseSession.id === set.exerciseSessionId);
+    if (owner === undefined) return;
     await run(() =>
       saveEditedSet(
-        editSet({ set, weight: values.weight, unit, reps: values.reps, rir: values.rir }),
+        editSet({
+          set,
+          unit: values.unit,
+          rir: values.rir,
+          ...valuesFor(owner.exerciseSession.measurement, values),
+        }),
       ),
     );
   }
@@ -232,12 +240,17 @@ export function SessionScreen() {
    * FR-15 — an exercise with no plan behind it. It goes on the end, carries no
    * targets and gets no suggestion (§11.9); a substitution is this plus a skip.
    */
-  function addUnplanned(exerciseId: ExerciseId) {
+  function addUnplanned(exercise: Exercise) {
     if (session === undefined) return;
     setPicking(false);
     void run(async () => {
       await addExerciseSession(
-        startUnplannedExercise({ sessionId: session.id, exerciseId, order: entries.length }),
+        startUnplannedExercise({
+          sessionId: session.id,
+          exerciseId: exercise.id,
+          measurement: exercise.measurement,
+          order: entries.length,
+        }),
       );
       setIndex(entries.length);
     });
@@ -350,6 +363,12 @@ export function SessionScreen() {
         />
       }
     >
+      {/* AM-1, REQ-108 — the ask for a bodyweight used to stand here, and §21
+          is why it no longer does: nothing that does not contribute to the
+          current set may compete with it, and a line sending a lifter to
+          Settings mid-session is exactly that. Today asks instead, before the
+          Session starts, where there is still something to be done about it. */}
+
       {entry === undefined ? (
         <section className={WELL}>
           <p className="type-title">This Workout has no exercises</p>

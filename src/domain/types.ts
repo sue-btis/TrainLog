@@ -25,10 +25,12 @@ import type {
   WorkoutId,
 } from '@/domain/ids';
 import type { LocalDate, Timestamp } from '@/domain/dates';
-import type { Unit } from '@/domain/units';
+import type { DistanceUnit, Unit } from '@/domain/units';
+import type { Measurement } from '@/domain/measurement';
 
 export type { LocalDate, Timestamp } from '@/domain/dates';
-export type { Unit } from '@/domain/units';
+export type { DistanceUnit, Unit } from '@/domain/units';
+export type { Measurement } from '@/domain/measurement';
 
 /** A day of the week, as a Workout's `suggestedDays` names it (§12). */
 export type Weekday =
@@ -56,6 +58,12 @@ export interface Exercise {
   readonly name: string;
   readonly category: string | null;
   readonly equipment: string | null;
+  /**
+   * How this movement is measured (REQ-104, DEC-B). Declared here and nowhere
+   * else: a plank does not become a rep exercise on Tuesday. Snapshotted onto
+   * `ExerciseSessionBase` when the exercise starts.
+   */
+  readonly measurement: Measurement;
 }
 
 // ------------------------------------------------------------------ Planning
@@ -128,8 +136,21 @@ export interface PlannedExercise {
   readonly workoutId: WorkoutId;
   readonly exerciseId: ExerciseId;
   readonly sets: number;
-  readonly minReps: number;
-  readonly maxReps: number;
+  /**
+   * The target range, for a type whose target axis is reps (REQ-135, REQ-139).
+   * Nullable since this change; the names and the meaning are unchanged, so no
+   * stored row is rewritten and `parseBackup` needs no field mapping (DEC-Q).
+   */
+  readonly minReps: number | null;
+  readonly maxReps: number | null;
+  /**
+   * The target range for a type whose target axis is *not* reps (REQ-138):
+   * seconds for the duration types, metres for the distance types, both
+   * canonical as `restSeconds` already is. Exactly one of the two pairs is
+   * populated, decided by the Exercise's measurement (REQ-139).
+   */
+  readonly minTarget: number | null;
+  readonly maxTarget: number | null;
   readonly minRir: number | null;
   readonly maxRir: number | null;
   readonly restSeconds: number | null;
@@ -177,6 +198,25 @@ export interface Session {
   readonly startedAt: Timestamp;
   readonly completedAt: Timestamp | null;
   readonly status: SessionStatus;
+  /**
+   * What the lifter's bodyweight was when this Session started, or `null` where
+   * they had not stated one (AM-1, REQ-108, DEC-C).
+   *
+   * A snapshot, not an editable value: the bodyweight a lifter states lives in
+   * `Settings`, and this records what it said on the day. Nothing edits it
+   * afterwards.
+   *
+   * It is deliberately read by no derived figure yet — the §1 goal of making
+   * the bodyweight-relative types comparable to something other than themselves
+   * is not implemented. It is written anyway for two reasons. A dated bodyweight
+   * cannot be reconstructed after the fact: the day you did not record it is
+   * gone. And it is the **restore path** — a backup exports `settings` but a
+   * restore deliberately leaves that table alone, so this column is what carries
+   * a bodyweight onto a new device, through `lastRecordedBodyweightKg`.
+   *
+   * Every row written before this change reads `null`; no backfill invents one.
+   */
+  readonly bodyweightKg: number | null;
 }
 
 /**
@@ -191,6 +231,13 @@ interface ExerciseSessionBase {
   readonly exerciseId: ExerciseId;
   readonly order: number;
   readonly status: ExerciseSessionStatus;
+  /**
+   * The Exercise's measurement, snapshotted when the exercise starts (REQ-105,
+   * DEC-H). On the base rather than among the `planned*` fields: an unplanned
+   * exercise has a measurement too. Never copied onto `CompletedSet`, so a set
+   * cannot contradict the ExerciseSession above it.
+   */
+  readonly measurement: Measurement;
 }
 
 /**
@@ -202,16 +249,23 @@ interface ExerciseSessionBase {
 export interface PlannedExerciseSession extends ExerciseSessionBase {
   readonly plannedExerciseId: PlannedExerciseId;
   /**
-   * The unit this exercise is loaded in (§11.7). Snapshotted like every other
-   * planned value, and for the same reason: without it the first set of a
-   * `lb` exercise has nothing to read but the settings default, and would be
-   * stored as kilograms with a `weightKg` converted from the wrong number.
-   * Once any set exists, `CompletedSet.unit` carries it instead.
+   * The unit a new set of this exercise opens on (§11.7, AM-2).
+   *
+   * The plan seeds, the set carries: `CompletedSet.unit` is the unit a load was
+   * actually logged in, and a lifter may change it per set — a machine in
+   * pounds beside a barbell in kilos is one session, not two. This is the
+   * default that set opens on, and it is snapshotted like every other planned
+   * value for the same reason: without it the first set of an `lb` exercise has
+   * nothing to read but the settings default, and would be stored as kilograms
+   * with a `weightKg` converted from the wrong number.
    */
   readonly plannedUnit: Unit;
   readonly plannedSets: number;
-  readonly plannedMinReps: number;
-  readonly plannedMaxReps: number;
+  readonly plannedMinReps: number | null;
+  readonly plannedMaxReps: number | null;
+  /** The non-rep target range, snapshotted alongside the rest (REQ-138). */
+  readonly plannedMinTarget: number | null;
+  readonly plannedMaxTarget: number | null;
   readonly plannedMinRir: number | null;
   readonly plannedMaxRir: number | null;
   readonly plannedRestSeconds: number | null;
@@ -249,8 +303,19 @@ export interface CompletedSet {
   readonly weight: number;
   readonly unit: Unit;
   readonly weightKg: number;
-  readonly reps: number;
+  /**
+   * The rep count, or `null` for a type that collects none (REQ-106). Widened
+   * by this change; `weight`, `unit`, `weightKg` and `rir` stay required and
+   * non-null, because every row already on disk has all five (DER-1).
+   */
+  readonly reps: number | null;
   readonly rir: number;
+  /** Seconds held or worked, for a type that collects a duration (REQ-106). */
+  readonly durationSeconds: number | null;
+  /** The distance as entered, with its unit, plus the derived metres (REQ-107). */
+  readonly distance: number | null;
+  readonly distanceUnit: DistanceUnit | null;
+  readonly distanceM: number | null;
   readonly completedAt: Timestamp;
 }
 
@@ -281,6 +346,17 @@ export interface Settings {
   readonly timerSound?: boolean;
   /** Whether the screen is held awake for the length of a session (§11.6). */
   readonly keepScreenAwake?: boolean;
+  /**
+   * The lifter's bodyweight in kilograms, or `null` where it has never been
+   * given (REQ-108).
+   *
+   * It is a setting rather than a per-Session question because it is a fact
+   * about the lifter that changes slowly, and asking for it at the top of gym
+   * mode put it in front of every set. A Session still records the figure that
+   * was current when it started, so history stays dated (DEC-C); this is where
+   * that figure comes from.
+   */
+  readonly bodyweightKg?: number | null;
   /**
    * When a backup was last exported, or `null` for never.
    *

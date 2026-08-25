@@ -87,9 +87,9 @@ function Figures({ summary }: { readonly summary: ExerciseSummary }) {
     <Card>
       <div className="grid grid-cols-2 gap-x-4 gap-y-5">
         <Figure label="current working weight" value={load(summary.workingWeight)} />
-        <Figure label="best set" value={setLine(summary.bestSet)} />
-        <Figure label="heaviest" value={setLine(summary.heaviest)} />
-        <Figure label="lightest" value={setLine(summary.lightest)} />
+        <Figure label="best set" value={setLine(summary.bestSet, summary.measurement)} />
+        <Figure label="heaviest" value={setLine(summary.heaviest, summary.measurement)} />
+        <Figure label="lightest" value={setLine(summary.lightest, summary.measurement)} />
       </div>
     </Card>
   );
@@ -129,7 +129,7 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
   // The same derivation the figures above use, over one session instead of all
   // of them — comparing on `weightKg`, which is the only load that compares
   // across units (§11.7).
-  const { heaviest, lightest } = summarizeExercise([entry]);
+  const { heaviest, lightest, measurement } = summarizeExercise([entry]);
 
   return (
     <details className={cn(WELL, 'group')}>
@@ -152,9 +152,11 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <SetPill label="heaviest" set={heaviest} />
+          <SetPill label="heaviest" measurement={measurement} set={heaviest} />
           {/* One set is both, and saying so twice reads as two different sets. */}
-          {sets.length > 1 && <SetPill label="lightest" set={lightest} />}
+          {sets.length > 1 && (
+            <SetPill label="lightest" measurement={measurement} set={lightest} />
+          )}
         </div>
       </summary>
 
@@ -162,9 +164,7 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
         {sets.map((set, index) => (
           <li className={chip('neutral')} key={set.id}>
             <span className="text-ink-3">{index + 1}</span>
-            <span className="text-ink">
-              {set.weight} {set.unit} × {set.reps}
-            </span>
+            <span className="text-ink">{setLine(set, measurement, true)}</span>
             <span className="text-ink-3">RIR {set.rir}</span>
           </li>
         ))}

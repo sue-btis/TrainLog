@@ -1,5 +1,6 @@
 /** TST-023 — the shipped catalog (REQ-020, REQ-023, AC-020, AC-024). */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   CATALOG,
@@ -14,6 +15,8 @@ import {
 import { toId } from '@/domain/ids';
 import type { ExerciseId } from '@/domain/ids';
 import type { Exercise } from '@/domain/types';
+import { MEASUREMENTS } from '@/domain/measurement';
+import { parseRoutineFile } from '@/domain/routine-file/schema';
 
 describe('catalog', () => {
   it('has 60–100 entries (REQ-020)', () => {
@@ -82,6 +85,7 @@ describe('CATALOG_CATEGORIES and CATALOG_EQUIPMENT', () => {
     name: 'Cable Moon Walk',
     category: 'lunar',
     equipment: 'moon-rope',
+    measurement: 'weight_reps',
   };
 
   it('offers nothing that is not in the catalog', () => {
@@ -119,6 +123,7 @@ describe('groupExercises', () => {
     name,
     category,
     equipment,
+    measurement: 'weight_reps',
   });
 
   it('groups the whole catalog by category, alphabetically', () => {
@@ -230,6 +235,7 @@ describe('findExerciseByName', () => {
     name: 'Zercher Good Morning',
     category: null,
     equipment: null,
+    measurement: 'weight_reps',
   };
 
   it('finds a catalog entry by normalized name (AC-024)', () => {
@@ -273,5 +279,154 @@ describe('findExerciseByName', () => {
     // of a change that decides that.
     const precomposed: Exercise = { ...mine, name: 'Curl Bíceps' };
     expect(findExerciseByName('Curl Bi\u0301ceps', [precomposed])).toBeUndefined();
+  });
+});
+
+/**
+ * The 96 slugs the catalog shipped before measurement was declared on it.
+ *
+ * Written out rather than derived: a slug is permanent (REQ-023) because stored
+ * history references it, so the frozen set is the contract, and a list computed
+ * from `CATALOG` would agree with any rename this test exists to catch.
+ */
+const ORIGINAL_SLUGS = [
+  'back-squat', 'front-squat', 'box-squat', 'pause-squat', 'overhead-squat', 'goblet-squat',
+  'hack-squat', 'leg-press', 'leg-extension', 'barbell-lunge', 'walking-lunge',
+  'bulgarian-split-squat', 'step-up', 'conventional-deadlift', 'sumo-deadlift',
+  'romanian-deadlift', 'stiff-leg-deadlift', 'deficit-deadlift', 'rack-pull', 'good-morning',
+  'lying-leg-curl', 'seated-leg-curl', 'nordic-curl', 'glute-ham-raise', 'hip-thrust',
+  'cable-pull-through', 'hip-abduction', 'kettlebell-swing', 'standing-calf-raise',
+  'seated-calf-raise', 'bench-press', 'incline-bench-press', 'close-grip-bench-press',
+  'dumbbell-bench-press', 'incline-dumbbell-press', 'dumbbell-fly', 'cable-fly',
+  'machine-chest-press', 'pec-deck', 'push-up', 'dip', 'weighted-dip', 'pull-up',
+  'weighted-pull-up', 'chin-up', 'inverted-row', 'lat-pulldown', 'straight-arm-pulldown',
+  'seated-cable-row', 'barbell-row', 'pendlay-row', 't-bar-row', 'dumbbell-row',
+  'chest-supported-row', 'machine-row', 'barbell-shrug', 'dumbbell-shrug', 'back-extension',
+  'overhead-press', 'push-press', 'seated-dumbbell-press', 'arnold-press',
+  'machine-shoulder-press', 'lateral-raise', 'cable-lateral-raise', 'rear-delt-fly',
+  'reverse-pec-deck', 'upright-row', 'face-pull', 'band-pull-apart', 'barbell-curl',
+  'ez-bar-curl', 'dumbbell-curl', 'incline-dumbbell-curl', 'hammer-curl', 'preacher-curl',
+  'cable-curl', 'triceps-pushdown', 'overhead-triceps-extension', 'skull-crusher',
+  'triceps-kickback', 'reverse-curl', 'wrist-curl', 'farmers-walk', 'plank',
+  'hanging-leg-raise', 'ab-wheel-rollout', 'russian-twist', 'cable-crunch', 'pallof-press',
+  'power-clean', 'hang-clean', 'clean-and-jerk', 'snatch', 'thruster', 'turkish-get-up',
+] as const;
+
+/** TST-122 (REQ-122, REQ-123, AC-133, AC-134, AC-135, AC-169, AC-170). */
+describe('catalog measurement', () => {
+  const frozen: readonly string[] = ORIGINAL_SLUGS;
+  const added = CATALOG.filter((entry) => !frozen.includes(entry.id));
+
+  it('lists exactly 96 original slugs, each of them distinct', () => {
+    // Guards the fixture itself: a truncated list would weaken every case below.
+    expect(ORIGINAL_SLUGS).toHaveLength(96);
+    expect(new Set(frozen).size).toBe(96);
+  });
+
+  it('still ships every one of the 96 original slugs (AC-134)', () => {
+    const missing = frozen.filter((slug) => getCatalogExercise(toId<ExerciseId>(slug)) === undefined);
+    expect(missing).toEqual([]);
+  });
+
+  it('declares a measurement on every row (AC-133)', () => {
+    const undeclared = CATALOG.filter((entry) => !MEASUREMENTS.includes(entry.measurement));
+    expect(undeclared.map((entry) => entry.id)).toEqual([]);
+  });
+
+  it.each(['weighted-dip', 'weighted-pull-up'])(
+    'types %s as weighted_bodyweight (REQ-123, AC-134)',
+    (slug) => {
+      expect(getCatalogExercise(toId<ExerciseId>(slug))?.measurement).toBe('weighted_bodyweight');
+    },
+  );
+
+  it('adds new slugs only, renaming and removing none (AC-135)', () => {
+    // Both directions: nothing added collides with a frozen slug, and the two
+    // sets together account for every row — so no original slug was quietly
+    // respelled into the added half.
+    for (const entry of added) {
+      expect(frozen).not.toContain(entry.id);
+    }
+    expect(CATALOG.length).toBe(frozen.length + added.length);
+  });
+
+  it('adds isometric holds and jumps only — no cardio, no rep-based row (AC-169)', () => {
+    // `distance_duration` is the cardio type. The change owner's programme
+    // contains no running, cycling, rowing or swimming, and such a movement
+    // names no muscle group, which would dirty the `category` vocabulary that
+    // PRD §39 item 8 groups volume over.
+    expect(CATALOG.filter((entry) => entry.measurement === 'distance_duration')).toEqual([]);
+
+    // A missing rep-based movement is a catalog gap, not a measurement gap:
+    // `createUserExercise` already covers it, so nothing added here is one.
+    expect(added.length).toBeGreaterThan(0);
+    for (const entry of added) {
+      expect(['duration', 'distance']).toContain(entry.measurement);
+    }
+  });
+
+  it('leaves the two vocabularies exactly as they were (REQ-140, AC-170)', () => {
+    expect(CATALOG_CATEGORIES).toEqual([
+      'back', 'biceps', 'calves', 'chest', 'core', 'forearms',
+      'full-body', 'glutes', 'hamstrings', 'quadriceps', 'shoulders', 'triceps',
+    ]);
+    expect(CATALOG_EQUIPMENT).toEqual([
+      'band', 'barbell', 'bodyweight', 'cable', 'dumbbell', 'kettlebell', 'machine',
+    ]);
+  });
+
+  it('does not duplicate the plank that was already a duration row', () => {
+    expect(
+      CATALOG.filter((entry) => entry.measurement === 'duration' && entry.name === 'Plank'),
+    ).toHaveLength(1);
+  });
+});
+
+/**
+ * TST-130 (REQ-122, REQ-140) — the repository's own programme, read from disk.
+ *
+ * The point of the added rows: every isometric hold and the jump that
+ * `docs/bloque-a-acumulacion.yaml` programmes resolves to a catalog row whose
+ * measurement matches how the file actually prescribes it — the holds in
+ * seconds, the jump in metres — rather than smuggling that into `notes`.
+ */
+describe('the movements bloque-a-acumulacion.yaml programmes', () => {
+  const parsed = parseRoutineFile(
+    readFileSync(new URL('../../../docs/bloque-a-acumulacion.yaml', import.meta.url), 'utf8'),
+  );
+  if (!parsed.ok) throw new Error('docs/bloque-a-acumulacion.yaml no longer parses');
+  const programmed = parsed.file.routine.workouts.flatMap((workout) => workout.exercises);
+
+  /** The file's own resolution order (§26): the id when it names one, else the name. */
+  const resolve = (exercise: { readonly name: string; readonly exercise_id?: string }) =>
+    exercise.exercise_id !== undefined
+      ? getCatalogExercise(toId<ExerciseId>(exercise.exercise_id))
+      : findExerciseByName(exercise.name, []);
+
+  const programmedAs = (name: string) => {
+    const exercise = programmed.find((candidate) => candidate.name === name);
+    expect(exercise, `${name} is no longer programmed by the file`).toBeDefined();
+    return resolve(exercise!);
+  };
+
+  it.each(['Planche Lean', 'Handstand Hold', 'Tuck Planche Hold'])(
+    'resolves the isometric hold %s to a duration row',
+    (name) => {
+      expect(programmedAs(name)?.measurement).toBe('duration');
+    },
+  );
+
+  it('resolves Broad Jump to a distance row', () => {
+    expect(programmedAs('Broad Jump')?.measurement).toBe('distance');
+  });
+
+  it('still resolves every movement the file names by exercise_id', () => {
+    // The added rows must not have disturbed the ids the file already binds to.
+    for (const exercise of programmed) {
+      if (exercise.exercise_id === undefined) continue;
+      expect(getCatalogExercise(toId<ExerciseId>(exercise.exercise_id))?.id).toBe(
+        exercise.exercise_id,
+      );
+    }
   });
 });

@@ -11,6 +11,7 @@
  */
 
 import { db } from '@/db/database';
+import { getSettings } from '@/db/repositories/settings';
 import { addDays, parseLocalDate, type LocalDate } from '@/domain/dates';
 import type { SessionId, WorkoutId } from '@/domain/ids';
 import type { ExerciseSession, Session } from '@/domain/types';
@@ -63,16 +64,57 @@ export async function createStartedWorkout(started: {
   readonly session: Session;
   readonly exerciseSessions: readonly ExerciseSession[];
 }): Promise<void> {
+  // REQ-108 — the Session records the bodyweight that was current when it
+  // started, so history stays dated (DEC-C). The figure comes from settings,
+  // where the lifter states it; the walk back through earlier Sessions is the
+  // fallback for an install that recorded bodyweight before it was a setting.
+  // An explicitly supplied value wins: the caller knew something this does not.
+  // Resolved before the transaction opens — `settings` is outside its scope,
+  // and a seed read has nothing to gain from being inside it.
+  const session =
+    started.session.bodyweightKg === null
+      ? {
+          ...started.session,
+          bodyweightKg: (await getSettings()).bodyweightKg ?? (await lastRecordedBodyweightKg()),
+        }
+      : started.session;
+
   await db.transaction('rw', [db.sessions, db.exerciseSessions], async () => {
     const open = await db.sessions.where('status').equals('in_progress').first();
     if (open !== undefined && open.id !== started.session.id) {
       throw new SessionInProgressError(open.id);
     }
-    await db.sessions.add(started.session);
+    await db.sessions.add(session);
     if (started.exerciseSessions.length > 0) {
       await db.exerciseSessions.bulkAdd([...started.exerciseSessions]);
     }
   });
+}
+
+/**
+ * The most recent bodyweight anyone recorded, or `null` where none ever was
+ * (REQ-108, DEC-C).
+ *
+ * Newest first over the `startedAt` index, taking the first Session that
+ * carries one: a Session where the lifter did not weigh in is skipped rather
+ * than treated as "no bodyweight", the same way `lastCompletedSets` walks
+ * back past a Session that did not include the exercise.
+ *
+ * `null` reads as null everywhere and nothing displays a zero: a bodyweight
+ * of zero is not a fact about a lifter (AC-112).
+ */
+export async function lastRecordedBodyweightKg(): Promise<number | null> {
+  let found: number | null = null;
+  await db.sessions
+    .orderBy('startedAt')
+    .reverse()
+    .until(() => found !== null, true)
+    .each((session) => {
+      if (found === null && (session.bodyweightKg ?? null) !== null) {
+        found = session.bodyweightKg;
+      }
+    });
+  return found;
 }
 
 /**

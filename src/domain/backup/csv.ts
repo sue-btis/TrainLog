@@ -16,7 +16,8 @@
  */
 
 import type { LocalDate } from '@/domain/dates';
-import type { Unit } from '@/domain/units';
+import type { Measurement } from '@/domain/measurement';
+import type { DistanceUnit, Unit } from '@/domain/units';
 
 /** One performed set, flattened. Assembled by `src/db`; this module only writes. */
 export interface CsvRow {
@@ -28,12 +29,27 @@ export interface CsvRow {
   /** As entered (§11.7) — not `weightKg`. */
   readonly weight: number;
   readonly unit: Unit;
-  readonly reps: number;
+  /** The rep count, or `null` for a set of a type that collects none. */
+  readonly reps: number | null;
   readonly rir: number;
+  /** How the exercise is measured, from the ExerciseSession's snapshot. */
+  readonly measurement: Measurement;
+  readonly durationSeconds: number | null;
+  /** The distance as entered, with its unit — not the derived metres. */
+  readonly distance: number | null;
+  readonly distanceUnit: DistanceUnit | null;
 }
 
-/** The column row (DEC-B). */
-export const CSV_HEADER = 'date,exercise,set,weight,unit,reps,rir';
+/**
+ * The column row (DEC-B).
+ *
+ * Grown by **appending only**, never by inserting (DEC-N, REQ-129). Every
+ * column that existed keeps the index it had, because a lifter's spreadsheet
+ * formulas and pivot tables are addressed by column position and a file that
+ * quietly shifts them is worse than one that refuses to open.
+ */
+export const CSV_HEADER =
+  'date,exercise,set,weight,unit,reps,rir,measurement,duration_s,distance,distance_unit';
 
 /**
  * Quotes a field when leaving it bare would break the column count.
@@ -68,8 +84,14 @@ export function toCsv(rows: readonly CsvRow[]): string {
       row.set,
       row.weight,
       row.unit,
-      row.reps,
+      // A field the row's type does not carry is written empty, never as a
+      // zero: an absent rep count is not a set of no reps.
+      row.reps ?? '',
       row.rir,
+      row.measurement,
+      row.durationSeconds ?? '',
+      row.distance ?? '',
+      row.distanceUnit ?? '',
     ].join(','),
   );
 

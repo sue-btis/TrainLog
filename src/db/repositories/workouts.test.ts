@@ -186,6 +186,7 @@ describe('addWorkoutToRoutine', () => {
       startedAt: 1_700_000_000_000,
       completedAt: null,
       status: 'in_progress',
+      bodyweightKg: null,
     };
     await createStartedWorkout({ session, exerciseSessions: [] });
 

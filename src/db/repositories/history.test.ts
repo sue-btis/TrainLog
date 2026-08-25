@@ -36,6 +36,9 @@ import { toId } from '@/domain/ids';
 import type { ExerciseId, PlannedExerciseId, RoutineId, SessionId, WorkoutId } from '@/domain/ids';
 import type { PlannedExercise, Routine, Session, SessionStatus, Workout } from '@/domain/types';
 
+/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
+const measurement = 'weight_reps' as const;
+
 const squat = toId<ExerciseId>('back-squat');
 const bench = toId<ExerciseId>('barbell-bench-press');
 
@@ -51,6 +54,8 @@ function plannedExercise(
     sets: 4,
     minReps: 4,
     maxReps: 6,
+    minTarget: null,
+    maxTarget: null,
     minRir: 1,
     maxRir: 2,
     restSeconds: 180,
@@ -109,7 +114,7 @@ async function performSession(
   await createStartedWorkout({ session, exerciseSessions: [] });
 
   for (const [order, planned] of (await listPlannedExercisesByWorkout(workout.id)).entries()) {
-    let exercise = startPlannedExercise({ sessionId: session.id, planned, order });
+    let exercise = startPlannedExercise({ measurement, sessionId: session.id, planned, order });
     await addExerciseSession(exercise);
 
     for (const [index, count] of reps.entries()) {
@@ -134,7 +139,7 @@ async function performSession(
   // derived by `finishSession` here rather than asserted by the test.
   if (status === 'partial') {
     await addExerciseSession(
-      startUnplannedExercise({ sessionId: session.id, exerciseId: bench, order: 99 }),
+      startUnplannedExercise({ measurement, sessionId: session.id, exerciseId: bench, order: 99 }),
     );
   }
 
@@ -243,6 +248,10 @@ describe('PRD §47 flow 2 — perform, persist, read back, progress', () => {
       weight: 102.5,
       unit: 'kg',
       weightKg: 102.5,
+      // The advance is read on the type's progress axis (REQ-119); weight x
+      // reps progresses on load, so `value` is the same number as `weight`.
+      axis: 'load',
+      value: 102.5,
       targetMet: true,
     });
   });
@@ -255,6 +264,8 @@ describe('PRD §47 flow 2 — perform, persist, read back, progress', () => {
       weight: 100,
       unit: 'kg',
       weightKg: 100,
+      axis: 'load',
+      value: 100,
       targetMet: false,
     });
   });

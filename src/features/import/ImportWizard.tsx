@@ -92,18 +92,28 @@ export function ImportWizard() {
   /** The control an action-bar jump asked for, focused once it has rendered. */
   const pendingFocus = useRef<string | null>(null);
 
-  const file = state.phase === 'editing' ? state.file : null;
-  const issues = useMemo<readonly SemanticIssue[]>(
-    () => (file === null ? [] : validateRoutineFile(file)),
-    [file],
-  );
-  const issueIndex = useMemo(() => indexIssues(issues), [issues]);
-
   // The picker's three sources (REQ-301). The persisted Exercises are a live
   // read, so an Exercise created on the catalog screen in another tab appears
   // here without the wizard being restarted; `undefined` is that read still in
   // flight, and an empty list is the honest answer while it is.
   const userExercises = useUserExercises();
+
+  const file = state.phase === 'editing' ? state.file : null;
+  const issues = useMemo<readonly SemanticIssue[]>(
+    () =>
+      file === null
+        ? []
+        : // The axis check needs to know which Exercise each entry will bind to,
+          // and `undefined` is the read still in flight rather than an answer.
+          // Passing `[]` then would resolve names against the catalog alone and
+          // flag a mismatch that vanishes a frame later, so the check waits.
+          validateRoutineFile(
+            file,
+            userExercises === undefined ? undefined : { knownExercises: userExercises },
+          ),
+    [file, userExercises],
+  );
+  const issueIndex = useMemo(() => indexIssues(issues), [issues]);
   const offers = useMemo<readonly Offer[]>(
     () => (file === null ? [] : offeredExercises(file, userExercises ?? [])),
     [file, userExercises],
@@ -374,6 +384,7 @@ export function ImportWizard() {
             defaultUnit={state.defaultUnit}
             file={state.file}
             issues={issueIndex}
+            knownExercises={userExercises ?? []}
             offers={offers}
             onActiveWorkout={setActiveWorkout}
             onAddExercise={edit.addExercise}

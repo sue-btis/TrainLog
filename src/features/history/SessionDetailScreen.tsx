@@ -22,7 +22,7 @@ import { formatLocalDate } from '@/domain/dates';
 import type { ExerciseId, SessionId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
 import { summarizeSession, type SessionSummary } from '@/domain/session-summary';
-import type { CompletedSet, ExerciseSession, Session } from '@/domain/types';
+import type { ExerciseSession, Session } from '@/domain/types';
 import {
   useExerciseHistories,
   useExerciseNames,
@@ -33,7 +33,9 @@ import {
   exerciseStatusLabel,
   longDate,
   plural,
+  seconds,
   sessionStatusLabel,
+  setLine,
   snapshotLine,
 } from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
@@ -169,9 +171,11 @@ function FinishSummary({
               <span className="type-title text-ink">
                 {names?.get(record.exerciseId) ?? 'Exercise'}
               </span>
+              {/* The set in its own notation, and the axis it beat named in
+                  its own words: less assistance and a faster pace are records
+                  that a bigger number would report backwards (REQ-115). */}
               <span className="type-measure text-ink-2">
-                {record.set.weight} {record.set.unit} × {record.set.reps} · beats everything
-                before it
+                {setLine(record.set, record.measurement, true)} · beats everything before it
               </span>
             </div>
           ))}
@@ -185,11 +189,34 @@ function FinishSummary({
           {/* Volume is derived from the sets, so it carries the derived hue —
               and it is rounded, because the kilogram it would gain from a
               decimal is not a fact anybody reads. */}
-          <Figure
-            label="volume"
-            tone="progress"
-            value={`${Math.round(summary.volumeKg).toLocaleString()} kg`}
-          />
+          {/* Four accumulators, never one figure: kilogram-reps, reps, seconds
+              and metres are four units, and a total spanning two of them would
+              be a number about nothing (REQ-116, DEC-D). Each appears only
+              when the Session actually did that kind of work. */}
+          {summary.volumeKg > 0 && (
+            <Figure
+              label="volume"
+              tone="progress"
+              value={`${Math.round(summary.volumeKg).toLocaleString()} kg`}
+            />
+          )}
+          {summary.volumeReps > 0 && (
+            <Figure
+              label="reps"
+              tone="progress"
+              value={summary.volumeReps.toLocaleString()}
+            />
+          )}
+          {summary.volumeSeconds > 0 && (
+            <Figure label="time under load" tone="progress" value={seconds(summary.volumeSeconds)} />
+          )}
+          {summary.volumeMetres > 0 && (
+            <Figure
+              label="distance"
+              tone="progress"
+              value={`${Math.round(summary.volumeMetres).toLocaleString()} m`}
+            />
+          )}
           {summary.minutes !== null && <Figure label="min" value={String(summary.minutes)} />}
           {/* Derived from the sets like volume, so it carries the same hue —
               and it sits beside the minutes it is half made of, because the
@@ -284,7 +311,9 @@ function ExerciseCard({
             {sets.map((set) => (
               <li className={chip('neutral')} key={set.id}>
                 <span className="text-ink-3">{set.setNumber}</span>
-                <span className="text-ink">{setLine(set)}</span>
+                <span className="text-ink">
+                  {setLine(set, exerciseSession.measurement, true)}
+                </span>
                 <span className="text-ink-3">RIR {set.rir}</span>
               </li>
             ))}
@@ -305,7 +334,3 @@ function statusChip(exerciseSession: ExerciseSession) {
   );
 }
 
-/** `100 kg × 6`, in the unit it was actually lifted in (§11.7). */
-function setLine(set: CompletedSet): string {
-  return `${set.weight} ${set.unit} × ${set.reps}`;
-}

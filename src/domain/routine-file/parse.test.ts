@@ -53,7 +53,7 @@ describe('parseRoutineFile — structural validation (TST-002)', () => {
   });
 
   it('rejects an unknown version', () => {
-    expect(expectRejected(exampleWith('version: 1', 'version: 2'))).toContain(
+    expect(expectRejected(exampleWith('version: 1', 'version: 3'))).toContain(
       'version',
     );
   });

@@ -73,8 +73,21 @@ missed day is derived at query time — a past `Placement` with no `Session` —
 and is never written down. See [ADR 0001](./docs/adr/0001-dateless-workouts-with-user-owned-placements.md).
 
 **Weight carries its unit.** Store the entered `weight` and `unit` plus a derived
-`weightKg`. Every comparison, chart and progression step reads `weightKg`. Unit
-is fixed per Exercise (§11.7).
+`weightKg`. Every comparison, chart and progression step reads `weightKg`. The
+set carries the unit it was logged in, and the Planned Exercise supplies the
+default a new set opens on — a seed, not a constraint (§11.7). Distance follows the same rule on its own axis:
+the entered `distance` and `distanceUnit` plus a derived `distanceM`. `Unit`
+means weight and is never widened to carry distance.
+
+**One module owns measurement.** `src/domain/measurement.ts` is the only place
+that states, per measurement type, which value fields a set collects, what the
+weight field means, which axis a target is stated on, which axis a record and
+an advance are read on, and whether higher or lower is better on it. A second
+statement of any of those five anywhere in the tree is a defect, not a
+convenience. The type is declared on the `Exercise`, snapshotted onto the
+`ExerciseSession`, and never copied onto a `CompletedSet` — so a set cannot
+contradict the exercise above it, and no function infers the type from which
+fields happen to be populated (§11.7, §39 C·16).
 
 **An accepted Routine takes additions only.** Nothing already stored is renamed,
 reordered, retargeted or removed — correcting happens in the import wizard, on a

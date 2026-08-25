@@ -10,6 +10,7 @@
 import { db } from '@/db/database';
 import { findExerciseByName, getCatalogExercise } from '@/domain/catalog';
 import { newId, type ExerciseId } from '@/domain/ids';
+import type { Measurement } from '@/domain/measurement';
 import type { Exercise } from '@/domain/types';
 
 /**
@@ -56,26 +57,47 @@ export async function getExerciseName(id: ExerciseId): Promise<string | undefine
 }
 
 /**
- * Names for several ids at once, for a list screen. Catalog hits cost nothing;
- * only the ids the catalog does not know reach the table, by primary key.
+ * Several ids at once, for a list screen. Catalog hits cost nothing; only the
+ * ids the catalog does not know reach the table, by primary key. An id that
+ * resolves to nothing is simply absent from the map.
  */
-export async function getExerciseNames(
+export async function getExercisesById(
   ids: readonly ExerciseId[],
-): Promise<Map<ExerciseId, string>> {
-  const names = new Map<ExerciseId, string>();
+): Promise<Map<ExerciseId, Exercise>> {
+  const resolved = new Map<ExerciseId, Exercise>();
   const unresolved: ExerciseId[] = [];
 
   for (const id of new Set(ids)) {
     const fromCatalog = getCatalogExercise(id);
-    if (fromCatalog) names.set(id, fromCatalog.name);
+    if (fromCatalog) resolved.set(id, fromCatalog);
     else unresolved.push(id);
   }
 
   const rows = await db.exercises.bulkGet(unresolved);
   for (const row of rows) {
-    if (row) names.set(row.id, row.name);
+    if (row) resolved.set(row.id, row);
   }
-  return names;
+  return resolved;
+}
+
+/** Display names for several ids at once. */
+export async function getExerciseNames(
+  ids: readonly ExerciseId[],
+): Promise<Map<ExerciseId, string>> {
+  const resolved = await getExercisesById(ids);
+  return new Map([...resolved].map(([id, exercise]) => [id, exercise.name]));
+}
+
+/**
+ * How several exercises are measured, for the snapshot `startPlannedExercise`
+ * takes (REQ-105). `weight_reps` where an id resolves to nothing, matching the
+ * fallback the migration applies for the same reason (REQ-125).
+ */
+export async function getExerciseMeasurements(
+  ids: readonly ExerciseId[],
+): Promise<Map<ExerciseId, Measurement>> {
+  const resolved = await getExercisesById(ids);
+  return new Map([...resolved].map(([id, exercise]) => [id, exercise.measurement]));
 }
 
 /**
@@ -100,6 +122,8 @@ export async function createUserExercise(input: {
   readonly name: string;
   readonly category: string | null;
   readonly equipment: string | null;
+  /** How the movement is measured (REQ-104). `weight_reps` where unsaid. */
+  readonly measurement?: Measurement;
 }): Promise<CreatedExercise> {
   const name = input.name.trim();
   if (name === '') throw new ExerciseNameRequiredError();
@@ -116,8 +140,74 @@ export async function createUserExercise(input: {
       name,
       category: input.category,
       equipment: input.equipment,
+      measurement: input.measurement ?? 'weight_reps',
     };
     await db.exercises.add(exercise);
     return { exercise, created: true };
+  });
+}
+
+/**
+ * Thrown when a measurement correction is refused because the Exercise is not
+ * one the lifter created (REQ-133, AC-154). A catalog Exercise ships in the
+ * build and is never in the table (DEC-007), so there is nothing to correct —
+ * and an id nothing knows resolves to the same absence. Callers surface the
+ * message.
+ */
+export class ExerciseNotCorrectableError extends Error {
+  constructor() {
+    super('Only an exercise you created can have its measurement corrected.');
+    this.name = 'ExerciseNotCorrectableError';
+  }
+}
+
+/**
+ * Thrown when a measurement correction is refused because sets are already
+ * logged against the Exercise (REQ-133, AC-153, DEC-O). The measurement decides
+ * how every stored set is read — which fields mean anything, which way a record
+ * moves — so changing it under existing sets would reinterpret history rather
+ * than correct a mistake.
+ */
+export class ExerciseHasLoggedSetsError extends Error {
+  constructor() {
+    super(
+      'Sets are already logged for this exercise, so how it is measured can no longer be changed.',
+    );
+    this.name = 'ExerciseHasLoggedSetsError';
+  }
+}
+
+/**
+ * Corrects how a user Exercise is measured (REQ-133, DEC-O).
+ *
+ * A narrow verb, not a general edit: it is the way out of picking the wrong
+ * type on the create form, and nothing more.
+ *
+ * The whole decision — is it ours, does anything reference it, write — happens
+ * inside one transaction, so a set logged concurrently cannot land between the
+ * check and the write and leave history read under a type it was not logged
+ * under.
+ *
+ * `completedSets` is keyed by `exerciseSessionId` and carries no `exerciseId`,
+ * so the reference is found through `exerciseSessions.exerciseId` first: the
+ * ExerciseSessions naming this Exercise, then the sets under any of them.
+ */
+export async function correctExerciseMeasurement(
+  id: ExerciseId,
+  measurement: Measurement,
+): Promise<Exercise> {
+  return db.transaction('rw', db.exercises, db.exerciseSessions, db.completedSets, async () => {
+    const exercise = await db.exercises.get(id);
+    if (exercise === undefined) throw new ExerciseNotCorrectableError();
+
+    const exerciseSessionIds = await db.exerciseSessions.where('exerciseId').equals(id).primaryKeys();
+    const logged = await db.completedSets
+      .where('exerciseSessionId')
+      .anyOf(exerciseSessionIds)
+      .count();
+    if (logged > 0) throw new ExerciseHasLoggedSetsError();
+
+    await db.exercises.update(id, { measurement });
+    return { ...exercise, measurement };
   });
 }

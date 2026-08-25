@@ -28,7 +28,11 @@ import { cn } from '@/lib/utils';
 const SHOWN = 40;
 
 interface ExercisePickerProps {
-  readonly onPick: (exerciseId: ExerciseId) => void;
+  /**
+   * The whole Exercise, not its id: the caller has to snapshot `measurement`
+   * onto the ExerciseSession (REQ-105), and the picker already holds the row.
+   */
+  readonly onPick: (exercise: Exercise) => void;
   readonly onCancel: () => void;
   readonly busy: boolean;
 }
@@ -46,9 +50,9 @@ export function ExercisePicker({ onPick, onCancel, busy }: ExercisePickerProps) 
    */
   const [pressed, setPressed] = useState<ExerciseId | null>(null);
 
-  function pick(exerciseId: ExerciseId) {
-    setPressed(exerciseId);
-    onPick(exerciseId);
+  function pick(exercise: Exercise) {
+    setPressed(exercise.id);
+    onPick(exercise);
   }
 
   const performed = usePerformedExercises();
@@ -163,7 +167,7 @@ function Group({
   readonly busy: boolean;
   /** The row the write belongs to. Every other one is what dims. */
   readonly pressed: ExerciseId | null;
-  readonly onPick: (exerciseId: ExerciseId) => void;
+  readonly onPick: (exercise: Exercise) => void;
 }) {
   return (
     <section className="flex flex-col gap-2">
@@ -185,7 +189,7 @@ function Group({
               )}
               disabled={busy}
               key={exercise.id}
-              onClick={() => onPick(exercise.id)}
+              onClick={() => onPick(exercise)}
               type="button"
             >
               <span className="flex items-center gap-2 type-title">

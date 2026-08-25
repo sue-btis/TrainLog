@@ -15,12 +15,19 @@ import { useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CompletedSetId } from '@/domain/ids';
+import { targetUnitOf, targetsReps } from '@/domain/measurement';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import type { LoadSuggestion } from '@/domain/progression';
 import { suggestLoad } from '@/domain/progression';
 import type { Unit } from '@/domain/units';
 import { SetEditor } from '@/features/session/SetEditor';
-import { SetLogger, targetsOf, type SetValues } from '@/features/session/SetLogger';
+import {
+  EMPTY_VALUES,
+  SetLogger,
+  targetsOf,
+  valuesOf,
+  type SetValues,
+} from '@/features/session/SetLogger';
 import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
 import { Figure } from '@/features/ui/Figure';
 import { snapshotFigures } from '@/features/ui/format';
@@ -38,12 +45,12 @@ interface ExerciseViewProps {
   readonly defaultUnit: Unit;
   /** The settings default RIR, or `null` when the lifter has no opinion (§32). */
   readonly defaultRir: number | null;
-  readonly onLog: (values: SetValues, unit: Unit, setNumber: number) => Promise<void>;
+  readonly onLog: (values: SetValues, setNumber: number) => Promise<void>;
   /** Move to the next exercise, or finish when this is the last one (R-3). */
   readonly onAdvance: () => void;
   readonly isLast: boolean;
   /** Correct a set already logged, and remove one (R-4). */
-  readonly onEditSet: (set: CompletedSet, values: SetValues, unit: Unit) => Promise<void>;
+  readonly onEditSet: (set: CompletedSet, values: SetValues) => Promise<void>;
   readonly onDeleteSet: (set: CompletedSet) => Promise<void>;
   readonly busy: boolean;
 }
@@ -71,10 +78,14 @@ export function ExerciseView({
   const lastSet = sets.at(-1);
   const previousSets = previous?.exercises.flatMap((entry) => entry.sets) ?? [];
 
-  // §11.7 — the unit is the exercise's, not the screen's. A set already logged
-  // carries it; before that the snapshot does. The settings default is the last
-  // resort and applies only to an unplanned exercise, which has no plan to take
-  // a unit from. Getting this order wrong stores a pound load as kilograms.
+  // §11.7 — the unit the exercise *opens* on. A set already logged carries it;
+  // before that the snapshot does. The settings default is the last resort and
+  // applies only to an unplanned exercise, which has no plan to take a unit
+  // from. Getting this order wrong stores a pound load as kilograms.
+  //
+  // It opens the field and nothing more: the lifter can say the plates are in
+  // pounds today without editing their programme, and from the second set on it
+  // is the last set's own unit that leads this chain anyway.
   const unit =
     lastSet?.unit ?? planned?.plannedUnit ?? suggestion?.unit ?? previousSets[0]?.unit ?? defaultUnit;
 
@@ -93,7 +104,7 @@ export function ExerciseView({
   // thing (§11.5, FR-14).
   const targets = targetsOf(exerciseSession);
 
-  const opening = openingValues(exerciseSession, sets, suggestion, previousSets, defaultRir);
+  const opening = openingValues(exerciseSession, sets, suggestion, previousSets, defaultRir, unit);
   const current = values ?? opening;
   const setNumber = sets.length + 1;
 
@@ -162,14 +173,15 @@ export function ExerciseView({
           <SetEditor
             busy={busy}
             key={editedSet.id}
+            measurement={exerciseSession.measurement}
             onCancel={() => setEditing(null)}
             onDelete={() => {
               setEditing(null);
               void onDeleteSet(editedSet);
             }}
-            onSave={(next, unit) => {
+            onSave={(next) => {
               setEditing(null);
-              void onEditSet(editedSet, next, unit);
+              void onEditSet(editedSet, next);
             }}
             set={editedSet}
             targets={targets}
@@ -190,14 +202,14 @@ export function ExerciseView({
         ) : (
           <SetLogger
             busy={busy}
+            measurement={exerciseSession.measurement}
             onChange={setValues}
             onComplete={() => {
               setAddingExtra(false);
-              void onLog(current, unit, setNumber);
+              void onLog(current, setNumber);
             }}
             setNumber={setNumber}
             targets={targets}
-            unit={unit}
             values={current}
             weightStep={stepOf(exerciseSession)}
           />
@@ -478,18 +490,49 @@ function openingValues(
   suggestion: LoadSuggestion | null,
   previousSets: readonly CompletedSet[],
   defaultRir: number | null,
+  unit: Unit,
 ): SetValues {
   const planned = exerciseSession.plannedExerciseId === null ? null : exerciseSession;
-  const reps = planned?.plannedMaxReps ?? previousSets[0]?.reps ?? 0;
   const rir = planned?.plannedMinRir ?? previousSets[0]?.rir ?? defaultRir ?? 0;
 
+  // The last set of this exercise, in this Session, is the strongest opening
+  // there is: it is what the lifter just did, on every axis at once.
   const lastLogged = sets.at(-1);
-  if (lastLogged !== undefined) {
-    return { weight: lastLogged.weight, reps: lastLogged.reps, rir: lastLogged.rir };
-  }
+  if (lastLogged !== undefined) return valuesOf(lastLogged);
 
-  if (suggestion !== null) return { weight: suggestion.weight, reps, rir };
+  // Otherwise the previous session's first set carries every axis the type
+  // collects, and the plan's own target overrides the one axis it states.
   const previous = previousSets[0];
-  if (previous !== undefined) return { weight: previous.weight, reps, rir };
-  return { weight: 0, reps, rir };
+  // `unit` overrides whatever last session's set carried: the chain above is
+  // the one statement of which unit an exercise opens in, and a stale set must
+  // not quietly outrank the snapshot it already lost to there.
+  const base: SetValues =
+    previous === undefined
+      ? { ...EMPTY_VALUES, rir, unit }
+      : { ...valuesOf(previous), rir, unit };
+
+  const opening = targetsReps(exerciseSession.measurement)
+    ? { ...base, reps: planned?.plannedMaxReps ?? base.reps }
+    : { ...base, ...targetOpening(exerciseSession, planned?.plannedMaxTarget ?? null, base) };
+
+  // §29 makes the load the thing that moves, so a suggestion overrides it and
+  // nothing else.
+  return suggestion === null ? opening : { ...opening, weight: suggestion.weight };
+}
+
+/**
+ * The planned target, put on whichever axis the type states it — seconds or
+ * metres, both canonical, so a `km` entry is left as the lifter last had it
+ * rather than being handed a metre count in a kilometre field.
+ */
+function targetOpening(
+  exerciseSession: ExerciseSession,
+  plannedMaxTarget: number | null,
+  base: SetValues,
+): Partial<SetValues> {
+  if (plannedMaxTarget === null) return {};
+  if (targetUnitOf(exerciseSession.measurement) === 'seconds') {
+    return { durationSeconds: plannedMaxTarget };
+  }
+  return base.distanceUnit === 'm' ? { distance: plannedMaxTarget } : {};
 }

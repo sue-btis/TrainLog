@@ -95,11 +95,31 @@ _Avoid_: Extra, ad-hoc exercise, freestyle
 
 ### Measurement
 
+**Measurement**:
+How an Exercise is measured — one of nine types, declared on the Exercise and
+snapshotted onto the Exercise Session when it starts. The type decides which
+value fields a Completed Set collects, which axis a record and a progression
+advance are read on, and whether higher or lower is better on that axis. Two
+of the nine read lower-is-better: assisted bodyweight, on its assistance, and
+distance-with-duration, on its pace. Stated in exactly one module; nothing
+outside it restates any of those facts.
+_Avoid_: Set type, exercise kind, modality
+
 **Unit**:
-The weight unit an Exercise is logged in, kg or lb, fixed per Exercise. Every
-recorded weight also carries a derived kilogram value used for all comparison,
-charting and progression.
+The weight unit a load is logged in, kg or lb — weight only. It belongs to the
+Completed Set, which records the unit that set was actually logged in; the
+Planned Exercise supplies the default a new set opens on, so a machine marked in
+pounds opens in pounds without forbidding the next set from being kilograms.
+Every recorded weight also carries a derived kilogram value used for all
+comparison, charting and progression.
 _Avoid_: Measure, scale
+
+**Distance Unit**:
+The unit a distance is logged in — m, km or mi — on its own axis beside Unit,
+which is never widened to carry it. Every recorded distance also carries a
+derived metre value, `distanceM`, used for all comparison, charting and
+progression, exactly as the kilogram value is for weight.
+_Avoid_: Length unit, Unit (which means weight)
 
 **Effort**:
 Foster's session load for one Session: the mean RPE of its sets times its
@@ -114,9 +134,12 @@ _Avoid_: Load, training load, sRPE, intensity
 
 **Settings**:
 The single row of device preferences (§32): default unit, default RIR, timer
-vibration, timer sound, keep screen awake. Every field is a *default* — the
-value used when nothing more specific is known — and none of them acts on
-stored training: changing the unit converts no logged set. Settings belong to
+vibration, timer sound, keep screen awake, and bodyweight. Every field is a
+*default* — the value used when nothing more specific is known — and bodyweight
+is no exception: it is the value a new Session opens on, not a weigh-in log.
+None of them acts on stored training: changing the unit converts no logged set,
+and changing the bodyweight rewrites no Session that already recorded one.
+Settings belong to
 the phone, not to the training, which is why a backup carries them and a restore
 leaves them alone. There is no theme setting.
 _Avoid_: Preferences, config, options

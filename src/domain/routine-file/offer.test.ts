@@ -21,7 +21,13 @@ import { validateRoutineFile } from '@/domain/routine-file/validate';
 const frontSquat = getCatalogExercise(toId<ExerciseId>('front-squat'))!;
 
 function aUserExercise(name: string, id = 'user-1'): Exercise {
-  return { id: toId<ExerciseId>(id), name, category: null, equipment: null };
+  return {
+    id: toId<ExerciseId>(id),
+    name,
+    category: null,
+    equipment: null,
+    measurement: 'weight_reps',
+  };
 }
 
 /** A draft with the given Workouts and no exercises in any of them. */

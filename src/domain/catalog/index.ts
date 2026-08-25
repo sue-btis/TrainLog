@@ -20,11 +20,12 @@ export type CatalogExercise = Exercise;
 
 /** Every catalog entry, in authored order. */
 export const CATALOG: readonly CatalogExercise[] = CATALOG_ROWS.map(
-  ([slug, name, category, equipment]) => ({
+  ([slug, name, category, equipment, measurement]) => ({
     id: toId<ExerciseId>(slug),
     name,
     category,
     equipment,
+    measurement,
   }),
 );
 

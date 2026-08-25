@@ -7,7 +7,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
+  ExerciseHasLoggedSetsError,
   ExerciseNameRequiredError,
+  ExerciseNotCorrectableError,
+  correctExerciseMeasurement,
   createUserExercise,
   getExercise,
   getExerciseName,
@@ -15,14 +18,21 @@ import {
   listUserExercises,
 } from '@/db/repositories/exercises';
 import { resolveFileExercise } from '@/domain/routine-file';
-import { toId, type ExerciseId } from '@/domain/ids';
-import type { Exercise } from '@/domain/types';
+import {
+  toId,
+  type CompletedSetId,
+  type ExerciseId,
+  type ExerciseSessionId,
+  type SessionId,
+} from '@/domain/ids';
+import type { CompletedSet, Exercise, ExerciseSession } from '@/domain/types';
 
 const userExercise: Exercise = {
   id: toId<ExerciseId>('7f1a1c6e-0d6e-4a1e-9f5d-2f4b6d8a0c11'),
   name: 'Sandbag Bear Hug Carry',
   category: null,
   equipment: null,
+  measurement: 'weight_reps',
 };
 
 beforeEach(async () => {
@@ -148,6 +158,24 @@ describe('createUserExercise', () => {
     expect(await db.exercises.count()).toBe(before);
   });
 
+  it('defaults an unsaid measurement to weight_reps (AC-151)', async () => {
+    const silent = await createUserExercise({
+      name: 'Zercher Good Morning',
+      category: null,
+      equipment: null,
+    });
+    const stated = await createUserExercise({
+      name: 'Wall Sit',
+      category: null,
+      equipment: null,
+      measurement: 'duration',
+    });
+
+    expect(silent.exercise.measurement).toBe('weight_reps');
+    expect((await getExercise(silent.exercise.id))?.measurement).toBe('weight_reps');
+    expect((await getExercise(stated.exercise.id))?.measurement).toBe('duration');
+  });
+
   it('round-trips category and equipment, including null for either', async () => {
     const both = await createUserExercise({
       name: 'Sled Push Heavy',
@@ -170,5 +198,92 @@ describe('createUserExercise', () => {
       equipment: null,
     });
     expect((await getExercise(both.exercise.id))?.name).toBe('Sled Push Heavy');
+  });
+});
+
+/**
+ * TST-123 — correcting how a user Exercise is measured (REQ-133, AC-152,
+ * AC-153, AC-154, DEC-O).
+ *
+ * The refusal is the point of the verb: the measurement decides how every
+ * stored set is read, so it may only be corrected while nothing has been
+ * logged under it.
+ */
+describe('correctExerciseMeasurement', () => {
+  /** One ExerciseSession naming the fixture, with one set under it. */
+  async function logOneSet(): Promise<void> {
+    const exerciseSession: ExerciseSession = {
+      id: toId<ExerciseSessionId>('es-correct-1'),
+      sessionId: toId<SessionId>('s-correct-1'),
+      exerciseId: userExercise.id,
+      order: 0,
+      status: 'performed',
+      measurement: 'weight_reps',
+      plannedExerciseId: null,
+    };
+    const set: CompletedSet = {
+      id: toId<CompletedSetId>('cs-correct-1'),
+      exerciseSessionId: exerciseSession.id,
+      setNumber: 1,
+      weight: 60,
+      unit: 'kg',
+      weightKg: 60,
+      reps: 8,
+      rir: 2,
+      durationSeconds: null,
+      distance: null,
+      distanceUnit: null,
+      distanceM: null,
+      completedAt: 1_755_100_500_000,
+    };
+    await db.exerciseSessions.add(exerciseSession);
+    await db.completedSets.add(set);
+  }
+
+  it('corrects the measurement while no set has been logged (AC-152)', async () => {
+    const corrected = await correctExerciseMeasurement(userExercise.id, 'duration');
+
+    expect(corrected.measurement).toBe('duration');
+    expect((await getExercise(userExercise.id))?.measurement).toBe('duration');
+  });
+
+  it('corrects it with an ExerciseSession but still no set (AC-152)', async () => {
+    await db.exerciseSessions.add({
+      id: toId<ExerciseSessionId>('es-correct-empty'),
+      sessionId: toId<SessionId>('s-correct-empty'),
+      exerciseId: userExercise.id,
+      order: 0,
+      status: 'pending',
+      measurement: 'weight_reps',
+      plannedExerciseId: null,
+    });
+
+    await correctExerciseMeasurement(userExercise.id, 'distance');
+    expect((await getExercise(userExercise.id))?.measurement).toBe('distance');
+  });
+
+  it('refuses once one set references it, and writes nothing (AC-153)', async () => {
+    await logOneSet();
+
+    await expect(correctExerciseMeasurement(userExercise.id, 'duration')).rejects.toThrow(
+      'Sets are already logged for this exercise, so how it is measured can no longer be changed.',
+    );
+    await expect(
+      correctExerciseMeasurement(userExercise.id, 'duration'),
+    ).rejects.toBeInstanceOf(ExerciseHasLoggedSetsError);
+
+    expect((await getExercise(userExercise.id))?.measurement).toBe('weight_reps');
+  });
+
+  it('refuses a catalog Exercise, which is never in the table (AC-154)', async () => {
+    await expect(
+      correctExerciseMeasurement(toId<ExerciseId>('front-squat'), 'duration'),
+    ).rejects.toBeInstanceOf(ExerciseNotCorrectableError);
+    await expect(
+      correctExerciseMeasurement(toId<ExerciseId>('front-squat'), 'duration'),
+    ).rejects.toThrow('Only an exercise you created can have its measurement corrected.');
+
+    expect((await getExercise(toId<ExerciseId>('front-squat')))?.measurement).toBe('weight_reps');
+    expect(await db.exercises.count()).toBe(1); // the fixture only
   });
 });

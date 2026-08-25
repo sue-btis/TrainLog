@@ -11,7 +11,13 @@ import { describe, expect, it } from 'vitest';
 import { toId } from '@/domain/ids';
 import type { ExerciseId, ExerciseSessionId, PlannedExerciseId, SessionId } from '@/domain/ids';
 import type { PlannedExerciseSession } from '@/domain/types';
-import { snapshotFigures, snapshotLine } from '@/features/ui/format';
+import { MEASUREMENTS } from '@/domain/measurement';
+import {
+  MEASUREMENT_OPTIONS,
+  measurementLabel,
+  snapshotFigures,
+  snapshotLine,
+} from '@/features/ui/format';
 
 const snapshot: PlannedExerciseSession = {
   id: toId<ExerciseSessionId>('es-1'),
@@ -19,11 +25,14 @@ const snapshot: PlannedExerciseSession = {
   exerciseId: toId<ExerciseId>('back-squat'),
   order: 0,
   status: 'performed',
+  measurement: 'weight_reps',
   plannedExerciseId: toId<PlannedExerciseId>('pe-1'),
   plannedUnit: 'kg',
   plannedSets: 4,
   plannedMinReps: 4,
   plannedMaxReps: 6,
+  plannedMinTarget: null,
+  plannedMaxTarget: null,
   plannedMinRir: 1,
   plannedMaxRir: 2,
   plannedRestSeconds: 210,
@@ -71,5 +80,36 @@ describe('snapshotFigures', () => {
     expect(
       snapshotFigures({ ...snapshot, plannedRestSeconds: null }).map((f) => f.value),
     ).toEqual(['4 × 4–6', '1–2', '—']);
+  });
+});
+
+/**
+ * The lifter-facing names for the nine measurement types (REQ-101, REQ-102).
+ *
+ * The dictionary is shared by the create-Exercise form and the import wizard,
+ * so a gap here is a picker offering a database word — or, worse, two types
+ * under one name, which makes the choice a lie the lifter cannot see.
+ */
+describe('measurementLabel / MEASUREMENT_OPTIONS', () => {
+  it.each(MEASUREMENTS)('names %s in the lifter\u2019s words', (measurement) => {
+    const label = measurementLabel(measurement);
+    expect(label).not.toBe('');
+    // The union's own values all carry an underscore; a label that does is the
+    // raw enum leaking onto the screen.
+    expect(label).not.toContain('_');
+  });
+
+  it('gives no two types the same name', () => {
+    const labels = MEASUREMENTS.map(measurementLabel);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('offers every type once, in the union\u2019s order, labelled by the same function', () => {
+    expect(MEASUREMENT_OPTIONS).toEqual(
+      MEASUREMENTS.map((measurement) => ({
+        value: measurement,
+        label: measurementLabel(measurement),
+      })),
+    );
   });
 });

@@ -10,6 +10,7 @@
  */
 
 import { findExerciseByName, getCatalogExercise } from '@/domain/catalog';
+import { targetsReps, type Measurement } from '@/domain/measurement';
 import { newId, toId } from '@/domain/ids';
 import type {
   ExerciseId,
@@ -60,13 +61,8 @@ export function resolveFileExercise(
   fileExercise: RoutineFileExercise,
   knownExercises: readonly Exercise[],
 ): ResolvedExercise {
-  if (fileExercise.exercise_id !== undefined) {
-    const fromCatalog = getCatalogExercise(toId<ExerciseId>(fileExercise.exercise_id));
-    if (fromCatalog) return { exercise: fromCatalog, created: false };
-  }
-
-  const known = findExerciseByName(fileExercise.name, knownExercises);
-  if (known) return { exercise: known, created: false };
+  const incumbent = resolvedFileExercise(fileExercise, knownExercises);
+  if (incumbent) return { exercise: incumbent, created: false };
 
   return {
     created: true,
@@ -75,8 +71,48 @@ export function resolveFileExercise(
       name: fileExercise.name.trim(),
       category: fileExercise.category ?? null,
       equipment: null,
+      // The file's declaration applies only where the import mints the
+      // Exercise (REQ-131): the return above hands back an incumbent and
+      // never restates its type.
+      measurement: declaredMeasurement(fileExercise),
     },
   };
+}
+
+/**
+ * The type an entry declares, or the one it means by saying nothing.
+ *
+ * Omitted means weight x reps, which is what every version-1 file has always
+ * meant (REQ-130, DEC-K) and what 81 of the catalog's 100 rows are. Stated
+ * here rather than at each reader, so the mint and the screen that shows a
+ * lifter what the mint will do cannot disagree about the default.
+ *
+ * This is the *declared* type. Where the entry resolves to an Exercise that
+ * already exists, that Exercise's own type wins (REQ-131).
+ */
+export function declaredMeasurement(fileExercise: RoutineFileExercise): Measurement {
+  return fileExercise.measurement ?? 'weight_reps';
+}
+
+/**
+ * The Exercise a file entry binds to, or `undefined` where the import would
+ * mint one for it.
+ *
+ * The lookup half of `resolveFileExercise`, without the mint. A caller that
+ * only wants to know *whether* an entry names something the app already has —
+ * the wizard, deciding whether its measurement is still the lifter's to
+ * choose — gets an answer without a discarded id being generated for every
+ * keystroke, and gets it from the one rule rather than a second copy of it.
+ */
+export function resolvedFileExercise(
+  fileExercise: RoutineFileExercise,
+  knownExercises: readonly Exercise[],
+): Exercise | undefined {
+  if (fileExercise.exercise_id !== undefined) {
+    const fromCatalog = getCatalogExercise(toId<ExerciseId>(fileExercise.exercise_id));
+    if (fromCatalog) return fromCatalog;
+  }
+  return findExerciseByName(fileExercise.name, knownExercises);
 }
 
 /** What the caller must supply that the file does not carry. */
@@ -139,14 +175,20 @@ export function routineFileToDomain(
         createdExercises.push(resolved.exercise);
         knownExercises.push(resolved.exercise);
       }
+      const onReps = targetsReps(resolved.exercise.measurement);
 
       plannedExercises.push({
         id: newId<PlannedExerciseId>(),
         workoutId,
         exerciseId: resolved.exercise.id,
         sets: fileExercise.sets,
-        minReps: fileExercise.reps.min,
-        maxReps: fileExercise.reps.max,
+        // Exactly one of the two pairs is populated, and which one is
+        // decided by the Exercise's measurement rather than by which key the
+        // file happened to write (REQ-139).
+        minReps: onReps ? (fileExercise.reps?.min ?? null) : null,
+        maxReps: onReps ? (fileExercise.reps?.max ?? null) : null,
+        minTarget: onReps ? null : (fileExercise.target?.min ?? null),
+        maxTarget: onReps ? null : (fileExercise.target?.max ?? null),
         minRir: fileExercise.rir?.min ?? null,
         maxRir: fileExercise.rir?.max ?? null,
         restSeconds: fileExercise.rest_seconds ?? null,

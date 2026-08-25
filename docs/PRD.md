@@ -838,13 +838,12 @@ En primer plano se utiliza vibración y sonido segun configuración.
 
 # 11.7 Set Logging
 
-Cada set terminado debe almacenar:
+Cada set terminado almacena su identidad y su esfuerzo:
 
 ```text
 weight
 unit
 weightKg
-reps
 rir
 timestamp
 ```
@@ -856,12 +855,33 @@ setNumber
 exerciseSessionId
 ```
 
+Y, **según cómo se mida el ejercicio**, los campos de valor que ese tipo
+recoge:
+
+```text
+reps                       — nulo en un tipo que no cuenta repeticiones
+durationSeconds            — segundos sostenidos o trabajados
+distance / distanceUnit / distanceM
+```
+
+Esta forma **no es universal**: un plank guarda segundos y `reps: null`; un
+salto guarda distancia y ni segundos ni repeticiones. Qué campos recoge cada
+tipo lo declara un único módulo, `src/domain/measurement.ts`, y nada fuera de
+él lo vuelve a enunciar. El tipo se declara en el Exercise y se copia sobre el
+Exercise Session al empezar; el set no lleva discriminador, así que una serie
+no puede contradecir al ejercicio que la contiene.
+
 El peso se guarda tal como fue introducido, junto con su unidad, y además
 convertido a kilogramos. Toda comparación, gráfico y progresión utiliza el valor
-en kilogramos.
+en kilogramos. La distancia sigue exactamente la misma regla en su propio eje:
+se guarda tal como se introdujo, con su unidad, y con `distanceM` derivado.
 
-La unidad es propia del ejercicio: una máquina en libras no cambia de unidad
-entre series.
+La unidad es propia de la serie: `unit` es la unidad en la que esa carga se
+registró realmente. El Planned Exercise aporta el valor por defecto con el que
+se abre una serie nueva — una máquina marcada en libras abre en libras — pero
+no impide que la siguiente serie se registre en kilogramos. `unit` sigue
+significando peso — kg o lb — y no se ensancha para
+cargar distancia; ésa tiene su propio eje de unidades.
 
 Posteriormente podrían agregarse:
 
@@ -1031,8 +1051,18 @@ de métrica**, no tres gráficos apilados. La mejor serie es una cifra sobre el
 gráfico, la misma que calcula `summarizeExercise` para §11.10: una función
 llamada dos veces, que por eso no pueden discrepar.
 
-Todo se traza en kilogramos, incluso para un ejercicio registrado en libras
-(§11.7).
+**El conmutador ofrece sólo las métricas que el tipo del ejercicio define**, y
+el eje Y enuncia la unidad de la métrica elegida — kg, repeticiones, s, m o
+s/m. Un plank no ofrece carga ni 1RM estimado porque no tiene ninguno de los
+dos, y ninguna cifra sustituye lo que no existe: no hay equivalente de 1RM
+para un hold ni para una carrera, y ofrecer un cero sería inventar un dato.
+
+Por la misma razón el volumen no es una sola cifra sino cuatro acumuladores
+que nunca se suman entre sí: kg·rep, repeticiones, segundos y metros. Ninguna
+pantalla ni exportación muestra un total que cruce dos familias.
+
+Una carga se traza en kilogramos, incluso para un ejercicio registrado en
+libras (§11.7); una distancia, en metros, por la misma regla y en su eje.
 
 Esta pantalla es la **forma** del registro; §11.10 es el registro — cada sesión
 y cada serie, en palabras. No hay lista de sesiones aquí.
@@ -1404,14 +1434,26 @@ weight
 unit
 weightKg
 
-reps
+reps                 — number | null
 rir
+
+durationSeconds      — number | null
+distance             — number | null
+distanceUnit         — 'm' | 'km' | 'mi' | null
+distanceM            — number | null
 
 completedAt
 ```
 
 `weight` y `unit` conservan lo introducido. `weightKg` es el valor derivado que
 utilizan comparaciones, gráficos y progresión.
+
+Los cinco campos nulos son **condicionales al tipo de medición** del Exercise
+Session que contiene la serie (§11.7): un ejercicio de peso × repeticiones
+llena `reps` y deja los otros cuatro nulos; un hold llena `durationSeconds` y
+deja `reps` nulo. `weight`, `unit`, `weightKg` y `rir` siguen siendo
+obligatorios y no nulos, porque toda fila ya escrita los tiene: ninguna serie
+almacenada se reescribió al introducir esto.
 
 ---
 
@@ -1603,14 +1645,22 @@ Export Workout History
 Ejemplo:
 
 ```csv
-date,exercise,set,weight,reps,rir
-2026-08-18,Front Squat,1,75,6,2
-2026-08-18,Front Squat,2,75,6,2
-2026-08-18,Front Squat,3,75,5,1
-2026-08-18,Front Squat,4,75,5,1
+date,exercise,set,weight,unit,reps,rir,measurement,duration_s,distance,distance_unit
+2026-08-18,Front Squat,1,75,kg,6,2,weight_reps,,,
+2026-08-18,Front Squat,2,75,kg,6,2,weight_reps,,,
+2026-08-18,Plank,1,0,kg,,0,duration,45,,
+2026-08-18,Broad Jump,1,0,kg,,0,distance,,2.4,m
 ```
 
 Esto facilitará análisis externos.
+
+Las columnas **sólo se añaden al final**, nunca se insertan: una hoja de
+cálculo se direcciona por posición de columna, y un archivo que las desplaza
+en silencio es peor que uno que se niega a abrir. Las siete primeras conservan
+su índice desde la primera versión.
+
+Un campo que el tipo de la fila no lleva se escribe **vacío**, nunca como cero:
+una repetición ausente no es una serie de cero repeticiones.
 
 ---
 
@@ -2204,10 +2254,16 @@ on / off
 
 Keep screen awake during workout
 on / off
+
+Bodyweight
+kg, opcional
 ```
 
-La unidad de configuración es solo el valor por defecto. Cada ejercicio conserva
-la suya.
+La unidad de configuración es solo el valor por defecto del que cuelga todo lo
+demás: la hereda un archivo de rutina que no declare ninguna, el Planned
+Exercise la hereda de ahí, y una serie nueva se abre con la del Planned
+Exercise. Cada eslabón puede apartarse del anterior, y la unidad que queda
+registrada es siempre la de la serie (§11.7).
 
 Cada ajuste es un valor por defecto y ninguno actúa hacia atrás: cambiar la
 unidad no convierte ninguna serie ya registrada.
@@ -2460,6 +2516,7 @@ ejercicio dentro de una sesión.
 | 10 | supersets | ⬜ | `ExerciseSession` tiene `order`, no agrupación. Es estructura nueva. |
 | 11 | drop sets | ⬜ | Series encadenadas dentro de una serie. Mismo tipo de cambio que 10. |
 | 12 | deload support | ⬜ | Toca progresión y planificación a la vez. |
+| 16 | exercise measurement | ✅ | Un Exercise declara cómo se mide, uno de nueve tipos, y ese tipo decide qué campos recoge una serie, sobre qué eje se lee un récord y en qué dirección. Dos de los nueve se leen al revés — la asistencia y el ritmo — que es donde un máximo corriente corona la peor sesión. Cambia qué es una serie (§11.7, §14.8), así que es del grupo C; numerado al final para no renumerar 9–15. Ver `docs/changes/2026-08-24-exercise-measurement/`. |
 
 ## D — Invariantes que hay que revocar
 

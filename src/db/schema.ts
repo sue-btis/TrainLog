@@ -29,6 +29,8 @@
  */
 
 import Dexie, { type Table, type Transaction } from 'dexie';
+import { getCatalogExercise } from '@/domain/catalog';
+import type { Measurement } from '@/domain/measurement';
 import type {
   CompletedSetId,
   ExerciseId,
@@ -62,8 +64,13 @@ export const DATABASE_NAME = 'trainlog';
  * required field of `PlannedExerciseSession` after v1 shipped, which left rows
  * on disk that the type system believes are complete and are not. See
  * `backfillPlannedUnit`.
+ *
+ * v2 → v3 is the same shape of change for the same reason: `measurement` became
+ * a required field of `Exercise` and of `ExerciseSessionBase`. It adds no table
+ * and no index either, and it reads no `completedSets` row and writes none
+ * (REQ-124, DEC-L). See `backfillMeasurement`.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /**
  * The nine tables of REQ-070, as Dexie store definitions.
@@ -154,6 +161,7 @@ export class TrainLogDatabase extends Dexie {
     // repetition is not redundancy; omitting it drops every table.
     this.version(1).stores(SCHEMA_V1);
     this.version(2).stores(SCHEMA_V1).upgrade(backfillPlannedUnit);
+    this.version(3).stores(SCHEMA_V1).upgrade(backfillMeasurement);
   }
 }
 
@@ -206,5 +214,72 @@ async function backfillPlannedUnit(transaction: Transaction): Promise<void> {
       if (typeof plannedExerciseId !== 'string') return;
       if (row.plannedUnit !== undefined) return;
       row.plannedUnit = unitOf.get(plannedExerciseId as PlannedExerciseId) ?? FALLBACK_UNIT;
+    });
+}
+
+/**
+ * The measurement a backfilled row gets when nothing else resolves.
+ *
+ * `weight_reps` is the only type provable from data written before measurements
+ * existed (REQ-125, DEC-M): every stored set carries a weight, a unit and a rep
+ * count, which is exactly what that type collects.
+ */
+const FALLBACK_MEASUREMENT: Measurement = 'weight_reps';
+
+/**
+ * v2 → v3: gives every stored `Exercise` and `ExerciseSession` the
+ * `measurement` they were always supposed to have (REQ-124, REQ-125).
+ *
+ * Two tables, and deliberately only two.
+ *
+ * - **`exercises`** holds user-created Exercises only (DEC-007). Nothing about
+ *   a row written before this change says how the movement was measured, so
+ *   every one becomes `weight_reps` — see `FALLBACK_MEASUREMENT`.
+ * - **`exerciseSessions`** resolve theirs from the Exercise they name, catalog
+ *   first and then the table, which is `getExercise`'s own precedence. A slug
+ *   the catalog knows therefore backfills to that slug's real type: a stored
+ *   `plank` session becomes `duration`, not `weight_reps` (AC-139).
+ *
+ * **No `completedSets` row is read or written.** That is the whole of DEC-L and
+ * it is what makes this migration lossless: a stored `push-up` set holding
+ * `weight: 0` reads correctly under `bodyweight_reps` because that type does
+ * not read the field, and under `weighted_bodyweight` because zero means "no
+ * added weight" — which is true. Reinterpretation comes from the Exercise's
+ * declaration, never from rewriting what was logged.
+ *
+ * `sessions.bodyweightKg` is likewise left absent and reads as `null`: no
+ * backfill invents a bodyweight nobody recorded (REQ-126, DEC-I).
+ *
+ * A row that already carries a measurement is left alone, for the reason
+ * `backfillPlannedUnit` leaves an existing `plannedUnit` alone: the stored
+ * value outranks a re-derivation.
+ */
+async function backfillMeasurement(transaction: Transaction): Promise<void> {
+  await transaction
+    .table<Record<string, unknown>>('exercises')
+    .toCollection()
+    .modify((row) => {
+      if (row.measurement !== undefined) return;
+      row.measurement = FALLBACK_MEASUREMENT;
+    });
+
+  // Read after the write above, so a user Exercise resolves to the value this
+  // same upgrade just gave it rather than to the fallback twice over.
+  const userExercises = await transaction.table<Exercise>('exercises').toArray();
+  const stored = new Map(userExercises.map((exercise) => [exercise.id, exercise.measurement]));
+
+  await transaction
+    .table<Record<string, unknown>>('exerciseSessions')
+    .toCollection()
+    .modify((row) => {
+      if (row.measurement !== undefined) return;
+      const exerciseId = row.exerciseId;
+      if (typeof exerciseId !== 'string') {
+        row.measurement = FALLBACK_MEASUREMENT;
+        return;
+      }
+      const id = exerciseId as ExerciseId;
+      row.measurement =
+        getCatalogExercise(id)?.measurement ?? stored.get(id) ?? FALLBACK_MEASUREMENT;
     });
 }

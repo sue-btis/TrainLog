@@ -23,18 +23,21 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createStartedWorkout } from '@/db';
 import { addDays, formatLocalDate } from '@/domain/dates';
-import type { WorkoutId } from '@/domain/ids';
+import type { ExerciseId, WorkoutId } from '@/domain/ids';
 import { estimateDuration, isMissed, nextWorkoutInRotation } from '@/domain/scheduling';
 import { startWorkout } from '@/domain/session';
+import { movesBodyweight, type Measurement } from '@/domain/measurement';
 import type { PlannedExercise, Session, Workout } from '@/domain/types';
 import {
   useActiveRoutine,
+  useExerciseMeasurements,
   useExerciseNames,
   useInProgressSession,
   useLastPerformedWorkout,
   usePlacementsBetween,
   usePlannedExercises,
   useSessionsByRoutine,
+  useSettings,
   useWorkouts,
 } from '@/features/data/queries';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
@@ -190,7 +193,7 @@ export function TodayScreen() {
             <TabsContent value={shown.id}>
               <WorkoutCard
                 busy={busy}
-                onStart={(exercises) =>
+                onStart={(exercises, measurementOf) =>
                   // R-2 — the Session and every snapshotted exercise are written
                   // in one transaction, so `/session` cannot arrive before the
                   // rows it reads exist. A refusal (REQ-058: another session is
@@ -202,6 +205,7 @@ export function TodayScreen() {
                         routineId: routine.id,
                         workoutId: shown.id,
                         planned: exercises,
+                        measurementOf,
                         startedAt: Date.now(),
                       }),
                     );
@@ -248,7 +252,10 @@ interface WorkoutCardProps {
   readonly recordedToday: Session | undefined;
   /** Whether the start is already in flight — the control it belongs to says so. */
   readonly busy: boolean;
-  readonly onStart: (exercises: readonly PlannedExercise[]) => void;
+  readonly onStart: (
+    exercises: readonly PlannedExercise[],
+    measurementOf: (exerciseId: ExerciseId) => Measurement,
+  ) => void;
 }
 
 function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCardProps) {
@@ -259,6 +266,25 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
   const planned = usePlannedExercises(workout.id);
   const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
+  const measurements = useExerciseMeasurements(exercises.map((exercise) => exercise.exerciseId));
+  const settings = useSettings();
+  // `weight_reps` where an id resolves to nothing, the same fallback the
+  // migration applies and for the same reason (REQ-125).
+  const measurementOf = (id: ExerciseId): Measurement =>
+    measurements?.get(id) ?? 'weight_reps';
+
+  // AM-1 — the one place the app asks for a bodyweight, and it asks here
+  // rather than in gym mode because §21 protects that screen and because
+  // this is the moment a lifter can still act: the Session has not started,
+  // and the value it opens on is the one Settings holds now.
+  //
+  // `undefined` is the settings read still in flight, and it is not an
+  // answer: asking then would flash the line for a frame at every load.
+  const bodyweightUnknown =
+    settings !== undefined &&
+    settings.bodyweightKg === null &&
+    measurements !== undefined &&
+    exercises.some((exercise) => movesBodyweight(measurementOf(exercise.exerciseId)));
 
   return (
     <Card>
@@ -273,6 +299,21 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
           </span>
         )}
       </div>
+
+      {/* One paragraph, not a `WELL`: a well inside a card is the nested
+          surface DESIGN.md forbids, and `WELL` is a flex column besides —
+          which lays a sentence out one child per line and leaves the full
+          stop floating under the link. */}
+      {bodyweightUnknown && (
+        <p className="type-body-sm text-ink-2" role="status">
+          This Session has exercises measured against your bodyweight, and the app
+          has never been told yours.{' '}
+          <Link className="underline" to="/settings">
+            Set it in Settings
+          </Link>
+          .
+        </p>
+      )}
 
       {/* The bare sentence rather than `Reading`: that component brings a
           `WELL` with it, and a well inside a card is the nested surface
@@ -289,7 +330,7 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
                 <span className="type-measure-sm text-ink-3">{index + 1}</span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="type-title">{names?.get(exercise.exerciseId) ?? '…'}</span>
-                  <span className="type-measure-sm text-ink-3">{programmingLine(exercise)}</span>
+                  <span className="type-measure-sm text-ink-3">{programmingLine(exercise, measurementOf(exercise.exerciseId))}</span>
                 </div>
               </div>
             </article>
@@ -319,7 +360,7 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
           </Button>
           <Button
             disabled={busy}
-            onClick={() => onStart(exercises)}
+            onClick={() => onStart(exercises, measurementOf)}
             size="block"
             type="button"
             variant="quiet"
@@ -330,7 +371,7 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
       ) : (
         <Button
           disabled={busy}
-          onClick={() => onStart(exercises)}
+          onClick={() => onStart(exercises, measurementOf)}
           size="block"
           type="button"
           variant="primary"

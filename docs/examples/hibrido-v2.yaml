@@ -1,0 +1,159 @@
+# Ejemplo - Híbrido (formato v2)
+#
+# Un bloque corto que existe para una sola cosa: enseñar cómo se escribe cada
+# uno de los nueve tipos de medición. Es un ejemplo del formato, no un programa
+# recomendado — dos días no hacen una temporada.
+#
+# Lo que cambia respecto a v1: un ejercicio declara `measurement`, y el rango
+# de objetivo va en `reps` o en `target` según el eje sobre el que ese tipo se
+# programa. Nunca los dos, nunca ninguno.
+#
+#   eje de repeticiones  ->  reps: { min, max }
+#   eje de duración      ->  target: { min, max }   en SEGUNDOS
+#   eje de distancia     ->  target: { min, max }   en METROS
+#
+# Ambos rangos son canónicos, igual que `rest_seconds` ya lo era: 5 km se
+# escribe 5000, y 45 s se escribe 45. La unidad que el levantador elige en
+# pantalla al registrar la serie es otra cosa y no toca esto.
+#
+# `measurement` sólo se declara donde el import **crea** el Exercise. Un
+# `exercise_id` que resuelve contra el catálogo conserva el tipo del catálogo:
+# el archivo no reescribe un ejercicio que ya existe.
+#
+# La progresión doble generaliza por eje y por signo. Sobre un tipo con carga
+# avanza la carga; sobre uno sin ella avanza el propio objetivo — más
+# repeticiones, más segundos, más metros. Y sobre asistencia avanza hacia
+# abajo: menos ayuda, con suelo en cero.
+
+version: 2
+
+routine:
+  name: "Ejemplo - Híbrido"
+  weeks: 4
+
+  workouts:
+    # ------------------------------------------------------------------ lunes
+    - name: "Fuerza Híbrida"
+      suggested_days: [monday]
+      exercises:
+        # distance — una distancia y nada más. El objetivo va en metros, y el
+        # récord es el salto más largo. Manual: no hay carga que incrementar,
+        # y la regla de parada la juzga el levantador.
+        - name: "Broad Jump"
+          exercise_id: "broad-jump"
+          sets: 4
+          target: { min: 2.2, max: 2.6 }
+          rest_seconds: 120
+          focus: "Potencia horizontal"
+          notes:
+            - "Máxima distancia, aterrizaje absorbido y estable"
+            - "Si la distancia cae respecto a la primera serie, para"
+          progression: { type: "manual" }
+
+        # weight_reps — el caso de siempre. Objetivo en repeticiones, avance en
+        # carga: §29 sin cambios.
+        - name: "Front Squat"
+          exercise_id: "front-squat"
+          unit: "kg"
+          sets: 4
+          reps: { min: 4, max: 6 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 210
+          focus: "Fuerza"
+          progression: { type: "double_progression", increment: 2.5 }
+
+        # weighted_bodyweight — la carga es peso AÑADIDO al del levantador. El
+        # 1RM estimado lee sólo ese añadido y nunca pliega el peso corporal:
+        # hacerlo reescribiría en silencio todo el historial de dominadas.
+        - name: "Weighted Pull Up"
+          exercise_id: "weighted-pull-up"
+          unit: "kg"
+          sets: 4
+          reps: { min: 5, max: 8 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 180
+          focus: "Tracción vertical"
+          progression: { type: "double_progression", increment: 2.5 }
+
+        # assisted_bodyweight — el eje invertido. La carga es ayuda RESTADA, así
+        # que menos es mejor: cumplir el objetivo baja la asistencia 5 kg, con
+        # suelo en cero. Un máximo corriente aquí coronaría el peor día.
+        - name: "Assisted Dip"
+          category: "chest"
+          measurement: "assisted_bodyweight"
+          unit: "kg"
+          sets: 3
+          reps: { min: 8, max: 12 }
+          rir: { min: 2, max: 3 }
+          rest_seconds: 120
+          focus: "Volumen de empuje"
+          notes:
+            - "El número es la ayuda de la máquina, no lo que mueves"
+          progression: { type: "double_progression", increment: 5 }
+
+        # weight_distance — se programa en metros y se progresa en carga. El
+        # acarreo es la distancia; lo que mejora es lo que pesa.
+        - name: "Farmers Walk"
+          exercise_id: "farmers-walk"
+          unit: "kg"
+          sets: 3
+          target: { min: 30, max: 40 }
+          rest_seconds: 150
+          focus: "Agarre y core"
+          progression: { type: "double_progression", increment: 5 }
+
+    # ----------------------------------------------------------------- jueves
+    - name: "Motor y Core"
+      suggested_days: [thursday]
+      exercises:
+        # distance_duration — el segundo eje invertido. Se programa en metros y
+        # el récord se lee sobre el ritmo, segundos por metro, donde más bajo es
+        # más rápido. Manual: incrementar el ritmo en pasos fijos no es una
+        # forma honesta de correr.
+        - name: "Zone Two Run"
+          measurement: "distance_duration"
+          sets: 1
+          target: { min: 5000, max: 5000 }
+          rest_seconds: 0
+          focus: "Base aeróbica"
+          notes:
+            - "Conversacional de principio a fin"
+            - "5 km — el objetivo se escribe en metros"
+          progression: { type: "manual" }
+
+        # duration — un solo eje. No hay carga, así que cumplir el objetivo
+        # avanza el objetivo mismo: 5 segundos más.
+        - name: "Handstand Hold"
+          exercise_id: "handstand-hold"
+          sets: 4
+          target: { min: 20, max: 40 }
+          rest_seconds: 90
+          focus: "Habilidad"
+          notes:
+            - "Contra la pared cuenta; el reloj no distingue"
+          progression: { type: "double_progression", increment: 5 }
+
+        # duration_weight — objetivo en segundos, avance en carga. Los dos ejes
+        # difieren, igual que en weight_reps, sólo que el objetivo es tiempo.
+        - name: "Suitcase Hold"
+          category: "core"
+          measurement: "duration_weight"
+          unit: "kg"
+          sets: 3
+          target: { min: 30, max: 45 }
+          rest_seconds: 90
+          focus: "Antilateral"
+          notes:
+            - "Una mano. Costillas abajo, sin inclinarse"
+          progression: { type: "double_progression", increment: 4 }
+
+        # bodyweight_reps — sin carga y sin tiempo. Los dos ejes son el mismo,
+        # así que cumplir el objetivo pide dos repeticiones más.
+        - name: "Push Up"
+          exercise_id: "push-up"
+          sets: 3
+          reps: { min: 15, max: 25 }
+          rir: { min: 2, max: 3 }
+          rest_seconds: 90
+          focus: "Volumen de empuje"
+          progression: { type: "double_progression", increment: 2 }

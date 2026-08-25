@@ -67,6 +67,8 @@ const plannedExercise: PlannedExercise = {
   sets: 4,
   minReps: 4,
   maxReps: 6,
+  minTarget: null,
+  maxTarget: null,
   minRir: 1,
   maxRir: 2,
   restSeconds: 210,
@@ -89,6 +91,7 @@ const exercise: Exercise = {
   name: 'Zercher Carry',
   category: null,
   equipment: null,
+  measurement: 'weight_reps',
 };
 
 const session: Session = {
@@ -98,6 +101,7 @@ const session: Session = {
   startedAt: 1_755_100_000_000,
   completedAt: null,
   status: 'in_progress',
+  bodyweightKg: null,
 };
 
 const plannedExerciseSession: PlannedExerciseSession = {
@@ -106,11 +110,14 @@ const plannedExerciseSession: PlannedExerciseSession = {
   exerciseId: frontSquatId,
   order: 0,
   status: 'performed',
+  measurement: 'weight_reps',
   plannedExerciseId,
   plannedUnit: 'kg',
   plannedSets: 4,
   plannedMinReps: 4,
   plannedMaxReps: 6,
+  plannedMinTarget: null,
+  plannedMaxTarget: null,
   plannedMinRir: 1,
   plannedMaxRir: 2,
   plannedRestSeconds: 210,
@@ -123,6 +130,7 @@ const unplannedExerciseSession: UnplannedExerciseSession = {
   exerciseId,
   order: 1,
   status: 'performed',
+  measurement: 'weight_reps',
   plannedExerciseId: null,
 };
 
@@ -135,6 +143,10 @@ const completedSet: CompletedSet = {
   weightKg: 45.359,
   reps: 6,
   rir: 1,
+  durationSeconds: null,
+  distance: null,
+  distanceUnit: null,
+  distanceM: null,
   completedAt: 1_755_100_600_000,
 };
 

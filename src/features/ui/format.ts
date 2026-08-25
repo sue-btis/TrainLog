@@ -7,6 +7,13 @@
  */
 
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
+import {
+  MEASUREMENTS,
+  shapeOf,
+  targetUnitOf,
+  targetsReps,
+  type Measurement,
+} from '@/domain/measurement';
 import type {
   CompletedSet,
   ExerciseSessionStatus,
@@ -17,13 +24,41 @@ import type {
 } from '@/domain/types';
 
 /** `4–6`, or `4` when both ends agree. Internal: the two lines below read it. */
-function range(min: number, max: number): string {
+function range(min: number | null, max: number | null): string {
+  // An em dash where the range is absent, as the RIR line already does for an
+  // unsaid RIR range. Unreachable today: every stored target is a rep range.
+  if (min === null || max === null) return '—';
   return min === max ? String(min) : `${min}–${max}`;
 }
 
+/**
+ * The programmed range, in the notation of the axis it is stated on.
+ *
+ * Which of the two target pairs is live is decided by the measurement and
+ * never by testing which field is non-null (REQ-139), and the unit comes
+ * from the measurement module rather than being restated here (REQ-102).
+ */
+function targetRange(
+  measurement: Measurement,
+  reps: readonly [number | null, number | null],
+  target: readonly [number | null, number | null],
+): string {
+  const onReps = targetsReps(measurement);
+  const [min, max] = onReps ? reps : target;
+  const text = range(min, max);
+  if (onReps || min === null || max === null) return text;
+  return `${text}${targetUnitOf(measurement) === 'seconds' ? 's' : ' m'}`;
+}
+
 /** `4×4–6 · RIR 1–2 · 210s · kg` — the programme as it was written down. */
-export function programmingLine(exercise: PlannedExercise): string {
-  const parts = [`${exercise.sets}×${range(exercise.minReps, exercise.maxReps)}`];
+export function programmingLine(exercise: PlannedExercise, measurement: Measurement): string {
+  const parts = [
+    `${exercise.sets}×${targetRange(
+      measurement,
+      [exercise.minReps, exercise.maxReps],
+      [exercise.minTarget, exercise.maxTarget],
+    )}`,
+  ];
   if (exercise.minRir !== null && exercise.maxRir !== null) {
     parts.push(`RIR ${range(exercise.minRir, exercise.maxRir)}`);
   }
@@ -42,7 +77,13 @@ export function programmingLine(exercise: PlannedExercise): string {
  * cannot drift into two notations for the same fact.
  */
 export function snapshotLine(planned: PlannedExerciseSession): string {
-  const parts = [`${planned.plannedSets}×${range(planned.plannedMinReps, planned.plannedMaxReps)}`];
+  const parts = [
+    `${planned.plannedSets}×${targetRange(
+      planned.measurement,
+      [planned.plannedMinReps, planned.plannedMaxReps],
+      [planned.plannedMinTarget, planned.plannedMaxTarget],
+    )}`,
+  ];
   if (planned.plannedMinRir !== null && planned.plannedMaxRir !== null) {
     parts.push(`RIR ${range(planned.plannedMinRir, planned.plannedMaxRir)}`);
   }
@@ -67,8 +108,16 @@ export function snapshotFigures(
 ): readonly { readonly label: string; readonly value: string }[] {
   return [
     {
-      label: 'sets × reps',
-      value: `${planned.plannedSets} × ${range(planned.plannedMinReps, planned.plannedMaxReps)}`,
+      // The label names the axis the target is actually on, so a plank does
+      // not sit under a heading saying reps (AC-117, AC-162).
+      label: targetsReps(planned.measurement)
+        ? 'sets × reps'
+        : `sets × ${targetUnitOf(planned.measurement)}`,
+      value: `${planned.plannedSets} × ${targetRange(
+        planned.measurement,
+        [planned.plannedMinReps, planned.plannedMaxReps],
+        [planned.plannedMinTarget, planned.plannedMaxTarget],
+      )}`,
     },
     {
       label: 'RIR',
@@ -140,6 +189,43 @@ export function sessionStatusLabel(status: SessionStatus): string {
   }
 }
 
+/**
+ * What each measurement type is called on screen (CONTEXT.md).
+ *
+ * The union's own values are database vocabulary — `weighted_bodyweight` is
+ * not something a lifter says. Written once here, beside the other two enum
+ * label functions, because the create-Exercise form and the import wizard both
+ * offer this choice and two dictionaries for one choice would drift.
+ *
+ * `Record<Measurement, string>` rather than a switch: a tenth type fails to
+ * compile here instead of quietly rendering its raw value.
+ */
+const MEASUREMENT_LABELS: Record<Measurement, string> = {
+  weight_reps: 'Weight × reps',
+  bodyweight_reps: 'Bodyweight reps',
+  weighted_bodyweight: 'Weighted bodyweight',
+  assisted_bodyweight: 'Assisted bodyweight',
+  duration: 'Time',
+  duration_weight: 'Time + weight',
+  distance_duration: 'Distance + time',
+  weight_distance: 'Weight + distance',
+  distance: 'Distance',
+};
+
+/** How a movement is measured, in the lifter's words rather than the union's. */
+export function measurementLabel(measurement: Measurement): string {
+  return MEASUREMENT_LABELS[measurement];
+}
+
+/** Every type as a pickable option, in the union's own order. */
+export const MEASUREMENT_OPTIONS: readonly {
+  readonly value: Measurement;
+  readonly label: string;
+}[] = MEASUREMENTS.map((measurement) => ({
+  value: measurement,
+  label: MEASUREMENT_LABELS[measurement],
+}));
+
 /** The same, for one exercise within a Session. */
 export function exerciseStatusLabel(status: ExerciseSessionStatus): string {
   switch (status) {
@@ -157,7 +243,69 @@ export function load(set: CompletedSet | null): string {
   return set === null ? '—' : `${set.weight} ${set.unit}`;
 }
 
-/** `77.5 × 5` — §11.10's own notation for a set. */
-export function setLine(set: CompletedSet | null): string {
-  return set === null ? '—' : `${set.weight} × ${set.reps}`;
+/**
+ * `45s`, `1:30`, `2:05:30` — seconds said the way a clock says them.
+ *
+ * Under a minute stays bare, because `45s` is what a programme writes and
+ * `0:45` is what a stopwatch writes, and this is reading back a programme.
+ */
+export function seconds(total: number): string {
+  if (total < 60) return `${total}s`;
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  const minutes = Math.floor(total / 60) % 60;
+  const rest = Math.round(total % 60);
+  const hours = Math.floor(total / 3_600);
+  return hours === 0 ? `${minutes}:${pad(rest)}` : `${hours}:${pad(minutes)}:${pad(rest)}`;
+}
+
+/**
+ * A set in its own type's notation (REQ-112, AC-117).
+ *
+ * `77.5 × 5` for weight × reps — §11.10's notation, unchanged. A duration
+ * set renders as a duration and is never shown a rep count; a distance set
+ * is never shown a weight it does not carry. Which fields to say comes from
+ * the measurement module's own shape table, so this function states none of
+ * it a second time (REQ-102).
+ *
+ * The type is a parameter and is never inferred from which fields happen to
+ * be populated (DEC-H).
+ */
+export function setLine(
+  set: CompletedSet | null,
+  measurement: Measurement,
+  showUnit = false,
+): string {
+  if (set === null) return '—';
+  const { fields, weightMeaning } = shapeOf(measurement);
+  const weightText = showUnit ? `${set.weight} ${set.unit}` : String(set.weight);
+  // Assistance is shown as what it is — weight taken off — so that a smaller
+  // number reads as the better set rather than the lighter one.
+  const signed = weightMeaning === 'assisted' ? `−${weightText}` : weightText;
+
+  // The one composite notation that predates this change and has to survive
+  // it byte for byte.
+  if (fields.includes('weight') && fields.includes('reps')) {
+    return `${signed} × ${set.reps ?? '—'}`;
+  }
+
+  const parts: string[] = [];
+  for (const field of fields) {
+    switch (field) {
+      case 'weight':
+        parts.push(signed);
+        break;
+      case 'reps':
+        parts.push(`${set.reps ?? '—'} reps`);
+        break;
+      case 'durationSeconds':
+        parts.push(set.durationSeconds === null ? '—' : seconds(set.durationSeconds));
+        break;
+      case 'distance':
+        parts.push(
+          set.distance === null ? '—' : `${set.distance} ${set.distanceUnit ?? 'm'}`,
+        );
+        break;
+    }
+  }
+  return parts.join(' · ');
 }

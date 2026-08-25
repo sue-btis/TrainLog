@@ -74,8 +74,8 @@ export function PreviousPanel({ exerciseSession }: { readonly exerciseSession: E
           suggestion === null ? 'grid-cols-2' : 'grid-cols-3',
         )}
       >
-        <Figure compact label="best set" value={setLine(summary.bestSet)} />
-        <Figure compact label="heaviest" value={setLine(summary.heaviest)} />
+        <Figure compact label="best set" value={setLine(summary.bestSet, summary.measurement)} />
+        <Figure compact label="heaviest" value={setLine(summary.heaviest, summary.measurement)} />
         {suggestion !== null && (
           <Figure
             compact

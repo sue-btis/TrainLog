@@ -55,11 +55,16 @@ export {
 } from '@/db/repositories/placements';
 
 export {
+  ExerciseHasLoggedSetsError,
   ExerciseNameRequiredError,
+  ExerciseNotCorrectableError,
+  correctExerciseMeasurement,
   createUserExercise,
   getExercise,
   getExerciseName,
+  getExerciseMeasurements,
   getExerciseNames,
+  getExercisesById,
   listUserExercises,
   type CreatedExercise,
 } from '@/db/repositories/exercises';
@@ -69,6 +74,7 @@ export {
   DEFAULT_UNIT,
   getDefaultUnit,
   getSettings,
+  setBodyweightKg,
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
@@ -83,6 +89,7 @@ export {
   createStartedWorkout,
   discardSession,
   getInProgressSession,
+  lastRecordedBodyweightKg,
   getLastPerformedWorkout,
   getSession,
   listAllSessions,

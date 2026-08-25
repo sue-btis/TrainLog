@@ -17,18 +17,31 @@
 import { useState } from 'react';
 import { Check, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { Measurement } from '@/domain/measurement';
 import type { CompletedSet } from '@/domain/types';
-import type { Unit } from '@/domain/units';
-import { SetFields, type SetTargets, type SetValues } from '@/features/session/SetLogger';
+import {
+  isComplete,
+  missingAxis,
+  SetFields,
+  valuesOf,
+  type SetTargets,
+  type SetValues,
+} from '@/features/session/SetLogger';
 import { ICON_STROKE, LABEL } from '@/features/ui/styles';
 
 interface SetEditorProps {
   readonly set: CompletedSet;
+  /**
+   * The type the correction collects fields for — the same control the logger
+   * uses, so a duration set is corrected in seconds and never in weight and
+   * reps (REQ-111, AC-116).
+   */
+  readonly measurement: Measurement;
   readonly weightStep: number;
   /** The same windows the logger marks against — a correction is measured by
       the plan too, or the marking would vanish the moment you fixed a typo. */
   readonly targets: SetTargets;
-  readonly onSave: (values: SetValues, unit: Unit) => void;
+  readonly onSave: (values: SetValues) => void;
   readonly onDelete: () => void;
   readonly onCancel: () => void;
   readonly busy: boolean;
@@ -36,6 +49,7 @@ interface SetEditorProps {
 
 export function SetEditor({
   set,
+  measurement,
   weightStep,
   targets,
   onSave,
@@ -43,11 +57,7 @@ export function SetEditor({
   onCancel,
   busy,
 }: SetEditorProps) {
-  const [values, setValues] = useState<SetValues>({
-    weight: set.weight,
-    reps: set.reps,
-    rir: set.rir,
-  });
+  const [values, setValues] = useState<SetValues>(() => valuesOf(set));
   const [armed, setArmed] = useState(false);
 
   return (
@@ -80,9 +90,9 @@ export function SetEditor({
       </div>
 
       <SetFields
+        measurement={measurement}
         onChange={setValues}
         targets={targets}
-        unit={set.unit}
         values={values}
         weightStep={weightStep}
       />
@@ -110,14 +120,14 @@ export function SetEditor({
         </div>
       ) : (
         <Button
-          disabled={busy || values.reps === 0}
-          onClick={() => onSave(values, set.unit)}
+          disabled={busy || !isComplete(measurement, values)}
+          onClick={() => onSave(values)}
           size="block"
           type="button"
           variant="primary"
         >
           <Check aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          {values.reps === 0 ? 'Set the reps first' : 'Save the correction'}
+          {isComplete(measurement, values) ? 'Save the correction' : missingAxis(measurement)}
         </Button>
       )}
     </section>
