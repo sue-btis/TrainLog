@@ -101,6 +101,15 @@ recorded weight also carries a derived kilogram value used for all comparison,
 charting and progression.
 _Avoid_: Measure, scale
 
+**Effort**:
+Foster's session load for one Session: the mean RPE of its sets times its
+minutes, where RPE is `10 − RIR`. Derived on demand, stored nowhere, and
+deliberately unitless — it is an index, not a measurement. The one figure that
+compares work of different kinds, which is what makes it the measure a hybrid
+programme can be read by: volume in kilogram-reps cannot see a run or a hold at
+all. "Load" is weight in kilograms and never this.
+_Avoid_: Load, training load, sRPE, intensity
+
 ### Preferences
 
 **Settings**:

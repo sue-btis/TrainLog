@@ -191,6 +191,12 @@ function FinishSummary({
             value={`${Math.round(summary.volumeKg).toLocaleString()} kg`}
           />
           {summary.minutes !== null && <Figure label="min" value={String(summary.minutes)} />}
+          {/* Derived from the sets like volume, so it carries the same hue —
+              and it sits beside the minutes it is half made of, because the
+              number only reads as effort next to the time it took. */}
+          {summary.effort !== null && (
+            <Figure label="effort" tone="progress" value={String(summary.effort)} />
+          )}
           <Figure
             label="exercises"
             value={`${summary.performed} of ${summary.performed + summary.skipped + summary.pending}`}

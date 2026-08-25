@@ -6,11 +6,16 @@
  * This is the arithmetic behind the screen that replaces that silence: pure,
  * derived, stored nowhere — the same contract progression holds.
  *
- * Nothing here is a new measure. `volumeKg` is the `Σ weightKg × reps` of
- * `ExercisePoint`, and a record is `ExercisePoint.isRecord` read for this
+ * Almost nothing here is a new measure. `volumeKg` is the `Σ weightKg × reps`
+ * of `ExercisePoint`, and a record is `ExercisePoint.isRecord` read for this
  * Session's own point rather than recomputed. Two definitions of "a record"
  * would eventually disagree, and the one on the chart is the one a lifter has
  * already been reading.
+ *
+ * `effort` is the exception, and the reason for it is that volume cannot answer
+ * "how hard was this" for work that is not kilograms. A run, a hold and a carry
+ * are all silent in `Σ weightKg × reps`, and a programme that mixes them needs
+ * one figure that is not blind to half of itself.
  */
 
 import { estimateOneRepMaxKg, exerciseSeries } from '@/domain/history';
@@ -34,6 +39,12 @@ export interface SessionSummary {
   readonly volumeKg: number;
   /** Wall-clock minutes, or `null` while the Session is still open. */
   readonly minutes: number | null;
+  /**
+   * Foster's session load — mean RPE × minutes, in arbitrary units. `null` on
+   * the same terms as `minutes`, and also for a Session holding no set. The one
+   * figure here that compares across kinds of work; see `effortOf`.
+   */
+  readonly effort: number | null;
   readonly performed: number;
   readonly skipped: number;
   readonly pending: number;
@@ -56,6 +67,14 @@ export function summarizeSession(
 ): SessionSummary {
   const sets = detail.exercises.flatMap((exercise) => exercise.sets);
   const { session } = detail;
+
+  // Hoisted rather than left inline in the return: `effort` multiplies by this
+  // exact number, and deriving the duration twice would let the two figures
+  // round apart.
+  const minutes =
+    session.completedAt === null
+      ? null
+      : Math.max(1, Math.round((session.completedAt - session.startedAt) / 60_000));
 
   const records: SessionRecord[] = [];
   for (const exercise of detail.exercises) {
@@ -92,15 +111,56 @@ export function summarizeSession(
   return {
     setsLogged: sets.length,
     volumeKg: sets.reduce((total, set) => total + set.weightKg * set.reps, 0),
-    minutes:
-      session.completedAt === null
-        ? null
-        : Math.max(1, Math.round((session.completedAt - session.startedAt) / 60_000)),
+    minutes,
+    effort: effortOf(sets, minutes),
     performed: countStatus(detail, 'performed'),
     skipped: countStatus(detail, 'skipped'),
     pending: countStatus(detail, 'pending'),
     records: records.sort((a, b) => b.estimatedOneRepMaxKg - a.estimatedOneRepMaxKg),
   };
+}
+
+/**
+ * RPE 10 is a set taken to failure, so RIR is its complement: `RPE = 10 - RIR`.
+ * §30 stores the RIR actually achieved, which makes the conversion a rename
+ * rather than an estimate.
+ */
+const RPE_AT_FAILURE = 10;
+
+/**
+ * Foster's session load — mean RPE times minutes — over one Session's sets.
+ *
+ * The only figure in the product that means the same thing for a squat and for
+ * a run. Volume cannot be: kilogram-reps, seconds and metres do not add up, and
+ * any single number claiming to sum them has an invented conversion inside it.
+ * RIR is the one value every set carries whatever was being measured, which is
+ * what makes it the axis both halves of a hybrid programme can share.
+ *
+ * `Math.max(0, …)` is not defensive noise. A logged RIR is deliberately not
+ * bounded above — `backup/schema.ts` accepts one past `MAX_RIR` and has a test
+ * saying so — and a set logged at RIR 12 would otherwise contribute negative
+ * effort, pulling the Session's figure down for having been easy.
+ *
+ * Rounded, because it is an index rather than a measurement: a mean of
+ * whole-number ratings times an already-rounded minute count does not have a
+ * decimal's worth of precision to report.
+ *
+ * `null` where there is nothing to compute from. An open Session has no
+ * duration and a setless one has no RPE, and in both cases the answer is
+ * unknown rather than zero — the same distinction `minutes` already makes.
+ *
+ * The known ceiling: `minutes` is wall clock, so rest, a phone left on a bench
+ * and a conversation between sets are all inside it. That is Foster's own
+ * definition rather than a shortcut — the figure is meant to scale with time
+ * spent training — but a leisurely session and a dense one of equal length do
+ * read alike.
+ */
+function effortOf(sets: readonly CompletedSet[], minutes: number | null): number | null {
+  if (minutes === null || sets.length === 0) return null;
+
+  const meanRpe =
+    sets.reduce((total, set) => total + Math.max(0, RPE_AT_FAILURE - set.rir), 0) / sets.length;
+  return Math.round(meanRpe * minutes);
 }
 
 function countStatus(detail: SessionHistory, status: 'performed' | 'skipped' | 'pending'): number {
