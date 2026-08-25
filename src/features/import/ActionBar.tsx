@@ -1,6 +1,11 @@
 /**
  * The wizard's action bar: what is in the way, and the one thing to do next.
  *
+ * Its copy names the draft, never the file. The same bar now sits under a
+ * routine built from scratch (REQ-200), where there is no file to discard and
+ * nothing is being imported — "Discard this import?" over a draft the lifter
+ * typed themselves describes an act that never happened.
+ *
  * Leaving is not one of those things, so the way out is a quiet link at the top
  * of the column, where every other screen in this app puts Back. The bar still
  * owns the question it raises — a discard is destructive and the answer belongs
@@ -71,7 +76,7 @@ export function ActionBar({
         <div className="glass relative border-t border-rule">
           <div className="mx-auto flex w-full max-w-lg flex-col gap-3 px-4 py-3">
             <div className="flex flex-col gap-1">
-              <p className="type-title">Discard this import?</p>
+              <p className="type-title">Discard this draft?</p>
               <p className="type-body-sm text-ink-2">
                 Nothing has been stored yet, so every correction you made here goes with it.
               </p>
@@ -122,8 +127,8 @@ export function ActionBar({
             <>
               <p className="sr-only" role="status">
                 {issues.length === 1
-                  ? '1 problem still blocks this import.'
-                  : `${issues.length} problems still block this import.`}
+                  ? '1 problem still blocks this routine.'
+                  : `${issues.length} problems still block this routine.`}
               </p>
               <button
                 aria-controls="import-issues"
@@ -210,7 +215,7 @@ export function ActionBar({
                   ) : (
                     <Check aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
                   )}
-                  {accepting ? 'Importing' : 'Accept'}
+                  {accepting ? 'Saving' : 'Accept'}
                 </Button>
               )}
             </div>

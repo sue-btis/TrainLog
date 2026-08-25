@@ -271,6 +271,27 @@ describe('addExercise', () => {
     expect(new Set(draft.plannedExercises.map((p) => p.exerciseId)).size).toBe(1);
   });
 
+  // TST-009 (REQ-011, REQ-901) — the point of REQ-011 is that adding a row buys
+  // no second validator. Breaking an added row raises the *existing* issue, at
+  // that row's own path — not the first row's, which is what a path built from
+  // the wrong index would give and what nothing else here would catch.
+  it('is judged by the existing rules, at the added row own path', () => {
+    const file = aFile([
+      aWorkout({ name: 'Push', exercises: [named('Bench')] }),
+      aWorkout({ name: 'Pull', exercises: [named('Row')] }),
+    ]);
+    const added = addExercise(file, 1, named('Chin-up'));
+    const broken = editExercise(added, { workout: 1, exercise: 1 }, { sets: 0 });
+
+    const issues = validateRoutineFile(broken);
+    expect(issues.map((issue) => issue.code)).toEqual(['sets_not_positive']);
+    expect(issues[0]?.paths).toEqual([['routine', 'workouts', 1, 'exercises', 1, 'sets']]);
+    expect(issues[0]?.message).toBe('Pull → Chin-up: sets must be greater than zero.');
+
+    // And the row as added is clean, so the issue above is the edit's doing.
+    expect(validateRoutineFile(added)).toEqual([]);
+  });
+
   it('assigns order from list position, leaving earlier rows where they were', () => {
     const file = addExercise(aFile([aWorkout({ exercises: [named('Bench')] })]), 0, named('Dip'));
     const draft = routineFileToDomain(file, {

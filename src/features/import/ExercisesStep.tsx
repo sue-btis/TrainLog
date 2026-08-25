@@ -15,8 +15,9 @@
 
 import { useState } from 'react';
 import { ArrowRight, EllipsisVertical, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
-import type { ExerciseRef, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
+import type { ExerciseRef, Offer, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import type { Unit } from '@/domain/types';
+import { AddExercise } from '@/features/import/AddExercise';
 import { NotesField, NumberField, SelectField, TextField } from '@/features/import/fields';
 import {
   describeIssue,
@@ -51,6 +52,12 @@ interface ExercisesStepProps {
   readonly issues: IssueIndex;
   readonly activeWorkout: number;
   readonly openRef: ExerciseRef | null;
+  /**
+   * Everything the picker may offer, merged and ordered in the domain. Passed
+   * in rather than derived here: it depends on the lifter's persisted
+   * Exercises, which is a database read, and this component performs none.
+   */
+  readonly offers: readonly Offer[];
   readonly onActiveWorkout: (index: number) => void;
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
@@ -58,6 +65,7 @@ interface ExercisesStepProps {
   readonly onRoutineName: (name: string) => void;
   readonly onWorkoutName: (workout: number, name: string) => void;
   readonly onAddWorkout: (name: string) => void;
+  readonly onAddExercise: (workout: number, offer: Offer) => void;
 }
 
 export function ExercisesStep({
@@ -66,6 +74,7 @@ export function ExercisesStep({
   issues,
   activeWorkout,
   openRef,
+  offers,
   onActiveWorkout,
   onToggle,
   onEdit,
@@ -73,6 +82,7 @@ export function ExercisesStep({
   onRoutineName,
   onWorkoutName,
   onAddWorkout,
+  onAddExercise,
 }: ExercisesStepProps) {
   const workouts = file.routine.workouts;
   const current = workouts[activeWorkout];
@@ -125,8 +135,7 @@ export function ExercisesStep({
           <div className={WELL}>
             <p className="type-title">This routine declares no Workouts</p>
             <p className="type-body-sm text-ink-2">
-              A routine needs at least one. Add it below, or leave and choose a file that
-              declares one.
+              A routine needs at least one. Add it below.
             </p>
           </div>
         ) : (
@@ -143,27 +152,43 @@ export function ExercisesStep({
             {current.exercises.length === 0 ? (
               <div className={WELL}>
                 {/* Not "no exercises left": a Workout added here never had any,
-                    and only the delete path arrives with something removed. */}
+                    and only the delete path arrives with something removed.
+                    The well carries the way back in (REQ-309) — emptying a
+                    Workout used to be a one-way door out of the wizard. */}
                 <p className="type-title">{current.name} has no exercises</p>
                 <p className="type-body-sm text-ink-2">
                   That is allowed — the Workout will simply record nothing when you train it.
                 </p>
+                <AddExercise
+                  offers={offers}
+                  onAdd={(offer) => onAddExercise(activeWorkout, offer)}
+                  workoutIndex={activeWorkout}
+                  workoutName={current.name}
+                />
               </div>
             ) : (
-              current.exercises.map((exercise, index) => (
-                <ExerciseRow
-                  defaultUnit={defaultUnit}
-                  exercise={exercise}
-                  exerciseRef={{ workout: activeWorkout, exercise: index }}
-                  issues={issues}
-                  key={`${exercise.name}-${index}`}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  onToggle={onToggle}
-                  open={openRef?.workout === activeWorkout && openRef.exercise === index}
-                  position={index + 1}
+              <>
+                {current.exercises.map((exercise, index) => (
+                  <ExerciseRow
+                    defaultUnit={defaultUnit}
+                    exercise={exercise}
+                    exerciseRef={{ workout: activeWorkout, exercise: index }}
+                    issues={issues}
+                    key={`${exercise.name}-${index}`}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    onToggle={onToggle}
+                    open={openRef?.workout === activeWorkout && openRef.exercise === index}
+                    position={index + 1}
+                  />
+                ))}
+                <AddExercise
+                  offers={offers}
+                  onAdd={(offer) => onAddExercise(activeWorkout, offer)}
+                  workoutIndex={activeWorkout}
+                  workoutName={current.name}
                 />
-              ))
+              </>
             )}
 
             {workouts.length > 1 && (

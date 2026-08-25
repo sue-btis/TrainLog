@@ -65,6 +65,8 @@ routine:
 - Two workouts must not share a suggested day. Leave \`suggested_days\` empty rather than guessing.
 - Rest written as "3 min" becomes \`rest_seconds: 180\`. A rep target of "8-12" becomes \`{ min: 8, max: 12 }\`; "AMRAP" or "max" is not a number — ask me.
 - Keep exercise names as the source writes them. Do not translate them into other names.
+- The routine must declare at least one workout, and \`routine.name\` must not be blank — an empty routine or an unnamed one is refused until it is fixed.
+- \`sets\` must be greater than zero, \`reps.min\` must not exceed \`reps.max\`, \`rir\` must fall between 0 and 10, and \`rest_seconds\` must not be negative.
 
 ## Missing information — do not guess
 

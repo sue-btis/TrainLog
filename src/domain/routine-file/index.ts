@@ -67,3 +67,16 @@ export {
   type RoutineDraft,
   type RoutineFileToDomainOptions,
 } from '@/domain/routine-file/to-domain';
+
+/**
+ * What the wizard's add-exercise picker may offer, and what picking one writes.
+ * The list and the row it produces both route through `resolveFileExercise`, so
+ * the offer shown is the Exercise Accept will bind to (§26).
+ */
+export {
+  draftExercise,
+  offeredExercises,
+  offerName,
+  resolveTypedName,
+  type Offer,
+} from '@/domain/routine-file/offer';

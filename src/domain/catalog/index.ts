@@ -47,14 +47,6 @@ export function getCatalogExercise(id: ExerciseId): CatalogExercise | undefined 
 }
 
 /**
- * Looks a catalog entry up by name, comparing normalized names
- * (`normalizeExerciseName`). `undefined` when nothing matches.
- */
-export function findCatalogExerciseByNormalizedName(name: string): CatalogExercise | undefined {
-  return byNormalizedName.get(normalizeExerciseName(name));
-}
-
-/**
  * "Does this movement already exist?" — the §26 lookup, in one place (REQ-102).
  *
  * The catalog first, then the lifter's own Exercises, both by normalized name.

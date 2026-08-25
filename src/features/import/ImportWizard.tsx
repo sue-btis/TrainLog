@@ -24,21 +24,26 @@ import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
 import { ensurePersistentStorage } from '@/pwa/persistence';
 import { formatLocalDate } from '@/domain/dates';
 import {
+  addExercise,
   addWorkout,
   blankRoutineFile,
   deleteExercise,
+  draftExercise,
   editExercise,
+  offeredExercises,
   routineFileToDomain,
   parseRoutineFile,
   setRoutineName,
   setWorkoutName,
   validateRoutineFile,
   type ExerciseRef,
+  type Offer,
   type RoutineFileExercise,
   type SemanticIssue,
 } from '@/domain/routine-file';
 import { generatePlacements } from '@/domain/scheduling';
 import type { Weekday } from '@/domain/types';
+import { useUserExercises } from '@/features/data/queries';
 import { ActionBar } from '@/features/import/ActionBar';
 import { takeHandedOffFile } from '@/features/import/ImportRoutineButton';
 import { ExercisesStep } from '@/features/import/ExercisesStep';
@@ -93,6 +98,16 @@ export function ImportWizard() {
     [file],
   );
   const issueIndex = useMemo(() => indexIssues(issues), [issues]);
+
+  // The picker's three sources (REQ-301). The persisted Exercises are a live
+  // read, so an Exercise created on the catalog screen in another tab appears
+  // here without the wizard being restarted; `undefined` is that read still in
+  // flight, and an empty list is the honest answer while it is.
+  const userExercises = useUserExercises();
+  const offers = useMemo<readonly Offer[]>(
+    () => (file === null ? [] : offeredExercises(file, userExercises ?? [])),
+    [file, userExercises],
+  );
 
   // A jump from the action bar lands on the control that carries the issue —
   // which only exists after the step and Workout it lives on have rendered.
@@ -161,11 +176,19 @@ export function ImportWizard() {
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener('beforeunload', warn);
 
-    window.history.pushState({ trainlogDraft: true }, '');
+    // Spread the existing state rather than replacing it: React Router keeps
+    // its own `{ usr, key, idx }` there, and `BrowserRouter` happens to ignore
+    // the loss today — a data router or `ScrollRestoration` would not.
+    const sentinel = () =>
+      window.history.pushState({ ...window.history.state, trainlogDraft: true }, '');
+    const onTop = () =>
+      (window.history.state as { trainlogDraft?: boolean } | null)?.trainlogDraft === true;
+
+    sentinel();
     const onPop = () => {
       // Put the sentinel back, so the question can be asked again if they
       // dismiss it and press back a second time.
-      window.history.pushState({ trainlogDraft: true }, '');
+      sentinel();
       setLeaving(true);
     };
     window.addEventListener('popstate', onPop);
@@ -173,6 +196,12 @@ export function ImportWizard() {
     return () => {
       window.removeEventListener('beforeunload', warn);
       window.removeEventListener('popstate', onPop);
+      // Retire the sentinel, or it outlives the draft: after Accept the first
+      // back press lands on it, the URL does not change and the screen appears
+      // frozen. Only while it is still the entry on top — once the lifter has
+      // navigated on, the top belongs to the new screen and going back would
+      // undo their navigation instead.
+      if (onTop()) window.history.back();
     };
   }, [editing]);
 
@@ -283,6 +312,20 @@ export function ImportWizard() {
       file && dispatch({ type: 'edited', file: setRoutineName(file, name) }),
     workoutName: (workout: number, name: string) =>
       file && dispatch({ type: 'edited', file: setWorkoutName(file, workout, name) }),
+    /**
+     * REQ-300 — appended last, and the new row opens for editing.
+     *
+     * The index is the length *before* the append, which is where the verb puts
+     * it. Opening it is the point: the seeded row is 3×8–12 on manual
+     * progression (REQ-900), which is a guess, and a guess the lifter cannot
+     * see is worse than one they are handed with the fields already open.
+     */
+    addExercise: (workout: number, offer: Offer) => {
+      if (!file) return;
+      const at = file.routine.workouts[workout]?.exercises.length ?? 0;
+      setOpenRef({ workout, exercise: at });
+      dispatch({ type: 'edited', file: addExercise(file, workout, draftExercise(offer)) });
+    },
     addWorkout: (name: string) => {
       if (!file) return;
       // The new Workout becomes the one on screen. Without this, adding the
@@ -303,7 +346,7 @@ export function ImportWizard() {
         back={
           state.phase === 'editing' ? { onBack: () => setLeaving(true) } : { to: '/today' }
         }
-        backLabel={state.phase === 'editing' ? 'Leave this import' : 'Back to today'}
+        backLabel={state.phase === 'editing' ? 'Leave this draft' : 'Back to today'}
         icon={iconOf(state)}
         title={titleOf(state)}
       />
@@ -326,7 +369,9 @@ export function ImportWizard() {
             defaultUnit={state.defaultUnit}
             file={state.file}
             issues={issueIndex}
+            offers={offers}
             onActiveWorkout={setActiveWorkout}
+            onAddExercise={edit.addExercise}
             onAddWorkout={edit.addWorkout}
             onDelete={edit.remove}
             onEdit={edit.exercise}

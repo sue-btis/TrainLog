@@ -49,9 +49,11 @@ export function editExercise(
 }
 
 /**
- * Removes one exercise. A Workout may end up with none: the file still
- * describes a real training week, and §11.1 gives the wizard no way to add an
- * exercise back, so refusing the last deletion would only trap the user.
+ * Removes one exercise. A Workout may end up with none, and that is a valid
+ * state rather than a trap: an empty Workout is selectable on Today, starts a
+ * Session, and shows the Session screen own empty-Workout well. The wizard can
+ * add an exercise back, so this permissiveness no longer rests on it not being
+ * able to (REQ-511).
  */
 export function deleteExercise(file: RoutineFile, ref: ExerciseRef): RoutineFile {
   return replaceExercises(file, ref.workout, (exercises) =>
