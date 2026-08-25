@@ -50,12 +50,12 @@ import {
   CATALOG_EQUIPMENT,
   groupExercises,
 } from '@/domain/catalog';
-import { MEASUREMENTS, type Measurement } from '@/domain/measurement';
+import type { Measurement } from '@/domain/measurement';
 import type { Exercise } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
 import { SelectField, TextField } from '@/features/ui/fields';
 import { MuscleIcon } from '@/features/exercises/MuscleIcon';
-import { plural } from '@/features/ui/format';
+import { MEASUREMENT_OPTIONS, plural } from '@/features/ui/format';
 import {
   BUTTON_BASE,
   BUTTON_SIZE,
@@ -94,35 +94,6 @@ const BANDS: readonly {
 
 /** Every category a band names, so the last band can take what is left over. */
 const NAMED = new Set(BANDS.flatMap(({ categories }) => categories ?? []));
-
-/**
- * How each measurement type is said to a lifter (REQ-132).
- *
- * `Record<Measurement, string>` rather than a lookup with a fallback: a tenth
- * type added to the union stops the build here instead of reaching a screen as
- * `distance_duration`. The wording is the gym's, not the union's.
- */
-const MEASUREMENT_LABELS: Record<Measurement, string> = {
-  weight_reps: 'Weight × reps',
-  bodyweight_reps: 'Bodyweight reps',
-  weighted_bodyweight: 'Weighted bodyweight',
-  assisted_bodyweight: 'Assisted bodyweight',
-  duration: 'Time',
-  duration_weight: 'Time + weight',
-  distance_duration: 'Distance + time',
-  weight_distance: 'Weight + distance',
-  distance: 'Distance',
-};
-
-/**
- * The options, derived from `MEASUREMENTS` rather than written out again, so a
- * type can never be silently missing from the form.
- */
-const MEASUREMENT_OPTIONS: readonly { readonly value: Measurement; readonly label: string }[] =
-  MEASUREMENTS.map((measurement) => ({
-    value: measurement,
-    label: MEASUREMENT_LABELS[measurement],
-  }));
 
 export function ExerciseCatalogScreen() {
   const user = useUserExercises();

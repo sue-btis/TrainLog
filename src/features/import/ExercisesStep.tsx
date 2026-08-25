@@ -16,9 +16,19 @@
 import { useState } from 'react';
 import { ArrowRight, EllipsisVertical, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import type { ExerciseRef, Offer, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
+import { resolvedFileExercise } from '@/domain/routine-file/to-domain';
+import type { Measurement } from '@/domain/measurement';
+import type { Exercise } from '@/domain/types';
+import { MEASUREMENT_OPTIONS, measurementLabel } from '@/features/ui/format';
 import type { Unit } from '@/domain/types';
 import { AddExercise } from '@/features/import/AddExercise';
-import { NotesField, NumberField, SelectField, TextField } from '@/features/ui/fields';
+import {
+  NotesField,
+  NumberField,
+  ReadonlyField,
+  SelectField,
+  TextField,
+} from '@/features/ui/fields';
 import {
   describeIssue,
   exercisePath,
@@ -63,6 +73,12 @@ interface ExercisesStepProps {
   readonly onActiveWorkout: (index: number) => void;
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
+  /**
+   * The lifter's persisted Exercises, for deciding whether an entry names a
+   * movement the app already has. The catalog is not included and must not be:
+   * `resolvedFileExercise` consults it itself.
+   */
+  readonly knownExercises: readonly Exercise[];
   readonly onDelete: (ref: ExerciseRef) => void;
   readonly onRoutineName: (name: string) => void;
   readonly onWorkoutName: (workout: number, name: string) => void;
@@ -81,6 +97,7 @@ export function ExercisesStep({
   onActiveWorkout,
   onToggle,
   onEdit,
+  knownExercises,
   onDelete,
   onRoutineName,
   onWorkoutName,
@@ -180,6 +197,7 @@ export function ExercisesStep({
                     exerciseRef={{ workout: activeWorkout, exercise: index }}
                     issues={issues}
                     key={`${exercise.name}-${index}`}
+                    knownExercises={knownExercises}
                     onDelete={onDelete}
                     onEdit={onEdit}
                     onToggle={onToggle}
@@ -333,6 +351,7 @@ interface ExerciseRowProps {
   readonly issues: IssueIndex;
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
+  readonly knownExercises: readonly Exercise[];
   readonly onDelete: (ref: ExerciseRef) => void;
 }
 
@@ -345,12 +364,16 @@ function ExerciseRow({
   issues,
   onToggle,
   onEdit,
+  knownExercises,
   onDelete,
 }: ExerciseRowProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const base = exercisePath(exerciseRef.workout, exerciseRef.exercise);
   // A version-2 file may state a target range instead of a rep range (REQ-130).
   const { reps, target } = exercise;
+  // The Exercise this entry will bind to, or `undefined` where the import
+  // will mint one and the measurement is still the lifter's to choose.
+  const incumbent = resolvedFileExercise(exercise, knownExercises);
   // The range is on the wrong axis for the movement it binds to. The fields
   // for the *right* axis are offered empty, and committing one drops the
   // other: there is no honest conversion between a rep count and a number of
@@ -523,6 +546,32 @@ function ExerciseRow({
                 options={UNIT_OPTIONS}
                 value={exercise.unit ?? defaultUnit}
               />
+              {/* The same treatment `unit` has always had, for the field that
+                  decides far more (REQ-104). A file may omit it and most do:
+                  81 of the catalog's 100 rows are weight x reps, and a version
+                  1 file means that throughout. Omitting it is fine; not being
+                  able to *see* what was decided is not, because a hold that
+                  lands as weight x reps can no longer be corrected once a set
+                  references it (DEC-O).
+
+                  Editable only where the import will mint the Exercise. A name
+                  that resolves keeps its own type (REQ-131), so an editable
+                  control there would promise a change that never happens. */}
+              {incumbent === undefined ? (
+                <SelectField
+                  id={fieldId(`${base}.measurement`)}
+                  label="measured as"
+                  onCommit={(value: Measurement) => patch({ measurement: value })}
+                  options={MEASUREMENT_OPTIONS}
+                  value={exercise.measurement ?? 'weight_reps'}
+                />
+              ) : (
+                <ReadonlyField
+                  id={fieldId(`${base}.measurement`)}
+                  label="measured as"
+                  value={measurementLabel(incumbent.measurement)}
+                />
+              )}
             </div>
 
             <NotesField

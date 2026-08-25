@@ -14,10 +14,11 @@ import {
   routineFileToDomain,
   validateRoutineFile,
 } from '@/domain/routine-file';
+import { resolvedFileExercise } from '@/domain/routine-file/to-domain';
 import { getCatalogExercise } from '@/domain/catalog';
 import { MEASUREMENTS, targetsReps, type Measurement } from '@/domain/measurement';
 import { EXAMPLE_YAML, aFile, anExercise, aWorkout } from '@/domain/routine-file/fixtures';
-import type { RoutineFile } from '@/domain/routine-file';
+import type { RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import type { Exercise } from '@/domain/types';
 import { toId, type ExerciseId } from '@/domain/ids';
 
@@ -207,6 +208,100 @@ describe('resolveFileExercise (TST-004)', () => {
     );
     expect(draft.createdExercises).toEqual([]);
     expect(draft.plannedExercises[0]?.exerciseId).toBe('user-1');
+  });
+});
+
+/**
+ * The lookup half of `resolveFileExercise`, without the mint (REQ-022, REQ-102).
+ *
+ * The wizard asks this to decide whether an entry's measurement is still the
+ * lifter's to choose, and it must answer exactly what Accept will bind to.
+ * Two deciders that can disagree do not throw — they silently mint a second
+ * Exercise for a movement the file already names, splitting a lifter's history
+ * inside one Routine (§26, `offer.ts` header). Hence the agreement test below.
+ */
+describe('resolvedFileExercise', () => {
+  const mine: Exercise = {
+    id: toId<ExerciseId>('user-1'),
+    name: 'Zercher Good Morning',
+    category: null,
+    equipment: null,
+    measurement: 'weight_reps',
+  };
+
+  it('resolves a catalog row by exercise_id (AC-023)', () => {
+    const resolved = resolvedFileExercise(
+      anExercise({ name: 'Anything At All', exercise_id: 'front-squat' }),
+      [],
+    );
+    expect(resolved?.id).toBe('front-squat');
+    expect(resolved?.measurement).toBe('weight_reps');
+  });
+
+  it('resolves a catalog row by name alone, measurement and all (AC-024)', () => {
+    // The dangerous one: a file writing `Plank` with a stale `reps: 8–12` binds
+    // to a duration movement, and the rep range it states is not the range the
+    // Exercise is programmed on (REQ-139).
+    const resolved = resolvedFileExercise(anExercise({ name: 'Plank' }), []);
+    expect(resolved?.id).toBe('plank');
+    expect(resolved?.measurement).toBe('duration');
+  });
+
+  it('resolves one of the lifter\u2019s own Exercises by name', () => {
+    expect(resolvedFileExercise(anExercise({ name: 'zercher  good morning' }), [mine])).toBe(
+      mine,
+    );
+  });
+
+  it('returns undefined for a name nothing knows \u2014 the case that mints', () => {
+    expect(resolvedFileExercise(anExercise({ name: 'Zercher Good Morning' }), [])).toBeUndefined();
+  });
+
+  it('falls through to the name when exercise_id names no catalog row', () => {
+    const resolved = resolvedFileExercise(
+      anExercise({ name: 'Plank', exercise_id: 'no-such-slug' }),
+      [],
+    );
+    expect(resolved?.id).toBe('plank');
+  });
+
+  const cases: readonly {
+    readonly what: string;
+    readonly fileExercise: RoutineFileExercise;
+    readonly known: readonly Exercise[];
+  }[] = [
+    {
+      what: 'a catalog id',
+      fileExercise: anExercise({ name: 'Anything At All', exercise_id: 'front-squat' }),
+      known: [],
+    },
+    { what: 'a catalog name', fileExercise: anExercise({ name: 'Plank' }), known: [] },
+    {
+      what: 'a user Exercise name',
+      fileExercise: anExercise({ name: 'zercher  good morning' }),
+      known: [mine],
+    },
+    {
+      what: 'a name nothing knows',
+      fileExercise: anExercise({ name: 'Zercher Good Morning' }),
+      known: [],
+    },
+    {
+      what: 'an unknown id with a known name',
+      fileExercise: anExercise({ name: 'Plank', exercise_id: 'no-such-slug' }),
+      known: [],
+    },
+  ];
+
+  it.each(cases)('agrees with resolveFileExercise on $what', ({ fileExercise, known }) => {
+    const incumbent = resolvedFileExercise(fileExercise, known);
+    const resolved = resolveFileExercise(fileExercise, known);
+
+    if (incumbent) {
+      expect(resolved).toEqual({ exercise: incumbent, created: false });
+    } else {
+      expect(resolved.created).toBe(true);
+    }
   });
 });
 

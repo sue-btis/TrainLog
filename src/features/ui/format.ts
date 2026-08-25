@@ -7,7 +7,13 @@
  */
 
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
-import { shapeOf, targetUnitOf, targetsReps, type Measurement } from '@/domain/measurement';
+import {
+  MEASUREMENTS,
+  shapeOf,
+  targetUnitOf,
+  targetsReps,
+  type Measurement,
+} from '@/domain/measurement';
 import type {
   CompletedSet,
   ExerciseSessionStatus,
@@ -182,6 +188,43 @@ export function sessionStatusLabel(status: SessionStatus): string {
       return 'completed';
   }
 }
+
+/**
+ * What each measurement type is called on screen (CONTEXT.md).
+ *
+ * The union's own values are database vocabulary — `weighted_bodyweight` is
+ * not something a lifter says. Written once here, beside the other two enum
+ * label functions, because the create-Exercise form and the import wizard both
+ * offer this choice and two dictionaries for one choice would drift.
+ *
+ * `Record<Measurement, string>` rather than a switch: a tenth type fails to
+ * compile here instead of quietly rendering its raw value.
+ */
+const MEASUREMENT_LABELS: Record<Measurement, string> = {
+  weight_reps: 'Weight × reps',
+  bodyweight_reps: 'Bodyweight reps',
+  weighted_bodyweight: 'Weighted bodyweight',
+  assisted_bodyweight: 'Assisted bodyweight',
+  duration: 'Time',
+  duration_weight: 'Time + weight',
+  distance_duration: 'Distance + time',
+  weight_distance: 'Weight + distance',
+  distance: 'Distance',
+};
+
+/** How a movement is measured, in the lifter's words rather than the union's. */
+export function measurementLabel(measurement: Measurement): string {
+  return MEASUREMENT_LABELS[measurement];
+}
+
+/** Every type as a pickable option, in the union's own order. */
+export const MEASUREMENT_OPTIONS: readonly {
+  readonly value: Measurement;
+  readonly label: string;
+}[] = MEASUREMENTS.map((measurement) => ({
+  value: measurement,
+  label: MEASUREMENT_LABELS[measurement],
+}));
 
 /** The same, for one exercise within a Session. */
 export function exerciseStatusLabel(status: ExerciseSessionStatus): string {

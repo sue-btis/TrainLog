@@ -49,6 +49,33 @@ function FieldFrame({ id, label, error, className, children }: FieldFrameProps) 
   );
 }
 
+/**
+ * A value the form states but does not let you change.
+ *
+ * Not a disabled input: disabled reads as "not yet", and this is "not yours".
+ * It wears the caption and spacing of the fields around it so a row does not
+ * lose its alignment where one value happens to be settled.
+ */
+export function ReadonlyField({
+  id,
+  label,
+  value,
+  className,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly className?: string;
+}) {
+  return (
+    <FieldFrame className={className} error={null} id={id} label={label}>
+      <p className="type-measure text-ink-2" id={id}>
+        {value}
+      </p>
+    </FieldFrame>
+  );
+}
+
 interface NumberFieldProps {
   readonly id: string;
   readonly label: string;

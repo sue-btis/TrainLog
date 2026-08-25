@@ -61,13 +61,8 @@ export function resolveFileExercise(
   fileExercise: RoutineFileExercise,
   knownExercises: readonly Exercise[],
 ): ResolvedExercise {
-  if (fileExercise.exercise_id !== undefined) {
-    const fromCatalog = getCatalogExercise(toId<ExerciseId>(fileExercise.exercise_id));
-    if (fromCatalog) return { exercise: fromCatalog, created: false };
-  }
-
-  const known = findExerciseByName(fileExercise.name, knownExercises);
-  if (known) return { exercise: known, created: false };
+  const incumbent = resolvedFileExercise(fileExercise, knownExercises);
+  if (incumbent) return { exercise: incumbent, created: false };
 
   return {
     created: true,
@@ -83,6 +78,27 @@ export function resolveFileExercise(
       measurement: fileExercise.measurement ?? 'weight_reps',
     },
   };
+}
+
+/**
+ * The Exercise a file entry binds to, or `undefined` where the import would
+ * mint one for it.
+ *
+ * The lookup half of `resolveFileExercise`, without the mint. A caller that
+ * only wants to know *whether* an entry names something the app already has —
+ * the wizard, deciding whether its measurement is still the lifter's to
+ * choose — gets an answer without a discarded id being generated for every
+ * keystroke, and gets it from the one rule rather than a second copy of it.
+ */
+export function resolvedFileExercise(
+  fileExercise: RoutineFileExercise,
+  knownExercises: readonly Exercise[],
+): Exercise | undefined {
+  if (fileExercise.exercise_id !== undefined) {
+    const fromCatalog = getCatalogExercise(toId<ExerciseId>(fileExercise.exercise_id));
+    if (fromCatalog) return fromCatalog;
+  }
+  return findExerciseByName(fileExercise.name, knownExercises);
 }
 
 /** What the caller must supply that the file does not carry. */

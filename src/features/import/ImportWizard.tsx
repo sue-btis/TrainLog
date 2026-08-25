@@ -384,6 +384,7 @@ export function ImportWizard() {
             defaultUnit={state.defaultUnit}
             file={state.file}
             issues={issueIndex}
+            knownExercises={userExercises ?? []}
             offers={offers}
             onActiveWorkout={setActiveWorkout}
             onAddExercise={edit.addExercise}
