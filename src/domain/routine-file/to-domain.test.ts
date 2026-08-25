@@ -15,7 +15,7 @@ import {
   validateRoutineFile,
 } from '@/domain/routine-file';
 import { getCatalogExercise } from '@/domain/catalog';
-import { targetsReps } from '@/domain/measurement';
+import { MEASUREMENTS, targetsReps, type Measurement } from '@/domain/measurement';
 import { EXAMPLE_YAML, aFile, anExercise, aWorkout } from '@/domain/routine-file/fixtures';
 import type { RoutineFile } from '@/domain/routine-file';
 import type { Exercise } from '@/domain/types';
@@ -320,6 +320,13 @@ describe('the file format states how an exercise is measured (TST-120)', () => {
 
 const BLOCK_FILES = ['bloque-a-acumulacion.yaml', 'bloque-b-intensificacion.yaml'];
 
+/**
+ * The worked example of the v2 format, which teaches by being read. A file
+ * nothing exercises rots into instructions for producing broken imports, and
+ * one nothing references can go missing without a sound.
+ */
+const EXAMPLE_FILE = 'examples/hibrido-v2.yaml';
+
 function docsYaml(name: string): string {
   return readFileSync(
     fileURLToPath(new URL(`../../../docs/${name}`, import.meta.url)),
@@ -389,6 +396,35 @@ describe('the shipped blocks still load unchanged (TST-121)', () => {
       // Bound to the catalog, so both blocks feed one history (REQ-131, §26).
       expect(draft.createdExercises.some((it) => it.id === id)).toBe(false);
     }
+  });
+
+  it(`${EXAMPLE_FILE} covers all nine measurement types (REQ-101)`, () => {
+    const file = parsed(docsYaml(EXAMPLE_FILE));
+    expect(file.version).toBe(2);
+    expect(validateRoutineFile(file)).toEqual([]);
+
+    const draft = routineFileToDomain(file, {
+      defaultUnit: 'kg',
+      existingExercises: [],
+      createdAt: CREATED_AT,
+    });
+
+    const minted = new Map(draft.createdExercises.map((it) => [it.id, it] as const));
+    const covered = new Set<Measurement>();
+
+    for (const planned of draft.plannedExercises) {
+      const exercise = minted.get(planned.exerciseId) ?? getCatalogExercise(planned.exerciseId);
+      expect(exercise).toBeDefined();
+      covered.add(exercise!.measurement);
+
+      const onReps = targetsReps(exercise!.measurement);
+      expect([planned.minReps, planned.maxReps].every((it) => it !== null)).toBe(onReps);
+      expect([planned.minTarget, planned.maxTarget].every((it) => it !== null)).toBe(!onReps);
+    }
+
+    // The whole point of the file. A type nobody wrote down is a type nobody
+    // has a worked example of.
+    expect([...covered].sort()).toEqual([...MEASUREMENTS].sort());
   });
 
   it.each(['weighted-dip', 'weighted-pull-up'])(
