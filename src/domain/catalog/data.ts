@@ -153,19 +153,24 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['turkish-get-up', 'Turkish Get Up', 'full-body', 'kettlebell', 'weight_reps'],
 
   // ------------------------------------------------- isometric holds and jumps
-  // The only movements whose *measurement* the rows above cannot declare
-  // (REQ-122, DEC-S). Scoped to what the repository's own two programme files
-  // name — `docs/bloque-a-acumulacion.yaml` and `docs/bloque-b-intensificacion.yaml`
-  // both programme these three holds in seconds and this jump for distance, and
-  // today both must smuggle the prescription into `notes`. No cardio row: those
-  // would be speculative and would name no muscle group (REQ-140, AC-169). No
-  // new `weight_reps` or `bodyweight_reps` row: a missing rep-based movement is
-  // a catalog gap, not a measurement gap — which is why `Pogo Jumps` and
-  // `Barbell Jump Squat`, both programmed in reps, are not here.
+  // The three holds are the movements whose *measurement* the rows above cannot
+  // declare (REQ-122, DEC-S): `docs/bloque-a-acumulacion.yaml` and
+  // `docs/bloque-b-intensificacion.yaml` programme all three in seconds, and
+  // before this group existed both had to smuggle the prescription into
+  // `notes`. No cardio row: those would be speculative and would name no muscle
+  // group (REQ-140, AC-169).
+  //
+  // Broad Jump sits here for history rather than for its type. It shipped as
+  // `distance` on the reading that a jump is one jump, measured in metres; the
+  // programmes count jumps instead — a set is three of them, and what is
+  // tracked is the reps performed, not the metres of any one. So it is
+  // `bodyweight_reps` like every other rep-counted movement, and the `distance`
+  // type stays for what is actually run or thrown (DEC-R, revised). The slug is
+  // permanent (REQ-023), so the row stays where it is.
   //
   // Categories and equipment are the vocabularies above, unchanged (REQ-140).
   ['planche-lean', 'Planche Lean', 'shoulders', 'bodyweight', 'duration'],
   ['handstand-hold', 'Handstand Hold', 'shoulders', 'bodyweight', 'duration'],
   ['tuck-planche-hold', 'Tuck Planche Hold', 'shoulders', 'bodyweight', 'duration'],
-  ['broad-jump', 'Broad Jump', 'quadriceps', 'bodyweight', 'distance'],
+  ['broad-jump', 'Broad Jump', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
 ];

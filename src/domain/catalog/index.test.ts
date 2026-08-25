@@ -350,18 +350,19 @@ describe('catalog measurement', () => {
     expect(CATALOG.length).toBe(frozen.length + added.length);
   });
 
-  it('adds isometric holds and jumps only — no cardio, no rep-based row (AC-169)', () => {
+  it('adds no cardio row (AC-169)', () => {
     // `distance_duration` is the cardio type. The change owner's programme
     // contains no running, cycling, rowing or swimming, and such a movement
     // names no muscle group, which would dirty the `category` vocabulary that
     // PRD §39 item 8 groups volume over.
     expect(CATALOG.filter((entry) => entry.measurement === 'distance_duration')).toEqual([]);
 
-    // A missing rep-based movement is a catalog gap, not a measurement gap:
-    // `createUserExercise` already covers it, so nothing added here is one.
+    // The three holds are the measurement gap the group was added for. Broad
+    // Jump is the one rep-counted row among them, kept because its slug is
+    // permanent (REQ-023) after it shipped as `distance` (DEC-R, revised).
     expect(added.length).toBeGreaterThan(0);
     for (const entry of added) {
-      expect(['duration', 'distance']).toContain(entry.measurement);
+      expect(['duration', 'bodyweight_reps']).toContain(entry.measurement);
     }
   });
 
@@ -416,8 +417,10 @@ describe('the movements bloque-a-acumulacion.yaml programmes', () => {
     },
   );
 
-  it('resolves Broad Jump to a distance row', () => {
-    expect(programmedAs('Broad Jump')?.measurement).toBe('distance');
+  // Counted in jumps, not measured in metres: a set is three of them, and what
+  // the programme tracks is the reps performed (DEC-R, revised).
+  it('resolves Broad Jump to a bodyweight_reps row', () => {
+    expect(programmedAs('Broad Jump')?.measurement).toBe('bodyweight_reps');
   });
 
   it('still resolves every movement the file names by exercise_id', () => {

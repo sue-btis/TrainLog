@@ -436,8 +436,6 @@ const HOLDS = [
   ['tuck-planche-hold', 10, 20],
 ] as const;
 
-/** The jump, whose target is metres and whose range is deliberately wide. */
-const JUMP = ['broad-jump', 1.5, 3.5] as const;
 
 describe('the shipped blocks still load unchanged (TST-121)', () => {
   it.each(BLOCK_FILES)('%s parses, validates clean and maps (REQ-123, AC-149)', (name) => {
@@ -468,7 +466,7 @@ describe('the shipped blocks still load unchanged (TST-121)', () => {
   // beside a fake one-rep range are the programmed target now, so the app can
   // mark a hold against it instead of the lifter reading prose mid-set.
   it.each(BLOCK_FILES)(
-    '%s programmes its holds and its jump on their own axes (REQ-138, AC-162, AC-163)',
+    '%s programmes its holds on their own axis (REQ-138, AC-162, AC-163)',
     (name) => {
     const draft = routineFileToDomain(parsed(docsYaml(name)), {
       defaultUnit: 'kg',
@@ -476,13 +474,11 @@ describe('the shipped blocks still load unchanged (TST-121)', () => {
       createdAt: CREATED_AT,
     });
 
-    for (const [id, min, max] of [...HOLDS, JUMP]) {
+    for (const [id, min, max] of HOLDS) {
       const planned = draft.plannedExercises.filter((it) => it.exerciseId === id);
       expect(planned.length).toBeGreaterThan(0);
       for (const row of planned) {
-        expect(getCatalogExercise(toId<ExerciseId>(id))?.measurement).toBe(
-          id === 'broad-jump' ? 'distance' : 'duration',
-        );
+        expect(getCatalogExercise(toId<ExerciseId>(id))?.measurement).toBe('duration');
         expect(row.minTarget).toBe(min);
         expect(row.maxTarget).toBe(max);
         expect(row.minReps).toBeNull();
