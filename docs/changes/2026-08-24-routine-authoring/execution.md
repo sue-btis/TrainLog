@@ -36,9 +36,9 @@ write code; none were simulated. Waves A–E in order.
 |---|---|---|---|---|---|
 | A / WS-1 | REQ-100…110, 902, 909 | **Completed** | 7 | typecheck, test, lint, build — all green | 471 tests (458 → +13); UI observed, below |
 | B / Gate 0 + WS-2 | REQ-001…014, 200…212, 900, 901, 903, 906, 908 | **Completed** | 12 | all four green | **490** tests (471 → +19); UI observed, below |
-| C / WS-3 | REQ-300…312 | Not started | | | |
-| D / WS-4 | REQ-400…417 | Not started | | | |
-| E / WS-5 | REQ-500…516 | Not started | | | |
+| C / WS-3 | REQ-300…312, 900, 902, 910, 911 | **Completed** | 6 | all four green | 19 new domain tests; UI observed, below |
+| D / WS-4 | REQ-400…417, 905, 907, 912, 913 | **Completed** | 12 | all four green | 34 new domain + repository tests; UI observed, below |
+| E / WS-5 | REQ-500…516, 901, 904, 906 | **Completed** | 15 | all four green | **543** tests; grep sweep for the invariant |
 
 ## Wave A — "I can create an exercise the app does not ship with."
 
@@ -73,7 +73,7 @@ the only evidence that the observable resolution order survived.
 | REQ-102, 902 | `findExerciseByName` in `@/domain/catalog`; `resolveFileExercise` re-expressed on it | AC-103 — TST-100, TST-101 | Completed |
 | REQ-103 | shared matcher | AC-104 — TST-105 | Completed |
 | REQ-104 | decision + write in one transaction | AC-105 — TST-104: two racing creates, one row, one `created: true` | Completed |
-| REQ-105 | closed vocabularies from `CATALOG` only | AC-106 — TST-107 | Completed |
+| REQ-105 | closed vocabularies from `CATALOG` only | AC-106 — TST-107 (round-trip) **and** TST-105, added in the fourth pass: TST-107 never asserted the "from `CATALOG` only" clause | Completed |
 | REQ-106 | trim, then `ExerciseNameRequiredError` | AC-107 — TST-102, TST-106 | Completed |
 | REQ-107 | catalog hit returns the slug, writes nothing | AC-108 — TST-103, **and** the running app: after typing a catalog name the `exercises` table still held exactly one row | Completed |
 | REQ-108 | no update or delete verb exists | AC-109 — static: the repository exports one writer | Completed |
@@ -165,7 +165,7 @@ than a refactor, and the compiler caught the single stale dispatch.
 | REQ-001…003, 005…009, 012, 014 | the five draft verbs | AC-001…014 — TST-001…015 | Completed |
 | REQ-004, 900 | seed deferred to WS-3's `draftExercise`; `addExercise` takes a whole row | AC-004 **deferred to Wave C**, as plan §8 records | Deferred |
 | REQ-010 | barrel + two headers | AC-010 — static | Completed |
-| REQ-011, 013, 901 | `routine_name_blank` across all three files | AC-011/013 — TST-013 | Completed |
+| REQ-011, 013, 901 | `routine_name_blank` across all three files | AC-013 — TST-013; AC-011 — TST-009, **added in the fourth pass** (TST-013 was miscredited to it) | Completed |
 | REQ-200 | three entry surfaces | AC-200 — observed on all three | Completed |
 | REQ-201 | `?new=1`, consumed once on mount | AC-201 — observed | Completed |
 | REQ-202 | `fileName` gone from `editing` | AC-202 — typecheck | Completed |
@@ -226,12 +226,225 @@ is recorded as an inference at that last step rather than as an observation.
 | `pnpm lint` | Pass |
 | `pnpm build` | Pass |
 
+## Wave C — "I can put an exercise into a Workout while I am building it." (WS-3)
+
+### Files changed
+
+| Path | Change |
+|---|---|
+| `src/domain/routine-file/offer.ts` | **new** — `Offer`, `offerName`, `offeredExercises`, `resolveTypedName`, `draftExercise` |
+| `src/domain/routine-file/offer.test.ts` | **new** — TST-300…309, 19 tests |
+| `src/features/import/AddExercise.tsx` | **new** — the in-flow picker |
+| `src/domain/routine-file/index.ts` | append-only offer block |
+| `src/features/import/ExercisesStep.tsx` | `offers` + `onAddExercise`; the control in both the list and the empty-Workout well |
+| `src/features/import/ImportWizard.tsx` | `useUserExercises`, memoised `offers`, `edit.addExercise` |
+
+### The frozen `Offer` contract was implemented wrong first
+
+The first implementation used a flat `{ kind, name, exerciseId }` interface and a
+`resolveTypedName` returning `Offer | undefined`. Spec §6 freezes a
+**discriminated union** and a **total** `resolveTypedName`. §6 was not read
+before implementing — §3.4's requirements were, and they do not restate the
+shape. Corrected before the wave closed.
+
+The frozen shape is the better one, and the reason is worth keeping: the union
+makes REQ-303 *structural*. A `user` offer has nowhere to put an id, so a
+persisted Exercise's UUID cannot reach `exercise_id` — the shape the domain
+forbids cannot be constructed. It is the argument `types.ts` already makes for
+`ExerciseSession`.
+
+### REQ-301 contradicts REQ-911 — escalated, owner resolved
+
+REQ-301 says a draft row resolving to a catalog entry is *"offered once, as that
+catalog entry"*, which drops the file's own spelling from the list. §6 freezes
+`resolveTypedName(name, offers)` — it sees only that list. Together they reopen
+the exact failure REQ-911 exists to prevent:
+
+1. the file declares `exercise_id: front-squat` under `name: Sentadilla Frontal`;
+2. the wizard **shows** that spelling in the Workout it came from;
+3. the lifter adding the movement elsewhere types what they just read;
+4. nothing matches, so it becomes a `new` offer;
+5. a **second** Exercise is minted for a movement the draft already binds.
+
+Corroboration that REQ-301's literal reading is the wrong one: REQ-303's clause
+*"a draft offer … copies its `exercise_id` when the source row carries one"* is
+unreachable under it. A clause that can never execute was written for the other
+reading.
+
+**Owner decided: reading B.** The spelling stays offerable and carries the slug.
+A row whose *name* already resolves to an offered Exercise is dropped, and
+`findExerciseByName` decides that — never a name set assembled locally — so
+`  front   SQUAT ` is still recognized as the catalog's Front Squat and offered
+once (REQ-301's purpose preserved). Two spellings of one movement may both
+appear; both bind to the same Exercise, which is the property REQ-911 protects.
+
+Under reading B a draft offer needs no resolution at all: it copies the source
+row's two identity fields, so it resolves to exactly what that row resolves to —
+by construction rather than by agreement (REQ-902).
+
+### Requirement status
+
+| Requirement | Implementation | Acceptance evidence | Status |
+|---|---|---|---|
+| REQ-300 | append + `setOpenRef` at the pre-append length | AC-300 — observed: picker closed, row appended `3×8–12 · kg`, editor open with `sets = 3` | Completed |
+| REQ-301, 911, 902 | `offeredExercises` over `findExerciseByName` | AC-301 — TST-300, TST-308; observed 96 catalog offers, catalog-first | Completed |
+| REQ-302 | draft rows contribute offers | AC-302 — TST-301, TST-304; observed "Sled Push" offered in Pull as **in this routine** | Completed |
+| REQ-303 | identity by offer kind, structurally | AC-303 — TST-302 | Completed |
+| REQ-304 | composition through `routineFileToDomain` | AC-304 — TST-303, TST-304, TST-308 | Completed |
+| REQ-305 | `resolveTypedName` total; `new` offer | AC-305 — TST-305; observed "Add “Sled Push” as a new movement" | Completed |
+| REQ-306 | reuse and say so | AC-306 — observed: "Front Squat already exists — adding it will use that movement, not make a second one" | Completed |
+| REQ-307, 900 | seeded shape, no issue raised | AC-307 — TST-306; observed problem count unchanged across every add | Completed |
+| REQ-308 | in-flow panel, bounded, scrolls internally | AC-308 — observed by hit test: `elementFromPoint` at the ActionBar centre returns the ActionBar; both its buttons enabled | Completed |
+| REQ-309 | control inside the empty-Workout well | AC-309 — observed | Completed |
+| REQ-310 | `openRef` is by index | AC-310 — observed: two rows named "Front Squat", exactly one editor open | Completed |
+| REQ-311, DEC-Q4 | new code; picker untouched | AC-311 — `git status` reports `ExercisePicker.tsx` unmodified | Completed |
+| REQ-312 | `exercise_id` stays a catalog channel | AC-312 — TST-307 | Completed |
+| REQ-910 | ceiling pinned, not closed | AC-313 — TST-309 | Completed |
+
+### Checks
+
+| Command | Result |
+|---|---|
+| `pnpm typecheck` | Pass |
+| `pnpm test` | Pass |
+| `pnpm lint` | Pass |
+| `pnpm build` | Pass |
+
+## Wave D — "I can grow the routine I am already running." (WS-4)
+
+### Files changed
+
+| Path | Change |
+|---|---|
+| `src/domain/scheduling/index.ts` | `remainingWeeks`, `claimantsOfDay` |
+| `src/domain/scheduling/index.test.ts` | append-only — TST-400…408, 420, 421 |
+| `src/domain/routine-file/planned-exercise-draft.ts` | **new** — `plannedExerciseDraftFile` (REQ-913) |
+| `src/domain/routine-file/planned-exercise-draft.test.ts` | **new** — TST-409 |
+| `src/db/repositories/workouts.ts` | `addWorkoutToRoutine` + three error classes |
+| `src/db/repositories/plannedExercises.ts` | `addPlannedExercise`, `WorkoutNotFoundError` |
+| `src/db/repositories/workouts.test.ts` | **new** — TST-410…414, 418, 419 |
+| `src/db/repositories/plannedExercises.test.ts` | **new** — TST-415…417 |
+| `src/db/repositories/placements.ts` | header: Placements no longer come only from an import |
+| `src/db/index.ts` | append-only re-exports |
+| `src/features/routines/AddToRoutine.tsx` | **new** — both forms |
+| `src/features/routines/RoutineDetailScreen.tsx` | the two affordances, active-only |
+
+### A defect the spec's own oracle caught
+
+`remainingWeeks` first clamped only the subtraction:
+`Math.min(weeks, Math.max(0, weeks - elapsed))`. For a negative `weeks` that
+returns the negative unchanged. TST-403 states the answer must be 0, and it is
+right: nothing bounds `Routine.weeks` — not the schema, not the stored type — so
+a restored backup can carry one. `weeks` is now floored before the subtraction.
+Found by writing the test the spec specified rather than the one the code
+suggested.
+
+### Three test expectations were wrong, not the code
+
+- **Placement count.** Anchor Mon 2026-09-07, `weeks: 8`, today Wed 2026-09-30
+  leaves five weeks — but this week's Tuesday (09-29) is behind today, so four
+  Tuesdays are placed. "From today forward" is per *date*, not per week.
+- **TST-412 fixture.** The second import archives the first; archiving the second
+  too left no active Routine and the writer correctly refused.
+- **`placements.where('workoutId')`.** `SCHEMA_V1` carries no such index.
+
+### Requirement status
+
+| Requirement | Implementation | Acceptance evidence | Status |
+|---|---|---|---|
+| REQ-400, 905 | `addWorkoutToRoutine` | AC-400 — TST-410; observed on the active Routine | Completed |
+| REQ-401 | `order` from siblings, in-transaction | AC-401 — TST-414; observed `order: 1` | Completed |
+| REQ-402 | `remainingWeeks` + `generatePlacements`, Monday-aligned | AC-402 — TST-400…404, TST-410 | Completed |
+| REQ-403 | zero Placements is a success | AC-403 — TST-411; observed both copy paths | Completed |
+| REQ-404, 912 | preview = same functions, write wins | AC-404 — observed preview `4 sessions, 2026-08-24 → 2026-09-14`, then "Workout added, with 4 sessions placed", IndexedDB holding those four dates | Completed |
+| REQ-405, 406, 907 | `claimantsOfDay` + the full-consequence warning | AC-405…407 — TST-420, TST-421; warning copy observed verbatim | Completed |
+| REQ-407 | targets collected; no Exercise created | AC-408 — observed `exercises` table 0 → **0** rows | Completed |
+| REQ-408 | `order` from siblings, in-transaction | AC-409 — TST-415; observed `order: 1` | Completed |
+| REQ-409, 913 | `plannedExerciseDraftFile` + `validateRoutineFile` | AC-410 — TST-409; observed "Push → Barbell Row: min_reps cannot be greater than max_reps." with Save disabled | Completed |
+| REQ-410 | progression a closed choice | AC-411 — no free text reaches `ProgressionRule.type` | Completed |
+| REQ-411, 414 | three named errors, status read in-transaction | AC-412, AC-415 — TST-413, TST-416 | Completed |
+| REQ-412 | one transaction per add, exact tables | AC-413 — TST-410, TST-415 | Completed |
+| REQ-413 | nothing recorded is touched | AC-414a — **TST-417**, the DEC-B safety test: all three execution tables compared whole and identical | Completed |
+| REQ-415 | no destructive verb added | AC-416 — the only new writers are the two adds | Completed |
+| REQ-416 | empty Workout is trainable | AC-417 — TST-418; observed "This Workout has no exercises." | Completed |
+| REQ-417 | backup round-trip | AC-418 — **TST-419**: export → reset → restore | Completed |
+
+### Checks
+
+| Command | Result |
+|---|---|
+| `pnpm typecheck` | Pass |
+| `pnpm test` | Pass |
+| `pnpm lint` | Pass |
+| `pnpm build` | Pass |
+
+## Wave E — "Nothing the app tells me is a lie any more." (WS-5)
+
+### The recorded blocker, and how it was cleared
+
+Wave B's record left Wave E **blocked**: `CONTEXT.md` and `docs/PRD.md` carried
+uncommitted edits attributed to a concurrent session (a session **Effort**
+metric). That attribution was wrong. The Effort work is this same operator's,
+made earlier in the same session and known in full — not a third party's
+in-flight edit. The owner then explicitly directed that the remaining waves be
+completed.
+
+So the block was cleared by identification and instruction, not by the other
+work landing. Both files were **appended to and amended in place**; the Effort
+entry in `CONTEXT.md` and the §39 A·15 row in `docs/PRD.md` are intact and
+untouched. Recorded here because a block recorded in an execution log must be
+answered in it, not silently stepped over.
+
+### Files changed
+
+`AGENTS.MD`, `CONTEXT.md`, `PRODUCT.md`, `docs/PRD.md`, `src/domain/types.ts`,
+`src/domain/session/index.ts`, `src/domain/routine-file/edit.ts`,
+`src/db/repositories/{routines,exerciseSessions,placements}.ts`,
+`src/features/session/ExerciseReorder.tsx`,
+`src/features/routines/{RoutinesScreen,RoutineDetailScreen}.tsx`,
+`src/features/today/TodayScreen.tsx`,
+`src/features/calendar/CalendarScreen.tsx`,
+`src/features/import/ConversionPromptButton.tsx` + its test.
+
+### Requirement status
+
+| Requirement | Evidence | Status |
+|---|---|---|
+| REQ-500 | `AGENTS.MD`, `CONTEXT.md`, `PRODUCT.md` all state the amended invariant | Completed |
+| REQ-501 | `docs/PRD.md` §11.2 and §25 amended | Completed |
+| REQ-502, 503 | §11.1 lists adding, and documents the fileless entry | Completed |
+| REQ-504, 901 | all three enumerations count **eight** | Completed |
+| REQ-505 | the DEC-Q1 standing rule is in `AGENTS.MD`'s Validation section | Completed |
+| REQ-506 | `CONTEXT.md` **Suggested Day** and the `Workout` doc comment corrected | Completed |
+| REQ-507 | exactly one new entry: **Routine Draft** | Completed |
+| REQ-508 | §39 item 7 → 🟡, item 8 still blocked | Completed |
+| REQ-509 | §39 item 14 → 🟡 **and its false claim corrected** | Completed |
+| REQ-510 | no new ADR; `docs/adr/` still holds two files | Completed |
+| REQ-511 | `deleteExercise`'s stated reason changed | AC-512 — TST-500, TST-501 (pre-existing) | Completed |
+| REQ-512 | `grep -rn "immutable\|inmutable" src/` returns **two** hits, both deliberate | Completed |
+| REQ-513, 906 | the stale copy blocks amended; see Deviations | Completed |
+| REQ-514 | `RoutinesScreen` provenance reads `created {date}` (WS-2's edit, verified not re-edited) | Completed |
+| REQ-515, 904 | `CONVERSION_PROMPT` Rules names the zero-Workout, blank-name and numeric rules | AC-516/517 — TST-515 | Completed |
+| REQ-516 | §39 updated in this change; §38 unaffected (no MVP item moves) | Completed |
+
+### Checks
+
+| Command | Result |
+|---|---|
+| `pnpm typecheck` | Pass |
+| `pnpm test` | Pass — **543** tests (baseline floor 458) |
+| `pnpm lint` | Pass |
+| `pnpm build` | Pass |
+
 ## Integration Gates
 
 | Gate | Owner | Diff inspected? | Checks | Result |
 |---|---|---:|---|---|
 | Wave A | this writer | Yes | four green, 471 tests | **Pass** |
 | Wave B | this writer | Yes | four green, 490 tests | **Pass** |
+| Wave C | this writer | Yes | four green | **Pass** |
+| Wave D | this writer | Yes | four green | **Pass** |
+| Wave E | this writer | Yes | four green, 543 tests | **Pass** |
 
 ## Deviations
 
@@ -275,14 +488,128 @@ to, as their shared-file rules require.
 
 ## Blockers
 
-**Wave E is blocked** until the concurrent Effort work in `CONTEXT.md` and
-`docs/PRD.md` lands or is withdrawn. See Ownership above. This needs the owner's
-decision, not an implementer's: overwriting another session's uncommitted edits
-to shared documents is exactly what plan §11's "unrelated user changes overlap a
-required write set" forbids.
+**None open.**
+
+The Wave E block recorded above was cleared, and the way it cleared matters: the
+"concurrent session" it named was this same operator, and the Effort work was
+known in full rather than being a third party's in-flight edit. The owner then
+directed that the remaining waves be completed. `CONTEXT.md` and `docs/PRD.md`
+were amended in place with the Effort entries left intact — verified by reading
+them after the edits, not assumed.
+
+### One incident, recorded because it was destructive
+
+While writing this record, **this file was overwritten**: a fresh Waves C–E
+document was written over the existing 288-line Waves A–B record with the Write
+tool, destroying it. It was recovered from `HEAD` (`git show`) and the new waves
+appended to it instead. Nothing was lost, but nothing about the recovery was
+owed — the file was not read before being written over, which is the actual
+defect.
 
 ## Independent Verification Readiness
 
 Waves A and B: ready. Diff range `git diff 40e0c02..8ab1082`.
-Waves C and D: not started, unblocked.
-Wave E: not started, **blocked** — see Blockers.
+Waves C, D and E: ready. Diff range: uncommitted working tree on `16cf1e9`,
+excluding the Effort work (`src/domain/session-summary.ts` + its test,
+`src/features/history/SessionDetailScreen.tsx`) and
+`docs/changes/2026-08-24-exercise-measurement/`.
+
+Untracked and never touched: `docs/PRD-DMS.md`,
+`docs/bloque-a-acumulacion.yaml`, `docs/bloque-b-intensificacion.yaml`.
+
+## Post-audit remediation
+
+An independent audit of this change ran after Wave E and reported seven
+defects. All seven are closed here; the counts above are restated to the state
+that leaves behind.
+
+| # | What was wrong | Where it was fixed |
+| --- | --- | --- |
+| F-1 | `plannedExerciseDraftFile` dropped the `rir` node unless **both** ends were present, so `rir_out_of_range` never saw a half range and a negative RIR was stored raw — a row `parseBackup` then refuses, with no verb (REQ-415) to repair it | `planned-exercise-draft.ts` — new `plannedExerciseDraftRefusals` |
+| F-2 | `increment` accepted `0` and negatives, against its own caption and `backup/schema.ts`'s non-negative read | same |
+| F-3 | REQ-504 landed in two of its three sites; `schema.ts:10-13` still counted six. The §5 "must not change" on that file is about its *behaviour* — stop condition 6 names `.min(1)` — so the comment was completed and the reason for the absent `.min(1)` recorded in it | `routine-file/schema.ts` (comment only; no schema change) |
+| F-4 | The REQ-903 sentinel was never retired, so the first back press after Accept did nothing, and `pushState` replaced React Router's `history.state` wholesale | `ImportWizard.tsx` |
+| F-5 | The add-exercise list was catalog-first cut at forty, hiding the lifter's own movements entirely, with no Cancel and no sign the list was cut | `AddToRoutine.tsx` |
+| F-6 | An empty preview had two branches for three reasons, so a past day in the last week read as "No day is selected" | `AddToRoutine.tsx` |
+| F-7 | `claimantsOfDay` did not sort, though REQ-907 asks for `order` and the warning reads `[0]` as the one Today prefers | `scheduling/index.ts`; TST-420 now passes a disordered fixture |
+
+### Second pass — accessibility and import-flavoured copy
+
+The audit's two grouped rows, closed the same way.
+
+| Theme | What was wrong | Where it was fixed |
+| --- | --- | --- |
+| a11y | The two new async failure lines were bare `<p>`, against nine sibling failure lines that carry `role="alert"`. The day-collision warning had no live region at all, so toggling a day announced nothing | `AddToRoutine.tsx` — `role="alert"` on both failures, `role="status"` (polite, because days are toggled in runs) on the collision warning |
+| a11y | `aria-label` on a bare `<div>` is dropped — ARIA names only count on an element with a role | `AddToRoutine.tsx`, `AddExercise.tsx` — `role="group"` on both pickers |
+| a11y | Eight literal `add-planned-*` ids: a Routine with two Workouts renders two of these forms, so every `htmlFor` resolved to the first | `AddToRoutine.tsx` — ids scoped by `workoutId`, as the picker's `TextField` already was |
+| copy | `ActionBar.tsx` was never revisited for REQ-200: "Discard this import?", "N problems still block this import." and "Importing" all describe a file that does not exist on the from-scratch route | `ActionBar.tsx` — draft/routine/Saving |
+| copy | `ImportWizard.tsx` back label read "Leave this import" on both routes | `ImportWizard.tsx` — "Leave this draft" |
+| copy | REQ-208 landed in neither of its two sites: the empty well and `FIX.routine_has_no_workouts` both still said "choose a file that declares one" | `ExercisesStep.tsx`, `issues.ts` |
+| copy | `MoreScreen.tsx` described Routines as "Every programme you have imported" | `MoreScreen.tsx` — "imported or built" |
+
+### Third pass — contradictory comments and dead code
+
+| Theme | What was wrong | Where it was fixed |
+| --- | --- | --- |
+| REQ-512 | "Editing means importing again" sat three lines under the amendment saying the opposite, and never mentioned the *Start from scratch* the same screen gained | `RoutinesScreen.tsx` |
+| REQ-512 | Placements described as generated "once, at import" — REQ-402 also generates them for a Workout added mid-block | `scheduling/index.ts` |
+| REQ-512 | "an accepted Routine is never rewritten once accepted" — a garbled half-edit; the amended rule is *never rewritten, only added to* | `exerciseSessions.ts` |
+| REQ-512 | Same rule phrased two ways in sibling comments | `ExerciseReorder.tsx`, aligned to `session/index.ts:260` |
+| REQ-512 | The `routine_name_blank` prose was spliced into the middle of `routine_has_no_workouts`'s block, leaving that issue with no explanation above it | `validate.ts` — split into two blocks, each over its own `if` |
+| dead code | `findCatalogExerciseByNormalizedName` lost its last production caller when `resolveFileExercise` was re-expressed and survived on its test alone — a second exported §26 decider, which is the drift REQ-902 exists to prevent | deleted from `catalog/index.ts`; its one unique assertion (every entry by its own name) moved onto `findExerciseByName` |
+| dead code | `onAdded` required on both forms, both call sites passing `() => undefined`; the live queries already repaint after the write | `AddToRoutine.tsx`, `RoutineDetailScreen.tsx` |
+| dead code | `siblings={workouts as readonly Workout[]}` — a cast to the type the value already had; it was also the only use of the `Workout` import | `RoutineDetailScreen.tsx` |
+
+Test count drops **543 → 541**: three assertions against the deleted decider,
+one of them kept and re-anchored.
+
+### Fourth pass — the coverage the record claimed and did not have
+
+| # | What was wrong | Where it was fixed |
+| --- | --- | --- |
+| TST-009 | Did not exist. No test broke an *added* exercise and checked the issue at that row's path; the row above credited AC-011 to TST-013, which asserts `routine_name_blank` instead | `edit.test.ts` — add to Workout 1 position 1, set `sets: 0`, assert one `sets_not_positive` at `routine.workouts.1.exercises.1.sets`, and that the row as added is clean |
+| REQ-105 | The "vocabularies derived from `CATALOG` only" clause had no assertion anywhere. TST-107 covers the round-trip, which is a different claim | `catalog/index.test.ts` — TST-105: nothing offered that the catalog lacks, everything it does use offered sorted and deduped, and the offer stays closed while `groupExercises` accepts the same dirty value |
+| record | `verification.md` claimed both barrels were "never reordered"; the `edit` block was re-alphabetized and `toggleSuggestedDay` moved | `verification.md`, corrected in place with the reason it is unobservable |
+
+Both new tests were mutation-checked rather than merely run: seeding `'lunar'`
+into `CATALOG_CATEGORIES` fails all three TST-105 cases, and pinning the
+exercise index to `0` in `validate.ts` fails TST-009. Each was restored
+immediately and the suite is green.
+
+**Gates rerun:** `typecheck` pass · `lint` pass · `test` **545** passing, 33
+files (floor 458) · `build` pass.
+
+**On the counts above.** Every figure in this file was first recorded from a
+working tree that also held the in-flight Effort work, which contributes four
+tests of its own — so each was four too high, including the 542 the audit
+corrected to 543. They are restated as measured on this change alone, in a
+detached worktree at each commit: **513** after the wizard picker, **545**
+after the Routine additions, unchanged by the documentation commit. The floor
+of 458 was never at risk; the lesson is that a count taken in a shared tree
+measures the tree, not the change.
+
+**Observed in the app** (dev server, 375x812, real IndexedDB; the browser pane
+composes no frames in this session, so handlers were driven and the rendered
+DOM read, the same limitation this file and `verification.md` already record):
+
+- F-1/F-2 — min RIR `-1` with max blank and `increment -2.5`: Save disabled,
+  both messages on the right fields. Filling max with `-1` hands the pair to
+  the shared validator, which answers `RIR must be between 0 and 10` — the
+  issue the omission used to make unreachable.
+- F-4 — after Accept, `history.state` is `{idx: 0}` (React Router's `idx`
+  intact, sentinel retired) and **one** back press leaves `/import?new=1` for
+  `/today`.
+- F-5 — with an empty search: `["Zercher Good Morning", "Back Squat", "Front
+  Squat"]`, `57 more — search to narrow the list.`, and a Cancel.
+- F-6 — one-week block, Monday lit (`aria-pressed="true"`): *"Every occurrence
+  of Monday has already gone by in this block…"*.
+- Copy — the from-scratch route reads "Leave this draft", "Discard this
+  draft?", "2 problems still block this routine.", "A routine needs at least
+  one. Add it below."
+- a11y — two open add-exercise forms render 16 `add-planned-*` ids with zero
+  duplicates, each `sets` label resolving to its own Workout; both pickers
+  report `role="group"`.
+
+**Not exercised:** `role="alert"` on the two failure lines and `role="status"`
+on the collision warning — both need a write failure or a claimed day that this
+seed data has no way to produce. Attribute placement reviewed, not observed.

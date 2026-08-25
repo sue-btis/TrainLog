@@ -257,7 +257,7 @@ export function startWorkout({
  *
  * Deviation belongs to the Session and never to the template (§11.5): this
  * returns ExerciseSessions, and the PlannedExercises behind them are not so
- * much as read. Routines are immutable once accepted.
+ * much as read: an accepted Routine is never rewritten, only added to.
  *
  * Position is taken from `order` rather than from the array, so a caller that
  * hands over rows in whatever sequence the database returned still gets the move

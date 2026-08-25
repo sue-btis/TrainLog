@@ -10,8 +10,10 @@
  * (ADR 0001), so moving a Placement onto a day that was already trained leaves
  * both facts standing, which is exactly what the calendar should show.
  *
- * There is no `addPlacement`: §11.3 grants the calendar move and delete only,
- * and Placements come from an import.
+ * There is no `addPlacement`: §11.3 grants the calendar move and delete only.
+ * Placements are generated, never hand-placed — by an import, or by adding a
+ * Workout to a Routine already running, and in both cases inside that write's
+ * own transaction.
  */
 
 import { db } from '@/db/database';

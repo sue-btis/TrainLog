@@ -163,7 +163,8 @@ export function TodayScreen() {
         <section className={WELL}>
           <p className="type-title">{routine.name} has no Workouts</p>
           <p className="type-body-sm text-ink-2">
-            Import a routine file that declares at least one Workout.
+            Add one on this routine&rsquo;s own screen, or import a routine that declares
+            at least one.
           </p>
         </section>
       ) : (

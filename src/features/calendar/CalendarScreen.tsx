@@ -154,7 +154,7 @@ export function CalendarScreen() {
           <CalendarOff aria-hidden="true" className="text-ink-3" size={24} strokeWidth={ICON_STROKE} />
           <p className="type-title">Nothing planned this month</p>
           <p className="type-body-sm text-ink-2">
-            Import a routine and the days it asks for land here.
+            Import a routine or build one, and the days it asks for land here.
           </p>
         </section>
       ) : (

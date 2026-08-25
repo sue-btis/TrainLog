@@ -37,8 +37,10 @@ export async function saveExerciseSession(exerciseSession: ExerciseSession): Pro
  * the same position.
  *
  * Only ExerciseSessions are written. The PlannedExercises behind them are not
- * touched — deviation belongs to the Session, and Routines are immutable once
- * accepted (§11.5, AGENTS.MD).
+ * touched — deviation belongs to the Session. A Routine can gain rows after it
+ * is accepted (§3.1), but no stored row is ever rewritten, and least of all by
+ * a Session: what was performed never edits what was planned (§11.5,
+ * AGENTS.MD).
  */
 export async function saveExerciseSessions(
   exerciseSessions: readonly ExerciseSession[],

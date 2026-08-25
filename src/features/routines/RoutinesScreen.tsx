@@ -1,17 +1,19 @@
 /**
  * Routines (§11.2).
  *
- * A Routine is immutable once accepted, so this screen holds no editor — only
+ * This screen holds no editor — a Routine is corrected in the wizard before it
+ * is accepted, and added to on its own detail screen — only
  * the three things §11.2 says a lifter does with one: make it the current
- * programme, put it away, or get rid of it. Editing means importing again,
- * which is why `Import routine` sits at the top.
+ * programme, put it away, or get rid of it.
  *
  * Deleting is refused while any Session references the Routine (§37): history
  * outranks tidiness, and the refusal says so and offers archiving instead.
  *
+ * Two ways in sit at the top, because a Routine now has two origins:
  * `Import routine` opens the file picker here and hands the wizard what it
  * chose, rather than routing to a wizard step whose only content is the same
- * request a second time.
+ * request a second time; `Start from scratch` opens the same wizard on a blank
+ * draft, with no file involved at all (REQ-200).
  */
 
 import { useState } from 'react';

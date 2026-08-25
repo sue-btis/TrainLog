@@ -9,8 +9,17 @@ that record.
 ### Programming
 
 **Routine**:
-A complete training programme imported from a single file. Immutable once accepted.
+A complete training programme, imported from a single file or authored in the
+wizard without one. Once accepted it takes **additions** only — a Workout, or a
+Planned Exercise inside one, and only while it is active. Nothing stored is
+renamed, reordered, retargeted or removed.
 _Avoid_: Program, plan, cycle
+
+**Routine Draft**:
+The editable Routine held in the wizard before Accept. It is a file being shaped,
+not a Routine: nothing about it is stored, a reload discards it, and every verb
+that corrects a programme acts on this and never on what is already accepted.
+_Avoid_: Draft routine, pending routine, unsaved routine
 
 **Workout**:
 A named, reusable unit of programming within a Routine — the exercises and targets
@@ -18,8 +27,10 @@ for one training session. Carries no date.
 _Avoid_: Day, RoutineDay, split, template
 
 **Suggested Day**:
-A weekday a Workout is authored to fall on. Advisory only: read once during import
-to seed the schedule, never consulted afterwards.
+A weekday a Workout is authored to fall on. Advisory only: read when the Workout
+enters a Routine — at import, or when one is added to a Routine already running —
+to seed Placements, and never consulted again afterwards. It is not the schedule;
+the Placements it generated are, and they are the lifter's to move.
 _Avoid_: Scheduled day, assigned day
 
 **Planned Exercise**:

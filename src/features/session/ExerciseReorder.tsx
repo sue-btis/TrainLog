@@ -17,8 +17,8 @@
  * (NFR-03). There is nothing to save and nothing lost by leaving.
  *
  * Only `ExerciseSession.order` is ever written. The PlannedExercises behind
- * these rows are not touched: deviation belongs to the Session, and a Routine is
- * immutable once accepted (AGENTS.MD).
+ * these rows are not touched: deviation belongs to the Session, and a Routine
+ * is never rewritten, only added to (AGENTS.MD).
  */
 
 import {
