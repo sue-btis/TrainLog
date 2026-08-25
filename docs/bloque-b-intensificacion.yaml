@@ -23,13 +23,18 @@
 #
 # `measurement` sólo se declara donde el import **crea** el ejercicio: Pogo
 # Jumps, Lean Push-Up, Handstand Press / Negative y Pseudo Planche Push-Up son
-# `bodyweight_reps`. Lo que resuelve contra el catálogo conserva el tipo del
-# catálogo y no se reescribe aquí — por eso Back Extension ya no declara `unit`:
-# el catálogo lo mide sin carga.
+# `bodyweight_reps`. Weighted Hanging Leg Raise no se declara: va por
+# `exercise_id` contra el catálogo, que lo mide como `weighted_bodyweight` — el
+# lastre entre los pies es peso añadido al del levantador, no carga externa.
+#
+# Lo que resuelve contra el catálogo conserva el tipo del catálogo y no se
+# reescribe aquí — por eso Back Extension ya no declara `unit`: el catálogo lo
+# mide sin carga.
 #
 # La progresión doble avanza por eje. Donde hay carga, avanza la carga; donde no
 # la hay, avanza el objetivo mismo: +5 s en los holds, +2 repeticiones en las
-# habilidades sin lastre.
+# habilidades sin lastre. Weighted Hanging Leg Raise sí lleva lastre, así que
+# ahí el +2 son kilos.
 #
 # Siguen `manual` los que dependen de un juicio que el formato no puede enunciar:
 # Broad Jump (se cuentan saltos, se salta al máximo, y la regla — parar cuando
@@ -168,15 +173,17 @@ routine:
             - "Estiramiento de la cabeza larga"
           progression: { type: "double_progression", increment: 2 }
 
-        - name: "Hanging Leg Raise"
-          exercise_id: "hanging-leg-raise"
+        - name: "Weighted Hanging Leg Raise"
+          exercise_id: "weighted-hanging-leg-raise"
           category: "core"
+          unit: "kg"
           sets: 3
           reps: { min: 6, max: 10 }
           rir: { min: 1, max: 2 }
           rest_seconds: 90
           notes:
             - "Control antes que rango; sin balanceo"
+            - "El peso es el lastre entre los pies; sin lastre son 0 kg"
           progression: { type: "double_progression", increment: 2 }
 
     # ----------------------------------------------------------------- martes

@@ -67,6 +67,15 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['seated-leg-curl', 'Seated Leg Curl', 'hamstrings', 'machine', 'weight_reps'],
   ['nordic-curl', 'Nordic Curl', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
   ['glute-ham-raise', 'Glute Ham Raise', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
+  // The loaded twins below revoke DEC-S of the exercise-measurement change,
+  // which forbade adding a rep-based row on the grounds that a missing one is a
+  // catalog gap `createUserExercise` already covers. It is, and the twins are
+  // still worth shipping: `weighted-dip` and `weighted-pull-up` have always
+  // been here, and a lifter who starts hanging a disc from a belt should find
+  // the loaded movement rather than mint it. Each is its own row with its own
+  // permanent slug (REQ-023) — never a measurement change on the unloaded one,
+  // which would reinterpret every set already logged against it.
+  ['weighted-glute-ham-raise', 'Weighted Glute Ham Raise', 'hamstrings', 'bodyweight', 'weighted_bodyweight'],
   ['hip-thrust', 'Hip Thrust', 'glutes', 'barbell', 'weight_reps'],
   ['cable-pull-through', 'Cable Pull Through', 'glutes', 'cable', 'weight_reps'],
   ['hip-abduction', 'Hip Abduction', 'glutes', 'machine', 'weight_reps'],
@@ -85,6 +94,7 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['machine-chest-press', 'Machine Chest Press', 'chest', 'machine', 'weight_reps'],
   ['pec-deck', 'Pec Deck', 'chest', 'machine', 'weight_reps'],
   ['push-up', 'Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['weighted-push-up', 'Weighted Push Up', 'chest', 'bodyweight', 'weighted_bodyweight'],
   ['dip', 'Dip', 'chest', 'bodyweight', 'bodyweight_reps'],
   ['weighted-dip', 'Weighted Dip', 'chest', 'bodyweight', 'weighted_bodyweight'],
 
@@ -92,7 +102,9 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['pull-up', 'Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
   ['weighted-pull-up', 'Weighted Pull Up', 'back', 'bodyweight', 'weighted_bodyweight'],
   ['chin-up', 'Chin Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['weighted-chin-up', 'Weighted Chin Up', 'back', 'bodyweight', 'weighted_bodyweight'],
   ['inverted-row', 'Inverted Row', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['weighted-inverted-row', 'Weighted Inverted Row', 'back', 'bodyweight', 'weighted_bodyweight'],
   ['lat-pulldown', 'Lat Pulldown', 'back', 'cable', 'weight_reps'],
   ['straight-arm-pulldown', 'Straight Arm Pulldown', 'back', 'cable', 'weight_reps'],
   ['seated-cable-row', 'Seated Cable Row', 'back', 'cable', 'weight_reps'],
@@ -105,6 +117,7 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['barbell-shrug', 'Barbell Shrug', 'back', 'barbell', 'weight_reps'],
   ['dumbbell-shrug', 'Dumbbell Shrug', 'back', 'dumbbell', 'weight_reps'],
   ['back-extension', 'Back Extension', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['weighted-back-extension', 'Weighted Back Extension', 'back', 'bodyweight', 'weighted_bodyweight'],
 
   // ----------------------------------------------------------------- shoulders
   ['overhead-press', 'Overhead Press', 'shoulders', 'barbell', 'weight_reps'],
@@ -139,8 +152,10 @@ export const CATALOG_ROWS: readonly Row[] = [
   // ---------------------------------------------------------------------- core
   ['plank', 'Plank', 'core', 'bodyweight', 'duration'],
   ['hanging-leg-raise', 'Hanging Leg Raise', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['weighted-hanging-leg-raise', 'Weighted Hanging Leg Raise', 'core', 'bodyweight', 'weighted_bodyweight'],
   ['ab-wheel-rollout', 'Ab Wheel Rollout', 'core', 'bodyweight', 'bodyweight_reps'],
   ['russian-twist', 'Russian Twist', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['weighted-russian-twist', 'Weighted Russian Twist', 'core', 'bodyweight', 'weighted_bodyweight'],
   ['cable-crunch', 'Cable Crunch', 'core', 'cable', 'weight_reps'],
   ['pallof-press', 'Pallof Press', 'core', 'cable', 'weight_reps'],
 
