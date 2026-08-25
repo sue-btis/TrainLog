@@ -10,7 +10,7 @@
  */
 
 import { findExerciseByName, getCatalogExercise } from '@/domain/catalog';
-import { targetsReps } from '@/domain/measurement';
+import { targetsReps, type Measurement } from '@/domain/measurement';
 import { newId, toId } from '@/domain/ids';
 import type {
   ExerciseId,
@@ -72,12 +72,26 @@ export function resolveFileExercise(
       category: fileExercise.category ?? null,
       equipment: null,
       // The file's declaration applies only where the import mints the
-      // Exercise (REQ-131): the two returns above hand back an incumbent
-      // and never restate its type. Omitted means weight x reps, which is
-      // what every version-1 file has always meant (REQ-130, DEC-K).
-      measurement: fileExercise.measurement ?? 'weight_reps',
+      // Exercise (REQ-131): the return above hands back an incumbent and
+      // never restates its type.
+      measurement: declaredMeasurement(fileExercise),
     },
   };
+}
+
+/**
+ * The type an entry declares, or the one it means by saying nothing.
+ *
+ * Omitted means weight x reps, which is what every version-1 file has always
+ * meant (REQ-130, DEC-K) and what 81 of the catalog's 100 rows are. Stated
+ * here rather than at each reader, so the mint and the screen that shows a
+ * lifter what the mint will do cannot disagree about the default.
+ *
+ * This is the *declared* type. Where the entry resolves to an Exercise that
+ * already exists, that Exercise's own type wins (REQ-131).
+ */
+export function declaredMeasurement(fileExercise: RoutineFileExercise): Measurement {
+  return fileExercise.measurement ?? 'weight_reps';
 }
 
 /**

@@ -16,8 +16,16 @@
 import { useState } from 'react';
 import { ArrowRight, EllipsisVertical, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import type { ExerciseRef, Offer, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
-import { resolvedFileExercise } from '@/domain/routine-file/to-domain';
-import type { Measurement } from '@/domain/measurement';
+import {
+  declaredMeasurement,
+  resolvedFileExercise,
+} from '@/domain/routine-file/to-domain';
+import {
+  collects,
+  targetUnitOf,
+  targetsReps,
+  type Measurement,
+} from '@/domain/measurement';
 import type { Exercise } from '@/domain/types';
 import { MEASUREMENT_OPTIONS, measurementLabel } from '@/features/ui/format';
 import type { Unit } from '@/domain/types';
@@ -374,6 +382,9 @@ function ExerciseRow({
   // The Exercise this entry will bind to, or `undefined` where the import
   // will mint one and the measurement is still the lifter's to choose.
   const incumbent = resolvedFileExercise(exercise, knownExercises);
+  // What this entry will actually be measured as: the incumbent's own type
+  // where the name resolves (REQ-131), the declared one where it mints.
+  const measurement = incumbent?.measurement ?? declaredMeasurement(exercise);
   // The range is on the wrong axis for the movement it binds to. The fields
   // for the *right* axis are offered empty, and committing one drops the
   // other: there is no honest conversion between a rep count and a number of
@@ -411,7 +422,12 @@ function ExerciseRow({
     <Card asChild className={cn(flagged && 'border-missed')} panel>
       <article>
       <div className="flex min-h-12 w-full items-center gap-3">
-        <Summary defaultUnit={defaultUnit} exercise={exercise} position={position} />
+        <Summary
+          defaultUnit={defaultUnit}
+          exercise={exercise}
+          measurement={measurement}
+          position={position}
+        />
         {flagged && (
           <span className={chip('missed')}>
             <TriangleAlert aria-hidden="true" size={12} strokeWidth={ICON_STROKE} />
@@ -599,6 +615,8 @@ interface SummaryProps {
   readonly exercise: RoutineFileExercise;
   readonly position: number;
   readonly defaultUnit: Unit;
+  /** What the entry will be measured as, resolved by the row (REQ-131). */
+  readonly measurement: Measurement;
 }
 
 /**
@@ -608,19 +626,45 @@ interface SummaryProps {
  * is — not a target for today but the rule that decides the next one, so it
  * reads as provenance under the title rather than as another number in the row.
  */
-function Summary({ exercise, position, defaultUnit }: SummaryProps) {
+function Summary({ exercise, position, defaultUnit, measurement }: SummaryProps) {
   return (
     <>
       <span className="type-measure-sm text-ink-3">{position}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="type-title truncate">{exercise.name}</span>
+        {/* How it is measured sits directly under the name, because it is
+            the fact the three lines below are read *through*: `4×45` means
+            nothing until you know whether those are repetitions or
+            seconds. */}
+        <span className="type-measure-sm text-ink-2">
+          {measurementLine(measurement, exercise, defaultUnit)}
+        </span>
         <span className="type-lot text-ink-3">{progressionLine(exercise)}</span>
         <span className="type-measure-sm text-ink-3">
-          {programmingLine(exercise, defaultUnit)}
+          {programmingLine(exercise, measurement)}
         </span>
       </span>
     </>
   );
+}
+
+/**
+ * `Weight × reps · kg`, `Time`, `Distance + time`.
+ *
+ * The weight unit is named only where the type actually collects a weight:
+ * on a plank `kg` is not a fact about the exercise, it is a leftover from a
+ * field it does not use. The other units are not repeated because the label
+ * already carries them — `Time · s` says the same thing twice.
+ */
+function measurementLine(
+  measurement: Measurement,
+  exercise: RoutineFileExercise,
+  defaultUnit: Unit,
+): string {
+  const label = measurementLabel(measurement);
+  return collects(measurement, 'weight')
+    ? `${label} · ${exercise.unit ?? defaultUnit}`
+    : label;
 }
 
 interface ProgressionRowProps {
@@ -659,16 +703,29 @@ function ProgressionRow({ error, id, onUseManual }: ProgressionRowProps) {
 }
 
 /** `4×4–6 · RIR 1–2 · 210s · kg` — the programme as the file states it. */
-function programmingLine(exercise: RoutineFileExercise, defaultUnit: Unit): string {
-  const target = exercise.reps ?? exercise.target;
+/**
+ * `4×4–6 · RIR 1–2 · rest 210s`, `4×45s · rest 90s`, `4×2.2–2.6 m`.
+ *
+ * The range is written in the unit of the axis it is stated on, and which
+ * pair is live is the measurement's call rather than a test of which field
+ * happens to be filled (REQ-139). Rest is labelled now that a target can
+ * also be seconds: `4×45s · 90s` reads as two of the same thing.
+ *
+ * The weight unit is gone from here — it moved up to `measurementLine`,
+ * beside the type that decides whether it means anything at all.
+ */
+function programmingLine(exercise: RoutineFileExercise, measurement: Measurement): string {
+  const onReps = targetsReps(measurement);
+  const stated = onReps ? exercise.reps : exercise.target;
+  const suffix = onReps ? '' : targetUnitOf(measurement) === 'seconds' ? 's' : ' m';
+
   const parts = [
-    target === undefined
+    stated === undefined
       ? `${exercise.sets} sets`
-      : `${exercise.sets}×${range(target.min, target.max)}`,
+      : `${exercise.sets}×${range(stated.min, stated.max)}${suffix}`,
   ];
   if (exercise.rir !== undefined) parts.push(`RIR ${range(exercise.rir.min, exercise.rir.max)}`);
-  if (exercise.rest_seconds !== undefined) parts.push(`${exercise.rest_seconds}s`);
-  parts.push(exercise.unit ?? defaultUnit);
+  if (exercise.rest_seconds !== undefined) parts.push(`rest ${exercise.rest_seconds}s`);
   return parts.join(' · ');
 }
 
