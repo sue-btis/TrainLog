@@ -46,7 +46,7 @@ describe('settings', () => {
       // settings screen has to be able to say out loud.
       lastBackupAt: null,
       // Never weighed in. Null, never zero — a zero would be a claim about a
-      // lifter rather than an absence (AC-112).
+      // lifter rather than an absence (AM-1, superseding AC-112).
       bodyweightKg: null,
     });
   });
@@ -104,7 +104,8 @@ describe('settings', () => {
     expect(await getDefaultUnit()).toBe('kg');
   });
 
-  // REQ-108, AC-112 — bodyweight is stated here, once, and cleared to null.
+  // AM-1 (superseding REQ-108/AC-112) — Settings is the one home of a stated
+  // bodyweight, and clearing it means "not stated", never zero.
   it('clears a bodyweight to null rather than zero', async () => {
     await setBodyweightKg(82.5);
     await setBodyweightKg(null);

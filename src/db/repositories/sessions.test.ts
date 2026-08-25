@@ -304,7 +304,9 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
     });
   });
 
-  // REQ-108, AC-111 — bodyweight is stated in settings and dated by the Session
+  // AM-1 (superseding REQ-108/AC-111) — bodyweight is stated once in Settings,
+  // and the Session records what it said when it started. The dated snapshot is
+  // what survives a restore, since a restore leaves `settings` alone.
   // that starts under it.
   it('records the bodyweight settings hold when the Session starts', async () => {
     await setBodyweightKg(82.5);

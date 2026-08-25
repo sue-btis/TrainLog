@@ -90,7 +90,6 @@ export {
   discardSession,
   getInProgressSession,
   lastRecordedBodyweightKg,
-  saveSessionBodyweight,
   getLastPerformedWorkout,
   getSession,
   listAllSessions,

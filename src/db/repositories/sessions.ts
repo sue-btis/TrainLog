@@ -118,20 +118,6 @@ export async function lastRecordedBodyweightKg(): Promise<number | null> {
 }
 
 /**
- * Corrects the bodyweight recorded against one Session (REQ-108).
- *
- * Editable for the length of the Session, and afterwards: a lifter who
- * weighed in after training recorded a real number for that day, and the
- * alternative is a figure they cannot fix.
- */
-export async function saveSessionBodyweight(
-  id: SessionId,
-  bodyweightKg: number | null,
-): Promise<void> {
-  await db.sessions.update(id, { bodyweightKg });
-}
-
-/**
  * Persists a Session produced by `finishSession` together with the final state
  * of its ExerciseSessions (REQ-057).
  *

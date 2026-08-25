@@ -73,8 +73,9 @@ missed day is derived at query time — a past `Placement` with no `Session` —
 and is never written down. See [ADR 0001](./docs/adr/0001-dateless-workouts-with-user-owned-placements.md).
 
 **Weight carries its unit.** Store the entered `weight` and `unit` plus a derived
-`weightKg`. Every comparison, chart and progression step reads `weightKg`. Unit
-is fixed per Exercise (§11.7). Distance follows the same rule on its own axis:
+`weightKg`. Every comparison, chart and progression step reads `weightKg`. The
+set carries the unit it was logged in, and the Planned Exercise supplies the
+default a new set opens on — a seed, not a constraint (§11.7). Distance follows the same rule on its own axis:
 the entered `distance` and `distanceUnit` plus a derived `distanceM`. `Unit`
 means weight and is never widened to carry distance.
 

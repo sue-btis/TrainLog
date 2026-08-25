@@ -180,8 +180,31 @@ describe('parseBackup', () => {
       timerVibration: false,
       timerSound: true,
       keepScreenAwake: false,
+      bodyweightKg: 81.4,
     };
     expect(accept(withKey('settings', full)).settings).toEqual(full);
+  });
+
+  // REQ-108, AM-1 — the settings row is the app's only live record of the
+  // lifter's bodyweight, and `z.object` strips what the schema does not list.
+  // A field left off that list is not a gap in a test, it is the figure being
+  // deleted from every export.
+  it('REQ-108 — carries a bodyweight through, with its value intact', () => {
+    const row = { id: 'settings', defaultUnit: 'kg', bodyweightKg: 81.4 };
+    expect(accept(withKey('settings', row)).settings.bodyweightKg).toBe(81.4);
+  });
+
+  // The same compatibility rule the other four settings live under: a row
+  // written before the bodyweight existed carries the unit alone, and must not
+  // cost a lifter their backup.
+  it('REQ-108 — accepts a settings row that never recorded a bodyweight', () => {
+    const document = accept(withKey('settings', { id: 'settings', defaultUnit: 'kg' }));
+    expect(document.settings.bodyweightKg).toBeUndefined();
+  });
+
+  it('REQ-108 — refuses a bodyweight that is not a number, and names the field', () => {
+    const row = { id: 'settings', defaultUnit: 'kg', bodyweightKg: '81.4' };
+    expect(refusedPaths(withKey('settings', row))).toEqual(['settings.bodyweightKg']);
   });
 
   it('refuses a setting of the wrong type rather than dropping it', () => {
@@ -583,6 +606,13 @@ describe('parseBackup numeric bounds', () => {
   it('refuses a negative defaultRir', () => {
     const paths = refusedPaths(withKey('settings', { id: 'settings', defaultUnit: 'kg', defaultRir: -1 }));
     expect(paths.join(' ')).toContain('defaultRir');
+  });
+
+  // REQ-108 — nobody weighs less than nothing, and a negative bodyweight
+  // restored would show up as a real figure on the settings screen.
+  it('refuses a negative bodyweight', () => {
+    const row = { id: 'settings', defaultUnit: 'kg', bodyweightKg: -1 };
+    expect(refusedPaths(withKey('settings', row)).join(' ')).toContain('bodyweightKg');
   });
 
   // Zero is a real logged value, not an absent one: a bodyweight set is 0 kg,

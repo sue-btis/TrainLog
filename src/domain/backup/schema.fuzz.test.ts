@@ -165,7 +165,9 @@ function validDocument(): Record<string, unknown> {
         completedAt: 4,
       },
     ],
-    settings: { id: 'settings', defaultUnit: 'kg' },
+    // REQ-108 — the settings row carries the bodyweight too, so the walk above
+    // and the field passes below both reach it.
+    settings: { id: 'settings', defaultUnit: 'kg', bodyweightKg: 81.4 },
   };
 }
 
@@ -196,6 +198,37 @@ function corrupt(random: () => number, depth: number): unknown {
     }
   }
   return document;
+}
+
+/**
+ * Sets one field of one row, whichever shape the table has.
+ *
+ * `settings` is a lone object rather than an array of rows (§17), and the field
+ * passes below would otherwise have to skip it — which is precisely how
+ * `bodyweightKg` went unfuzzed while every other added field was covered.
+ */
+function withField(
+  document: Record<string, unknown>,
+  table: string,
+  field: string,
+  value: unknown,
+): void {
+  const rows = document[table];
+  if (Array.isArray(rows)) {
+    document[table] = [{ ...(rows[0] as Record<string, unknown>), [field]: value }];
+  } else {
+    document[table] = { ...(rows as Record<string, unknown>), [field]: value };
+  }
+}
+
+/** The same, removing the field instead of replacing it. */
+function withoutField(document: Record<string, unknown>, table: string, field: string): void {
+  const rows = document[table];
+  const row = Array.isArray(rows)
+    ? { ...(rows[0] as Record<string, unknown>) }
+    : { ...(rows as Record<string, unknown>) };
+  delete row[field];
+  document[table] = Array.isArray(rows) ? [row] : row;
 }
 
 /** Runs `parseBackup` and reports how it behaved, never letting it throw out. */
@@ -277,13 +310,13 @@ describe('parseBackup under hostile input', () => {
       ['completedSets', 'distance'],
       ['completedSets', 'distanceUnit'],
       ['completedSets', 'distanceM'],
+      ['settings', 'bodyweightKg'],
     ];
 
     for (const [table, field] of fields) {
       for (const value of HOSTILE) {
         const document = validDocument();
-        const rows = document[table] as Record<string, unknown>[];
-        document[table] = [{ ...rows[0], [field]: value }];
+        withField(document, table, field, value);
 
         const text = JSON.stringify(document) ?? 'undefined';
         const { threw, emptyRefusal } = probe(text);
@@ -315,14 +348,12 @@ describe('parseBackup under hostile input', () => {
       ['completedSets', 'distance'],
       ['completedSets', 'distanceUnit'],
       ['completedSets', 'distanceM'],
+      ['settings', 'bodyweightKg'],
     ];
 
     for (const [table, field] of fields) {
       const document = validDocument();
-      const rows = document[table] as Record<string, unknown>[];
-      const row = { ...rows[0] };
-      delete row[field];
-      document[table] = [row];
+      withoutField(document, table, field);
 
       const { threw, emptyRefusal } = probe(JSON.stringify(document) ?? 'undefined');
       expect(threw, `threw without ${table}.${field}`).toBeNull();

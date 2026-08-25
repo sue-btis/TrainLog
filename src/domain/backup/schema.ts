@@ -370,6 +370,13 @@ const settings = z.object({
   timerVibration: z.boolean().optional(),
   timerSound: z.boolean().optional(),
   keepScreenAwake: z.boolean().optional(),
+  // REQ-108, AM-1 — the lifter's bodyweight, exported and never read back.
+  // Restore leaves `settings` alone (§18), so nothing here is written to the
+  // device; the figure survives a restore through `Session.bodyweightKg`, which
+  // is what `lastRecordedBodyweightKg()` reads. It is carried so the document is
+  // a complete record of the device rather than because restore needs it — do
+  // not "fix" that by making restore write settings.
+  bodyweightKg: measure.nullable().optional(),
   lastBackupAt: timestamp.nullable().optional(),
 });
 

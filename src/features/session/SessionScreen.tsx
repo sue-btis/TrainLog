@@ -15,7 +15,7 @@
  */
 
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import {
   ArrowUpDown,
   CheckCircle2,
@@ -59,7 +59,6 @@ import {
 } from '@/domain/session';
 import type { Timestamp } from '@/domain/dates';
 import type { CompletedSet, Exercise, ExerciseSession } from '@/domain/types';
-import { movesBodyweight } from '@/domain/measurement';
 import { ExercisePicker } from '@/features/session/ExercisePicker';
 import { ExerciseReorder } from '@/features/session/ExerciseReorder';
 import { ExerciseView } from '@/features/session/ExerciseView';
@@ -364,21 +363,11 @@ export function SessionScreen() {
         />
       }
     >
-      {/* REQ-108 — bodyweight is stated once, in settings, and the Session
-          records whatever it said when it started. Gym mode only speaks up
-          when a movement in front of the lifter is measured against a
-          bodyweight the app has never been told. */}
-      {(settings?.bodyweightKg ?? null) === null &&
-        entries.some((it) => movesBodyweight(it.exerciseSession.measurement)) && (
-          <p className={cn(WELL, 'type-body-sm text-missed-ink')} role="status">
-            This workout has movements measured against your bodyweight, and the app
-            has never been told yours.{' '}
-            <Link className="underline" to="/settings">
-              Set it in settings
-            </Link>
-            .
-          </p>
-        )}
+      {/* AM-1, REQ-108 — the ask for a bodyweight used to stand here, and §21
+          is why it no longer does: nothing that does not contribute to the
+          current set may compete with it, and a line sending a lifter to
+          Settings mid-session is exactly that. Today asks instead, before the
+          Session starts, where there is still something to be done about it. */}
 
       {entry === undefined ? (
         <section className={WELL}>

@@ -26,7 +26,7 @@ import { addDays, formatLocalDate } from '@/domain/dates';
 import type { ExerciseId, WorkoutId } from '@/domain/ids';
 import { estimateDuration, isMissed, nextWorkoutInRotation } from '@/domain/scheduling';
 import { startWorkout } from '@/domain/session';
-import type { Measurement } from '@/domain/measurement';
+import { movesBodyweight, type Measurement } from '@/domain/measurement';
 import type { PlannedExercise, Session, Workout } from '@/domain/types';
 import {
   useActiveRoutine,
@@ -37,6 +37,7 @@ import {
   usePlacementsBetween,
   usePlannedExercises,
   useSessionsByRoutine,
+  useSettings,
   useWorkouts,
 } from '@/features/data/queries';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
@@ -266,10 +267,24 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
   const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
   const measurements = useExerciseMeasurements(exercises.map((exercise) => exercise.exerciseId));
+  const settings = useSettings();
   // `weight_reps` where an id resolves to nothing, the same fallback the
   // migration applies and for the same reason (REQ-125).
   const measurementOf = (id: ExerciseId): Measurement =>
     measurements?.get(id) ?? 'weight_reps';
+
+  // AM-1 — the one place the app asks for a bodyweight, and it asks here
+  // rather than in gym mode because §21 protects that screen and because
+  // this is the moment a lifter can still act: the Session has not started,
+  // and the value it opens on is the one Settings holds now.
+  //
+  // `undefined` is the settings read still in flight, and it is not an
+  // answer: asking then would flash the line for a frame at every load.
+  const bodyweightUnknown =
+    settings !== undefined &&
+    settings.bodyweightKg === null &&
+    measurements !== undefined &&
+    exercises.some((exercise) => movesBodyweight(measurementOf(exercise.exerciseId)));
 
   return (
     <Card>
@@ -284,6 +299,21 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
           </span>
         )}
       </div>
+
+      {/* One paragraph, not a `WELL`: a well inside a card is the nested
+          surface DESIGN.md forbids, and `WELL` is a flex column besides —
+          which lays a sentence out one child per line and leaves the full
+          stop floating under the link. */}
+      {bodyweightUnknown && (
+        <p className="type-body-sm text-ink-2" role="status">
+          This Session has exercises measured against your bodyweight, and the app
+          has never been told yours.{' '}
+          <Link className="underline" to="/settings">
+            Set it in Settings
+          </Link>
+          .
+        </p>
+      )}
 
       {/* The bare sentence rather than `Reading`: that component brings a
           `WELL` with it, and a well inside a card is the nested surface

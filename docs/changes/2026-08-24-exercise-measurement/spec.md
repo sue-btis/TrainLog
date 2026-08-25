@@ -10,6 +10,9 @@ citation in this file is anchored to that tree.
 An implementer needs this file plus their own plan section. They do not need
 `audit.md`, `shaping.md`, or the conversation that produced either.
 
+Three decisions changed after this file was approved. Sections 1–15 still read
+as they were approved; what now holds instead is recorded in §16.
+
 Ids prefixed `REQ-0xx`, `AC-0xx`, `DEC-00x` **without further qualification**
 refer to **`docs/PRD.md`**. This document's own ids are `REQ-1xx`+, `AC-1xx`+,
 `TST-1xx`+, and `DEC-A`…`DEC-P`. Where a provenance cell cites a bare `REQ-071`
@@ -518,3 +521,76 @@ The plan must name:
 - **A backup owner** — sole writer of `BACKUP_VERSION`.
 - **An integration owner** for `src/domain/types.ts`, `CONTEXT.md` and
   `docs/PRD.md`, which every workstream otherwise wants to touch.
+
+## 16. Amendments After Approval
+
+Three decisions were changed after this spec was approved. Sections 1–15 are
+left exactly as they were approved: nothing above this line is rewritten, and
+where a decision no longer holds it is superseded here rather than edited away.
+The original text is the record of what was decided first and why, and a reader
+who only sees the corrected wording cannot tell that the other reading was
+considered, chosen, and then found wrong. Where an amendment below contradicts
+a requirement above, the amendment governs the implementation and the
+requirement governs the history.
+
+### AM-1 — Bodyweight lives in `Settings`, not on `Session`
+
+**Supersedes** REQ-108 and AC-111, AC-112. **Narrows** DEC-C and DEC-I.
+
+The lifter states their bodyweight once, in `Settings`, and that is the value a
+new Session opens on. `Session.bodyweightKg` is still written when the Session
+starts, and it is **not** editable afterwards; `saveSessionBodyweight` is
+removed. REQ-108's carry-forward — the most recent non-null value from an
+earlier Session — survives only as the fallback for an install that recorded a
+bodyweight before there was a setting to hold it.
+
+The per-Session snapshot is not a dead field, and the reason is the one asymmetry
+`backup.ts` is built around: `settings` is the single table an export carries and
+a restore leaves alone (`db/repositories/backup.ts:12-13`, `CONTEXT.md`
+**Settings**). A lifter who restores onto a new phone gets none of their old
+settings, so the setting alone would carry no bodyweight across a device change.
+The snapshot on each Session is what does — it is the restore path, not
+redundancy.
+
+Recorded honestly: **no derived figure reads a bodyweight yet**. REQ-114 keeps
+`weighted_bodyweight` reading its added weight alone, and nothing else consumes
+`Session.bodyweightKg`. The §1 goal — the two bodyweight-relative types being
+"comparable to something other than themselves" — remains unimplemented. The
+snapshot exists so that when that figure is written, the history it needs is
+already there rather than beginning on the day the figure ships.
+
+### AM-2 — `Unit` is chosen per set; the plan seeds it
+
+**Supersedes** the §6 Preserved line "`Unit` means weight, kg or lb, fixed per
+Exercise. Not widened."
+
+`CompletedSet.unit` is the unit the load was actually logged in.
+`PlannedExercise.unit` and `PlannedExerciseSession.plannedUnit` are the default
+a new set opens on — a seed, not a constraint. A lifter who moves from a
+kilogram bar to a pound machine mid-exercise logs what the machine reads.
+
+The reason is that this was never a storage change: `CompletedSet.unit` was
+already per-set in the schema and in the backup document before this change.
+The storage always allowed it; only the documents forbade using it, and a
+document that forbids what the data supports is the thing that was wrong.
+
+Unchanged: `Unit` still means weight, kg or lb, and is still not widened to
+carry distance. DEC-J and REQ-107 stand exactly as written — distance keeps its
+own axis.
+
+### AM-3 — the measurement shape table states a sixth fact
+
+**Supersedes** REQ-102's enumeration of five facts.
+
+`MeasurementShape` also carries `movesBodyweight` — whether the lifter's own
+body is part of the load. It is true for the three bodyweight types
+(`bodyweight_reps`, `weighted_bodyweight`, `assisted_bodyweight`) and false for
+the other six.
+
+It is not derivable from the other five. `bodyweight_reps` carries
+`weightMeaning: null`, exactly as `duration` and `distance` do, so no
+combination of the five separates a body being lifted from a body standing
+still. And REQ-102's rule is that nothing **outside** the module restates a
+per-type fact — it does not cap how many facts the module itself owns. A sixth
+fact stated once inside `src/domain/measurement.ts` obeys REQ-102; the same fact
+inferred by a caller from `weightMeaning` would break it.

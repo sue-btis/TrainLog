@@ -876,8 +876,11 @@ convertido a kilogramos. Toda comparación, gráfico y progresión utiliza el va
 en kilogramos. La distancia sigue exactamente la misma regla en su propio eje:
 se guarda tal como se introdujo, con su unidad, y con `distanceM` derivado.
 
-La unidad es propia del ejercicio: una máquina en libras no cambia de unidad
-entre series. `unit` sigue significando peso — kg o lb — y no se ensancha para
+La unidad es propia de la serie: `unit` es la unidad en la que esa carga se
+registró realmente. El Planned Exercise aporta el valor por defecto con el que
+se abre una serie nueva — una máquina marcada en libras abre en libras — pero
+no impide que la siguiente serie se registre en kilogramos. `unit` sigue
+significando peso — kg o lb — y no se ensancha para
 cargar distancia; ésa tiene su propio eje de unidades.
 
 Posteriormente podrían agregarse:
@@ -2251,10 +2254,16 @@ on / off
 
 Keep screen awake during workout
 on / off
+
+Bodyweight
+kg, opcional
 ```
 
-La unidad de configuración es solo el valor por defecto. Cada ejercicio conserva
-la suya.
+La unidad de configuración es solo el valor por defecto del que cuelga todo lo
+demás: la hereda un archivo de rutina que no declare ninguna, el Planned
+Exercise la hereda de ahí, y una serie nueva se abre con la del Planned
+Exercise. Cada eslabón puede apartarse del anterior, y la unidad que queda
+registrada es siempre la de la serie (§11.7).
 
 Cada ajuste es un valor por defecto y ninguno actúa hacia atrás: cambiar la
 unidad no convierte ninguna serie ya registrada.

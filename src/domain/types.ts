@@ -199,11 +199,22 @@ export interface Session {
   readonly completedAt: Timestamp | null;
   readonly status: SessionStatus;
   /**
-   * The lifter's bodyweight on the day, or `null` where none has ever been
-   * recorded (REQ-108, DEC-C, DEC-I). A field on `Session` rather than a tenth
-   * table. Carried forward from the most recent non-null value and editable for
-   * the length of the Session. Every row written before this change reads
-   * `null`; no backfill invents one.
+   * What the lifter's bodyweight was when this Session started, or `null` where
+   * they had not stated one (AM-1, REQ-108, DEC-C).
+   *
+   * A snapshot, not an editable value: the bodyweight a lifter states lives in
+   * `Settings`, and this records what it said on the day. Nothing edits it
+   * afterwards.
+   *
+   * It is deliberately read by no derived figure yet — the §1 goal of making
+   * the bodyweight-relative types comparable to something other than themselves
+   * is not implemented. It is written anyway for two reasons. A dated bodyweight
+   * cannot be reconstructed after the fact: the day you did not record it is
+   * gone. And it is the **restore path** — a backup exports `settings` but a
+   * restore deliberately leaves that table alone, so this column is what carries
+   * a bodyweight onto a new device, through `lastRecordedBodyweightKg`.
+   *
+   * Every row written before this change reads `null`; no backfill invents one.
    */
   readonly bodyweightKg: number | null;
 }
@@ -238,11 +249,15 @@ interface ExerciseSessionBase {
 export interface PlannedExerciseSession extends ExerciseSessionBase {
   readonly plannedExerciseId: PlannedExerciseId;
   /**
-   * The unit this exercise is loaded in (§11.7). Snapshotted like every other
-   * planned value, and for the same reason: without it the first set of a
-   * `lb` exercise has nothing to read but the settings default, and would be
-   * stored as kilograms with a `weightKg` converted from the wrong number.
-   * Once any set exists, `CompletedSet.unit` carries it instead.
+   * The unit a new set of this exercise opens on (§11.7, AM-2).
+   *
+   * The plan seeds, the set carries: `CompletedSet.unit` is the unit a load was
+   * actually logged in, and a lifter may change it per set — a machine in
+   * pounds beside a barbell in kilos is one session, not two. This is the
+   * default that set opens on, and it is snapshotted like every other planned
+   * value for the same reason: without it the first set of an `lb` exercise has
+   * nothing to read but the settings default, and would be stored as kilograms
+   * with a `weightKg` converted from the wrong number.
    */
   readonly plannedUnit: Unit;
   readonly plannedSets: number;
