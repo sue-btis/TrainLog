@@ -5,8 +5,11 @@
  * Every comparison, chart and progression step reads the kilogram value.
  */
 
-/** The weight unit a weight is logged in. Fixed per Exercise (§11.7). */
+/** The weight unit a weight is logged in (§11.7). */
 export type Unit = 'kg' | 'lb';
+
+/** Every member of the union, for a control that offers the choice. */
+export const UNITS = ['kg', 'lb'] as const satisfies readonly Unit[];
 
 /** Exact international pound, by definition. */
 const KG_PER_LB = 0.45359237;

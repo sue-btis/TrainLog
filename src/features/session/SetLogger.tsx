@@ -36,7 +36,7 @@ import {
   type SetField,
 } from '@/domain/measurement';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
-import { DISTANCE_UNITS, type DistanceUnit, type Unit } from '@/domain/units';
+import { DISTANCE_UNITS, UNITS, type DistanceUnit, type Unit } from '@/domain/units';
 import { ICON_STROKE, LABEL, READOUT, READOUT_INPUT, STEPPER } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +51,16 @@ import { cn } from '@/lib/utils';
  */
 export interface SetValues {
   readonly weight: number;
+  /**
+   * The unit the load in front of you is in.
+   *
+   * A fact about the set, not about the Exercise: the same movement is kilos on
+   * one gym's plates and pounds on the next one's, and a lifter who travels
+   * must be able to say so without editing their programme. The chain that
+   * *opens* it is still the exercise's (`ExerciseView`) — this only holds what
+   * the lifter chose from that opening, exactly as `distanceUnit` does.
+   */
+  readonly unit: Unit;
   readonly reps: number;
   readonly rir: number;
   readonly durationSeconds: number;
@@ -62,6 +72,9 @@ export interface SetValues {
 /** What a set opens on before anything is known about it. */
 export const EMPTY_VALUES: SetValues = {
   weight: 0,
+  // Never what a screen shows: `openingValues` writes the exercise's own unit
+  // over this before the form is rendered. It exists so the shape is complete.
+  unit: 'kg',
   reps: 0,
   rir: 0,
   durationSeconds: 0,
@@ -103,6 +116,7 @@ export function valuesFor(
 export function valuesOf(set: CompletedSet): SetValues {
   return {
     weight: set.weight,
+    unit: set.unit,
     reps: set.reps ?? 0,
     rir: set.rir,
     durationSeconds: set.durationSeconds ?? 0,
@@ -136,7 +150,7 @@ export function isComplete(measurement: Measurement, values: SetValues): boolean
 }
 
 /** What the button says while the primary axis is still empty. */
-function missingAxis(measurement: Measurement): string {
+export function missingAxis(measurement: Measurement): string {
   switch (primaryAxisOf(measurement)) {
     case 'duration':
       return 'Set the seconds first';
@@ -215,7 +229,6 @@ interface SetLoggerProps {
   readonly setNumber: number;
   readonly values: SetValues;
   readonly onChange: (values: SetValues) => void;
-  readonly unit: Unit;
   /** The plate granularity of this exercise (§29), or 2.5 where none is declared. */
   readonly weightStep: number;
   readonly targets: SetTargets;
@@ -235,14 +248,12 @@ export function SetFields({
   measurement,
   values,
   onChange,
-  unit,
   weightStep,
   targets,
 }: {
   readonly measurement: Measurement;
   readonly values: SetValues;
   readonly onChange: (values: SetValues) => void;
-  readonly unit: Unit;
   readonly weightStep: number;
   readonly targets: SetTargets;
 }) {
@@ -262,8 +273,13 @@ export function SetFields({
             label={weightLabel(measurement)}
             onChange={(weight) => onChange({ ...values, weight })}
             step={weightStep}
-            unit={unit}
             value={values.weight}
+          />
+          <UnitPicker
+            label="Weight unit"
+            onChange={(unit) => onChange({ ...values, unit })}
+            units={UNITS}
+            value={values.unit}
           />
         </div>
       )}
@@ -291,8 +307,10 @@ export function SetFields({
             target={values.distanceUnit === 'm' ? windowFor('distance') : null}
             value={values.distance}
           />
-          <DistanceUnitPicker
+          <UnitPicker
+            label="Distance unit"
             onChange={(distanceUnit) => onChange({ ...values, distanceUnit })}
+            units={DISTANCE_UNITS}
             value={values.distanceUnit}
           />
         </div>
@@ -323,23 +341,33 @@ export function SetFields({
 }
 
 /**
- * Which unit the distance in front of you is in.
+ * Which unit the number beside it is in — kg or lb for a load, m, km or mi for
+ * a distance (§11.7, REQ-107).
  *
- * Three buttons rather than a select: DESIGN.md keeps a keypad and a native
- * picker off this screen, and a three-way choice fits in the space one field
- * label occupies. The stored `distanceM` is derived from whichever is chosen,
- * so switching never rewrites the number the lifter typed.
+ * Buttons rather than a select: DESIGN.md keeps a keypad and a native picker
+ * off this screen, and a two- or three-way choice fits in the space one field
+ * label occupies.
+ *
+ * **Switching never rewrites the number the lifter typed.** The canonical value
+ * — `weightKg`, `distanceM` — is derived from whichever unit is chosen, so the
+ * readout keeps saying what the plates and the treadmill say. That is the whole
+ * job at a rack in a gym that stocks pounds: you are not converting 60 kg to
+ * 132 lb, you are stating that the 60 in front of you was never kilos.
  */
-function DistanceUnitPicker({
+function UnitPicker<U extends string>({
+  label,
+  units,
   value,
   onChange,
 }: {
-  readonly value: DistanceUnit;
-  readonly onChange: (unit: DistanceUnit) => void;
+  readonly label: string;
+  readonly units: readonly U[];
+  readonly value: U;
+  readonly onChange: (unit: U) => void;
 }) {
   return (
-    <div aria-label="Distance unit" className="flex flex-col justify-center gap-1" role="group">
-      {DISTANCE_UNITS.map((unit) => (
+    <div aria-label={label} className="flex flex-col justify-center gap-1" role="group">
+      {units.map((unit) => (
         <button
           aria-pressed={unit === value}
           className={cn(
@@ -363,7 +391,6 @@ export function SetLogger({
   setNumber,
   values,
   onChange,
-  unit,
   weightStep,
   targets,
   onComplete,
@@ -382,7 +409,6 @@ export function SetLogger({
         measurement={measurement}
         onChange={onChange}
         targets={targets}
-        unit={unit}
         values={values}
         weightStep={weightStep}
       />
@@ -405,7 +431,6 @@ interface FieldProps {
   readonly label: string;
   readonly value: number;
   readonly step: number;
-  readonly unit?: Unit;
   /** The programme's window for this value, or `null` where it stated none. */
   readonly target?: readonly [number, number] | null;
   readonly onChange: (value: number) => void;
@@ -437,7 +462,7 @@ function normalize(value: number): number {
  * not a non-negative number falls back to the last good value rather than
  * announcing an error nobody can read mid-set.
  */
-function Field({ label, value, step, unit, target, onChange }: FieldProps) {
+function Field({ label, value, step, target, onChange }: FieldProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const hintId = useId();
 
@@ -477,7 +502,6 @@ function Field({ label, value, step, unit, target, onChange }: FieldProps) {
       <label className={cn(READOUT, off && 'ring-1 ring-missed')}>
         <span className={LABEL}>
           {label}
-          {unit !== undefined && <span className="text-ink-3"> · {unit}</span>}
           {/* The mark, and only the mark. The window itself is already in the
               header snapshot — `4×4–6 · RIR 1–2` — and repeating the numbers
               here put the same two figures on screen twice, three lines apart.
@@ -491,7 +515,7 @@ function Field({ label, value, step, unit, target, onChange }: FieldProps) {
         </span>
         <input
           aria-describedby={off ? hintId : undefined}
-          aria-label={unit === undefined ? label : `${label} in ${unit}`}
+          aria-label={label}
           className={READOUT_INPUT}
           // `decimal` rather than `numeric`: reps and RIR are whole, but weight
           // is not, and one keypad across the three beats three that differ.

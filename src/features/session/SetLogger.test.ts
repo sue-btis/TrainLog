@@ -165,6 +165,7 @@ describe('isComplete (TST-125, REQ-110, AC-115)', () => {
 describe('valuesFor (REQ-106, AC-107, AC-167)', () => {
   const entered: SetValues = {
     weight: 60,
+    unit: 'lb',
     reps: 5,
     rir: 1,
     durationSeconds: 30,
@@ -282,11 +283,19 @@ describe('valuesOf', () => {
   it('round-trips a logged set into form values, the nulls as zeros', () => {
     expect(valuesOf(set)).toEqual({
       weight: 60,
+      unit: 'kg',
       reps: 5,
       rir: 2,
       durationSeconds: 0,
       distance: 0,
       distanceUnit: 'm',
+    });
+  });
+
+  it('keeps the weight unit a set was logged in, so a correction stays in it', () => {
+    expect(valuesOf({ ...set, weight: 135, unit: 'lb' })).toMatchObject({
+      weight: 135,
+      unit: 'lb',
     });
   });
 
@@ -302,6 +311,7 @@ describe('valuesOf', () => {
       }),
     ).toEqual({
       weight: 60,
+      unit: 'kg',
       reps: 0,
       rir: 2,
       durationSeconds: 1800,

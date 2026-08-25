@@ -19,8 +19,9 @@ import { Check, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Measurement } from '@/domain/measurement';
 import type { CompletedSet } from '@/domain/types';
-import type { Unit } from '@/domain/units';
 import {
+  isComplete,
+  missingAxis,
   SetFields,
   valuesOf,
   type SetTargets,
@@ -40,7 +41,7 @@ interface SetEditorProps {
   /** The same windows the logger marks against — a correction is measured by
       the plan too, or the marking would vanish the moment you fixed a typo. */
   readonly targets: SetTargets;
-  readonly onSave: (values: SetValues, unit: Unit) => void;
+  readonly onSave: (values: SetValues) => void;
   readonly onDelete: () => void;
   readonly onCancel: () => void;
   readonly busy: boolean;
@@ -92,7 +93,6 @@ export function SetEditor({
         measurement={measurement}
         onChange={setValues}
         targets={targets}
-        unit={set.unit}
         values={values}
         weightStep={weightStep}
       />
@@ -120,14 +120,14 @@ export function SetEditor({
         </div>
       ) : (
         <Button
-          disabled={busy || values.reps === 0}
-          onClick={() => onSave(values, set.unit)}
+          disabled={busy || !isComplete(measurement, values)}
+          onClick={() => onSave(values)}
           size="block"
           type="button"
           variant="primary"
         >
           <Check aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-          {values.reps === 0 ? 'Set the reps first' : 'Save the correction'}
+          {isComplete(measurement, values) ? 'Save the correction' : missingAxis(measurement)}
         </Button>
       )}
     </section>

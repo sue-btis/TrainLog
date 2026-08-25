@@ -60,7 +60,6 @@ import {
 } from '@/domain/session';
 import type { Timestamp } from '@/domain/dates';
 import type { CompletedSet, Exercise, ExerciseSession } from '@/domain/types';
-import type { Unit } from '@/domain/units';
 import { ExercisePicker } from '@/features/session/ExercisePicker';
 import { ExerciseReorder } from '@/features/session/ExerciseReorder';
 import { ExerciseView } from '@/features/session/ExerciseView';
@@ -138,7 +137,7 @@ export function SessionScreen() {
     }
   }
 
-  async function log(values: SetValues, unit: Unit, setNumber: number) {
+  async function log(values: SetValues, setNumber: number) {
     if (entry === undefined) return;
     // The projection to the domain's nulls is `valuesFor`'s, reading the
     // measurement's own shape table — this screen states no per-type fact of
@@ -148,7 +147,7 @@ export function SessionScreen() {
         logSet({
           exerciseSession: entry.exerciseSession,
           setNumber,
-          unit,
+          unit: values.unit,
           rir: values.rir,
           ...valuesFor(entry.exerciseSession.measurement, values),
           completedAt: Date.now(),
@@ -161,14 +160,14 @@ export function SessionScreen() {
    * R-4 — a correction to a set already logged. The values are the domain's;
    * this only stores them, and `weightKg` is re-derived there rather than here.
    */
-  async function editLoggedSet(set: CompletedSet, values: SetValues, unit: Unit) {
+  async function editLoggedSet(set: CompletedSet, values: SetValues) {
     const owner = entries.find((it) => it.exerciseSession.id === set.exerciseSessionId);
     if (owner === undefined) return;
     await run(() =>
       saveEditedSet(
         editSet({
           set,
-          unit,
+          unit: values.unit,
           rir: values.rir,
           ...valuesFor(owner.exerciseSession.measurement, values),
         }),

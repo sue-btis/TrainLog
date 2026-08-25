@@ -45,12 +45,12 @@ interface ExerciseViewProps {
   readonly defaultUnit: Unit;
   /** The settings default RIR, or `null` when the lifter has no opinion (§32). */
   readonly defaultRir: number | null;
-  readonly onLog: (values: SetValues, unit: Unit, setNumber: number) => Promise<void>;
+  readonly onLog: (values: SetValues, setNumber: number) => Promise<void>;
   /** Move to the next exercise, or finish when this is the last one (R-3). */
   readonly onAdvance: () => void;
   readonly isLast: boolean;
   /** Correct a set already logged, and remove one (R-4). */
-  readonly onEditSet: (set: CompletedSet, values: SetValues, unit: Unit) => Promise<void>;
+  readonly onEditSet: (set: CompletedSet, values: SetValues) => Promise<void>;
   readonly onDeleteSet: (set: CompletedSet) => Promise<void>;
   readonly busy: boolean;
 }
@@ -78,10 +78,14 @@ export function ExerciseView({
   const lastSet = sets.at(-1);
   const previousSets = previous?.exercises.flatMap((entry) => entry.sets) ?? [];
 
-  // §11.7 — the unit is the exercise's, not the screen's. A set already logged
-  // carries it; before that the snapshot does. The settings default is the last
-  // resort and applies only to an unplanned exercise, which has no plan to take
-  // a unit from. Getting this order wrong stores a pound load as kilograms.
+  // §11.7 — the unit the exercise *opens* on. A set already logged carries it;
+  // before that the snapshot does. The settings default is the last resort and
+  // applies only to an unplanned exercise, which has no plan to take a unit
+  // from. Getting this order wrong stores a pound load as kilograms.
+  //
+  // It opens the field and nothing more: the lifter can say the plates are in
+  // pounds today without editing their programme, and from the second set on it
+  // is the last set's own unit that leads this chain anyway.
   const unit =
     lastSet?.unit ?? planned?.plannedUnit ?? suggestion?.unit ?? previousSets[0]?.unit ?? defaultUnit;
 
@@ -100,7 +104,7 @@ export function ExerciseView({
   // thing (§11.5, FR-14).
   const targets = targetsOf(exerciseSession);
 
-  const opening = openingValues(exerciseSession, sets, suggestion, previousSets, defaultRir);
+  const opening = openingValues(exerciseSession, sets, suggestion, previousSets, defaultRir, unit);
   const current = values ?? opening;
   const setNumber = sets.length + 1;
 
@@ -175,9 +179,9 @@ export function ExerciseView({
               setEditing(null);
               void onDeleteSet(editedSet);
             }}
-            onSave={(next, unit) => {
+            onSave={(next) => {
               setEditing(null);
-              void onEditSet(editedSet, next, unit);
+              void onEditSet(editedSet, next);
             }}
             set={editedSet}
             targets={targets}
@@ -202,11 +206,10 @@ export function ExerciseView({
             onChange={setValues}
             onComplete={() => {
               setAddingExtra(false);
-              void onLog(current, unit, setNumber);
+              void onLog(current, setNumber);
             }}
             setNumber={setNumber}
             targets={targets}
-            unit={unit}
             values={current}
             weightStep={stepOf(exerciseSession)}
           />
@@ -487,6 +490,7 @@ function openingValues(
   suggestion: LoadSuggestion | null,
   previousSets: readonly CompletedSet[],
   defaultRir: number | null,
+  unit: Unit,
 ): SetValues {
   const planned = exerciseSession.plannedExerciseId === null ? null : exerciseSession;
   const rir = planned?.plannedMinRir ?? previousSets[0]?.rir ?? defaultRir ?? 0;
@@ -499,7 +503,13 @@ function openingValues(
   // Otherwise the previous session's first set carries every axis the type
   // collects, and the plan's own target overrides the one axis it states.
   const previous = previousSets[0];
-  const base: SetValues = previous === undefined ? { ...EMPTY_VALUES, rir } : { ...valuesOf(previous), rir };
+  // `unit` overrides whatever last session's set carried: the chain above is
+  // the one statement of which unit an exercise opens in, and a stale set must
+  // not quietly outrank the snapshot it already lost to there.
+  const base: SetValues =
+    previous === undefined
+      ? { ...EMPTY_VALUES, rir, unit }
+      : { ...valuesOf(previous), rir, unit };
 
   const opening = targetsReps(exerciseSession.measurement)
     ? { ...base, reps: planned?.plannedMaxReps ?? base.reps }
