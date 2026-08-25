@@ -78,7 +78,7 @@ export const FIELD_NOTES: readonly FieldNote[] = [
     required: false,
     note: 'Weekday names in lower case: monday … sunday. Two Workouts may not claim the same day.',
   },
-  { name: 'exercises[].name', required: true, note: 'The movement. Matched against the shipped catalog by name.' },
+  { name: 'exercises[].name', required: true, note: 'The exercise. Matched against the shipped catalog by name.' },
   { name: 'exercises[].exercise_id', required: false, note: 'A catalog slug, when you want to be exact rather than rely on the name.' },
   { name: 'exercises[].category', required: false, note: 'Muscle group, for grouping only.' },
   { name: 'exercises[].unit', required: false, note: 'kg or lb. Fixed per exercise; it is never converted afterwards.' },

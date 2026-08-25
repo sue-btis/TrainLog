@@ -28,7 +28,8 @@ import { normalizeExerciseName } from '@/domain/catalog';
 import { offerName, resolveTypedName, type Offer } from '@/domain/routine-file';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/features/import/fields';
-import { ICON_STROKE, LABEL, WELL } from '@/features/ui/styles';
+import { ExerciseOptions } from '@/features/ui/ExerciseOptions';
+import { ICON_STROKE, WELL } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 interface AddExerciseProps {
@@ -87,56 +88,49 @@ export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExe
         id={`add-exercise-${workoutIndex}`}
         label={`add to ${workoutName}`}
         onCommit={setQuery}
-        placeholder="Search, or type a new movement"
+        placeholder="Search, or type a new exercise"
         value={query}
       />
 
       {/* REQ-306 — said before they commit, not discovered afterwards. A
           duplicate is the correct outcome on this path: the lifter is naming a
-          movement to program, and binding to the one that already exists is
+          exercise to program, and binding to the one that already exists is
           what keeps their history in one piece. */}
       {needle !== '' && typed.kind !== 'new' && (
         <p className="type-body-sm text-planned-ink">
-          {offerName(typed)} already exists — adding it will use that movement, not make a
+          {offerName(typed)} already exists — adding it will use that exercise, not make a
           second one.
         </p>
       )}
 
-      {matching.length > 0 && (
-        <div
-          aria-label="Exercises you can add"
-          className="-mx-1 flex max-h-72 flex-col overflow-y-auto overscroll-contain px-1"
-          role="group"
-        >
-          {matching.map((offer) => (
-            <button
-              className="flex min-h-12 items-center gap-3 rounded-field px-2 text-left hover:bg-well focus-visible:bg-well"
-              key={`${offer.kind}-${offerName(offer)}`}
-              onClick={() => commit(offer)}
-              type="button"
-            >
-              <span className="min-w-0 flex-1 truncate type-title">{offerName(offer)}</span>
-              <span className={LABEL}>{sourceOf(offer)}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {/* The cut and the "N more" tail belong to `ExerciseOptions`, shared with
+          the Routine screen's own add-form. This list used to run to ninety-six
+          rows with nothing saying so. */}
+      <ExerciseOptions
+        onPick={commit}
+        options={matching.map((offer) => ({
+          key: `${offer.kind}-${offerName(offer)}`,
+          name: offerName(offer),
+          note: sourceOf(offer),
+          value: offer,
+        }))}
+      />
 
-      {/* REQ-305 — a movement none of the three sources knows, named without
+      {/* REQ-305 — an exercise none of the three sources knows, named without
           leaving the wizard. It writes a name into the draft and stores
           nothing; the Exercise is minted at Accept, inside the same transaction
           an imported file's would be. */}
       {typed.kind === 'new' && typed.name !== '' && (
         <Button onClick={() => commit(typed)} size="block" type="button" variant="primary">
           <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-          Add “{typed.name}” as a new movement
+          Add “{typed.name}” as a new exercise
         </Button>
       )}
 
       {needle !== '' && matching.length === 0 && typed.kind === 'new' && (
         <p className="type-body-sm text-ink-2">
           <Search aria-hidden="true" className="mr-1.5 inline" size={14} strokeWidth={ICON_STROKE} />
-          Nothing here matches. The button above adds it as a new movement.
+          Nothing here matches. The button above adds it as a new exercise.
         </p>
       )}
 

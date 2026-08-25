@@ -33,6 +33,7 @@ import { useUserExercises } from '@/features/data/queries';
 import { NumberField, SelectField, TextField } from '@/features/import/fields';
 import { describeIssue } from '@/features/import/issues';
 import { weekdayName } from '@/features/ui/format';
+import { ExerciseOptions } from '@/features/ui/ExerciseOptions';
 import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import { cn } from '@/lib/utils';
@@ -238,13 +239,7 @@ interface AddPlannedExerciseFormProps {
   readonly defaultUnit: Unit;
 }
 
-/**
- * The cut on the add-exercise list, and the tail every empty preview shares.
- *
- * `SHOWN` matches `ExercisePicker`'s: forty is enough to scroll and few enough
- * to stay cheap, and anything past it is reachable by typing.
- */
-const SHOWN = 40;
+/** The tail every empty preview shares. */
 const STILL_ADDED = 'The Workout is still added, and you can train it any day from Today.';
 
 const INITIAL_TARGETS = {
@@ -292,16 +287,16 @@ export function AddPlannedExerciseForm({
 
   const candidates = useMemo(() => {
     const needle = normalizeExerciseName(query);
-    // The lifter's own movements first. Catalog-first with a cut at forty put
-    // all 96 catalog entries ahead of them, so a movement created minutes ago
+    // The lifter's own exercises first. Catalog-first with a cut at forty put
+    // all 96 catalog entries ahead of them, so an exercise created minutes ago
     // was unreachable by scrolling — under a caption telling you to go create
     // one. `ExercisePicker` already settled this ordering.
     const all: readonly Exercise[] = [...(userExercises ?? []), ...CATALOG];
-    const matching =
-      needle === ''
-        ? all
-        : all.filter((exercise) => normalizeExerciseName(exercise.name).includes(needle));
-    return { shown: matching.slice(0, SHOWN), hidden: Math.max(0, matching.length - SHOWN) };
+    // The cut itself belongs to `ExerciseOptions`, which the wizard's picker
+    // shares, so the two lists cannot end at different lengths again.
+    return needle === ''
+      ? all
+      : all.filter((exercise) => normalizeExerciseName(exercise.name).includes(needle));
   }, [query, userExercises]);
 
   const progression: ProgressionRule =
@@ -397,37 +392,23 @@ export function AddPlannedExerciseForm({
             id={`add-planned-${workoutId}`}
             label={`add to ${workoutName}`}
             onCommit={setQuery}
-            placeholder="Search the catalog and your movements"
+            placeholder="Search the catalog and your exercises"
             value={query}
           />
           <p className="type-caption text-ink-2">
             <Dumbbell aria-hidden="true" className="mr-1.5 inline" size={13} strokeWidth={ICON_STROKE} />
-            Only movements that already exist. Create a new one on the Exercises screen first.
+            Only exercises that already exist. Create a new one on the Exercises screen first.
           </p>
-          <div
-            aria-label="Exercises you can add"
-            className="-mx-1 flex max-h-64 flex-col overflow-y-auto overscroll-contain px-1"
-            role="group"
-          >
-            {candidates.shown.map((exercise) => (
-              <button
-                className="flex min-h-12 items-center rounded-field px-2 text-left type-title hover:bg-well focus-visible:bg-well"
-                key={exercise.id}
-                onClick={() => setChosen(exercise)}
-                type="button"
-              >
-                {exercise.name}
-              </button>
-            ))}
-            {/* The list used to end silently at forty. */}
-            {candidates.hidden > 0 && (
-              <p className="type-measure-sm px-2 py-1 text-ink-3">
-                {candidates.hidden} more — search to narrow the list.
-              </p>
-            )}
-          </div>
+          <ExerciseOptions
+            onPick={setChosen}
+            options={candidates.map((exercise) => ({
+              key: exercise.id,
+              name: exercise.name,
+              value: exercise,
+            }))}
+          />
           {/* Without this the only ways out of an opened picker were choosing a
-              movement or leaving the screen, unlike every sibling form here. */}
+              an exercise or leaving the screen, unlike every sibling form here. */}
           <div>
             <Button onClick={close} type="button" variant="ghost">
               Cancel

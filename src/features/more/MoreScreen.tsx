@@ -41,7 +41,7 @@ export function MoreScreen() {
         <span className="min-w-0 flex-1">
           <span className="block type-title">Exercises</span>
           <span className="block type-body-sm text-ink-2">
-            The full catalog, and each movement's history.
+            The full catalog, and each exercise&rsquo;s history.
           </span>
         </span>
         <ChevronRight aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />

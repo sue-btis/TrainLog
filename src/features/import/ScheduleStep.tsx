@@ -2,8 +2,10 @@
  * Step 2 — Days and Weeks (§11.1).
  *
  * The days shown are the ones the draft suggests, already assigned — from a
- * file that declared them, or from what was chosen while authoring here. The
- * user confirms or changes them, and sets how long the programme runs. Accepting
+ * file that declared them, or from what was chosen while authoring here. When
+ * nothing suggests anything the opening line says so instead of claiming a
+ * suggestion the lifter can see is not there. The user confirms or changes
+ * them, and sets how long the programme runs. Accepting
  * turns both into Placements, which are the user's from that moment on — the
  * suggested days are never read again (§12).
  *
@@ -55,10 +57,19 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
   const first = placements[0]?.date;
   const last = placements[placements.length - 1]?.date;
 
+  // Whether anything has been suggested at all — not where the draft came from.
+  // The editing phase deliberately stopped recording that, and rightly: a file
+  // may declare no `suggested_days` either, and it is just as wrong to tell that
+  // lifter these are the days their routine suggests. What decides the sentence
+  // is whether there is a suggestion on the screen to talk about.
+  const suggested = file.routine.workouts.some((workout) => workout.suggested_days.length > 0);
+
   return (
     <>
       <p className="type-lede text-ink-2">
-        These are the days this routine suggests. Change them if your week looks different.
+        {suggested
+          ? 'These are the days this routine suggests. Change them if your week looks different.'
+          : 'Choose the days each Workout should fall on. You can move them on the calendar afterwards.'}
       </p>
 
       <Card>
