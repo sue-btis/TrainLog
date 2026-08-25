@@ -1,5 +1,10 @@
 /**
- * The wizard's form controls.
+ * The app's form controls.
+ *
+ * They started as the import wizard's and are no longer only that: the Routine
+ * detail screen's two add-forms use them, and so does the Exercises screen's
+ * create form. Three features reaching into `features/import/` for a text input
+ * was the import path lending out its furniture; they live here now.
  *
  * Two things they all do, because §11.1 and DESIGN.md both require them: an
  * invalid control carries `aria-invalid` and points at its error line with
@@ -102,6 +107,14 @@ interface SelectFieldProps<T extends string> {
   readonly options: readonly { readonly value: T; readonly label: string }[];
   readonly onCommit: (value: T) => void;
   readonly className?: string;
+  /**
+   * How the options are set. `type-measure` by default, because the first two
+   * of these held a unit — and mono is for measurement only (DESIGN.md). A
+   * select over words, like the Exercises screen's category and equipment,
+   * passes prose classes instead; setting "chest" in mono would be the costume
+   * that rule exists to refuse.
+   */
+  readonly optionClass?: string;
 }
 
 export function SelectField<T extends string>({
@@ -111,16 +124,17 @@ export function SelectField<T extends string>({
   options,
   onCommit,
   className,
+  optionClass = 'type-measure',
 }: SelectFieldProps<T>) {
   return (
     <FieldFrame id={id} label={label} error={null} className={className}>
       <Select onValueChange={(next) => onCommit(next as T)} value={value}>
-        <SelectTrigger className="type-measure" id={id}>
+        <SelectTrigger className={optionClass} id={id}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem className="type-measure" key={option.value} value={option.value}>
+            <SelectItem className={optionClass} key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
           ))}
@@ -175,6 +189,13 @@ interface TextFieldProps {
   readonly error?: string | null;
   readonly placeholder?: string;
   readonly className?: string;
+  /**
+   * For a field that appears because the lifter asked for it — a picker's
+   * search, a new Workout's name. They pressed the control that revealed it, so
+   * the next thing they mean to do is type into it. The three add-forms used to
+   * disagree about this; one autofocused and two did not.
+   */
+  readonly autoFocus?: boolean;
 }
 
 /**
@@ -195,12 +216,14 @@ export function TextField({
   error = null,
   placeholder,
   className,
+  autoFocus = false,
 }: TextFieldProps) {
   return (
     <FieldFrame className={className} error={error} id={id} label={label}>
       <Input
         aria-describedby={error === null ? undefined : `${id}-error`}
         aria-invalid={error !== null}
+        autoFocus={autoFocus}
         id={id}
         onChange={(event) => onCommit(event.target.value)}
         placeholder={placeholder}

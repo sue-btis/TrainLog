@@ -23,25 +23,8 @@ import { generatePlacements } from '@/domain/scheduling';
 import type { Weekday, Workout } from '@/domain/types';
 import { describeIssue, fieldId, workoutPath } from '@/features/import/issues';
 import { MAX_WEEKS, MIN_WEEKS } from '@/features/import/state';
-import {
-  FOCUS_RING,
-  ICON_STROKE,
-  LABEL,
-  PRESS,
-  WELL,
-  chip,
-} from '@/features/ui/styles';
-import { cn } from '@/lib/utils';
-
-const WEEKDAYS: readonly { readonly day: Weekday; readonly short: string }[] = [
-  { day: 'monday', short: 'mon' },
-  { day: 'tuesday', short: 'tue' },
-  { day: 'wednesday', short: 'wed' },
-  { day: 'thursday', short: 'thu' },
-  { day: 'friday', short: 'fri' },
-  { day: 'saturday', short: 'sat' },
-  { day: 'sunday', short: 'sun' },
-];
+import { SuggestedDays } from '@/features/ui/SuggestedDays';
+import { ICON_STROKE, LABEL, WELL, chip } from '@/features/ui/styles';
 
 interface ScheduleStepProps {
   readonly file: RoutineFile;
@@ -134,38 +117,13 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
               </p>
             </div>
 
-            <div
-              aria-describedby={clash === undefined ? undefined : errorId}
-              aria-label={`Suggested days for ${workout.name}`}
-              className="grid grid-cols-4 gap-2"
-              role="group"
-            >
-              {WEEKDAYS.map(({ day, short }) => {
-                const on = workout.suggested_days.includes(day);
-                const conflicted = on && claimedElsewhere.has(day);
-                return (
-                  <button
-                    aria-label={dayName(day)}
-                    aria-pressed={on}
-                    className={cn(
-                      'flex min-h-12 items-center justify-center rounded-control type-label',
-                      PRESS,
-                      FOCUS_RING,
-                      conflicted
-                        ? 'bg-missed-ink text-on-fill'
-                        : on
-                          ? 'bg-planned-ink text-on-fill'
-                          : 'bg-card text-ink-3 shadow-dome hover:shadow-dome-lift',
-                    )}
-                    key={day}
-                    onClick={() => onToggleDay(index, day)}
-                    type="button"
-                  >
-                    {short}
-                  </button>
-                );
-              })}
-            </div>
+            <SuggestedDays
+              conflicted={(day) => claimedElsewhere.has(day)}
+              describedBy={clash === undefined ? undefined : errorId}
+              label={`Suggested days for ${workout.name}`}
+              onToggle={(day) => onToggleDay(index, day)}
+              selected={workout.suggested_days}
+            />
 
             {clash !== undefined && (
               <p className="type-caption text-missed-ink" id={errorId}>
@@ -237,10 +195,6 @@ function previewPlacements(file: RoutineFile, today: LocalDate) {
   }));
 
   return generatePlacements({ workouts, weeks: file.routine.weeks, anchorDate: today });
-}
-
-function dayName(day: Weekday): string {
-  return day.charAt(0).toUpperCase() + day.slice(1);
 }
 
 function longDate(date: LocalDate): string {

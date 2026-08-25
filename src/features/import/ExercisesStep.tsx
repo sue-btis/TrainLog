@@ -18,7 +18,7 @@ import { ArrowRight, EllipsisVertical, Pencil, Plus, Trash2, TriangleAlert } fro
 import type { ExerciseRef, Offer, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import type { Unit } from '@/domain/types';
 import { AddExercise } from '@/features/import/AddExercise';
-import { NotesField, NumberField, SelectField, TextField } from '@/features/import/fields';
+import { NotesField, NumberField, SelectField, TextField } from '@/features/ui/fields';
 import {
   describeIssue,
   exercisePath,
@@ -248,6 +248,7 @@ function AddWorkout({ onAdd }: { readonly onAdd: (name: string) => void }) {
   return (
     <div className={WELL}>
       <TextField
+        autoFocus
         id="new-workout-name"
         label="new workout name"
         onCommit={setName}

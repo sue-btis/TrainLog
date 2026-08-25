@@ -27,7 +27,7 @@ import { Plus, Search } from 'lucide-react';
 import { normalizeExerciseName } from '@/domain/catalog';
 import { offerName, resolveTypedName, type Offer } from '@/domain/routine-file';
 import { Button } from '@/components/ui/button';
-import { TextField } from '@/features/import/fields';
+import { TextField } from '@/features/ui/fields';
 import { ExerciseOptions } from '@/features/ui/ExerciseOptions';
 import { ICON_STROKE, WELL } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -85,6 +85,7 @@ export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExe
   return (
     <div className={cn(WELL, 'arrive')}>
       <TextField
+        autoFocus
         id={`add-exercise-${workoutIndex}`}
         label={`add to ${workoutName}`}
         onCommit={setQuery}

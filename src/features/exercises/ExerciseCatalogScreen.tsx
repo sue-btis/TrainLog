@@ -52,6 +52,7 @@ import {
 } from '@/domain/catalog';
 import type { Exercise } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
+import { SelectField, TextField } from '@/features/ui/fields';
 import { MuscleIcon } from '@/features/exercises/MuscleIcon';
 import { plural } from '@/features/ui/format';
 import {
@@ -330,31 +331,30 @@ function NewExercise() {
     <section className={WELL}>
       <p className="type-title">New exercise</p>
 
-      <label className="flex flex-col gap-1.5">
-        <span className={LABEL}>name</span>
-        <Input
-          autoFocus
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Zercher good morning"
-          value={name}
-        />
-      </label>
+      <TextField
+        autoFocus
+        id="new-exercise-name"
+        label="name"
+        onCommit={setName}
+        placeholder="Zercher good morning"
+        value={name}
+      />
 
-      <VocabularyField
+      <SelectField
         id="new-exercise-category"
         label="category"
-        none="No category"
-        onChange={setCategory}
-        options={CATALOG_CATEGORIES}
+        onCommit={setCategory}
+        optionClass="capitalize"
+        options={vocabulary(CATALOG_CATEGORIES, 'No category')}
         value={category}
       />
 
-      <VocabularyField
+      <SelectField
         id="new-exercise-equipment"
         label="equipment"
-        none="No equipment"
-        onChange={setEquipment}
-        options={CATALOG_EQUIPMENT}
+        onCommit={setEquipment}
+        optionClass="capitalize"
+        options={vocabulary(CATALOG_EQUIPMENT, 'No equipment')}
         value={equipment}
       />
 
@@ -375,42 +375,24 @@ function NewExercise() {
   );
 }
 
-/** One closed-vocabulary Select, with an explicit "none" that means `null`. */
-function VocabularyField({
-  id,
-  label,
-  none,
-  onChange,
-  options,
-  value,
-}: {
-  readonly id: string;
-  readonly label: string;
-  readonly none: string;
-  readonly onChange: (value: string) => void;
-  readonly options: readonly string[];
-  readonly value: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className={LABEL} htmlFor={id}>
-        {label}
-      </label>
-      <Select onValueChange={onChange} value={value}>
-        <SelectTrigger className="capitalize" id={id}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={UNSPECIFIED}>{none}</SelectItem>
-          {options.map((option) => (
-            <SelectItem className="capitalize" key={option} value={option}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+/**
+ * A closed vocabulary as `SelectField` takes it, with the explicit "none" that
+ * means `null` at the head.
+ *
+ * This used to be `VocabularyField`, a near-copy of `SelectField` written here
+ * because the shared one lived under `features/import/` and this screen would
+ * not reach into the import wizard for a form control. That was the right
+ * instinct about the boundary and the wrong fix; `fields.tsx` moved to
+ * `features/ui/` instead, and what was left worth keeping is this one mapping.
+ */
+function vocabulary(
+  options: readonly string[],
+  none: string,
+): readonly { readonly value: string; readonly label: string }[] {
+  return [
+    { value: UNSPECIFIED, label: none },
+    ...options.map((option) => ({ value: option, label: option })),
+  ];
 }
 
 /**

@@ -30,23 +30,14 @@ import {
 import { claimantsOfDay, generatePlacements, remainingWeeks } from '@/domain/scheduling';
 import type { Exercise, ProgressionRule, Unit, Weekday, Workout } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
-import { NumberField, SelectField, TextField } from '@/features/import/fields';
+import { NumberField, SelectField, TextField } from '@/features/ui/fields';
 import { describeIssue } from '@/features/import/issues';
 import { weekdayName } from '@/features/ui/format';
 import { ExerciseOptions } from '@/features/ui/ExerciseOptions';
-import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
+import { SuggestedDays } from '@/features/ui/SuggestedDays';
+import { ICON_STROKE, WELL, alert, chip } from '@/features/ui/styles';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import { cn } from '@/lib/utils';
-
-const WEEKDAYS: readonly Weekday[] = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-];
 
 const UNITS = [
   { value: 'kg' as Unit, label: 'kg' },
@@ -145,7 +136,17 @@ export function AddWorkoutForm({
             {written === 1 ? '' : 's'} placed.
           </p>
         )}
-        <Button onClick={() => setOpen(true)} size="block" type="button" variant="secondary">
+        <Button
+          onClick={() => {
+            // Or the last confirmation outlives what it confirmed, still
+            // sitting above the form the next time it is opened.
+            setWritten(null);
+            setOpen(true);
+          }}
+          size="block"
+          type="button"
+          variant="secondary"
+        >
           <CalendarPlus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
           Add a Workout
         </Button>
@@ -156,6 +157,7 @@ export function AddWorkoutForm({
   return (
     <div className={cn(WELL, 'arrive')}>
       <TextField
+        autoFocus
         id="add-workout-name"
         label="workout name"
         onCommit={setName}
@@ -163,28 +165,20 @@ export function AddWorkoutForm({
         value={name}
       />
 
-      <div className="flex flex-col gap-2">
-        <span className={LABEL}>suggested days</span>
-        <div className="flex flex-wrap gap-2">
-          {WEEKDAYS.map((day) => {
-            const chosen = days.includes(day);
-            return (
-              <Button
-                aria-pressed={chosen}
-                key={day}
-                onClick={() =>
-                  setDays(chosen ? days.filter((d) => d !== day) : [...days, day])
-                }
-                size="compact"
-                type="button"
-                variant={chosen ? 'primary' : 'secondary'}
-              >
-                {weekdayName(day)}
-              </Button>
-            );
-          })}
-        </div>
-      </div>
+      <SuggestedDays
+        conflicted={(day) => claimantsOfDay(siblings, day).length > 0}
+        label="suggested days"
+        // The functional form for the reason `state.ts` gives about `weeksBy`:
+        // computing the next set from the render's own `days` loses a tap when
+        // two land before React has re-rendered between them.
+        onToggle={(day) =>
+          setDays((chosen) =>
+            chosen.includes(day) ? chosen.filter((d) => d !== day) : [...chosen, day],
+          )
+        }
+        selected={days}
+        showLabel
+      />
 
       {/* REQ-405, REQ-406 — a warning, never a refusal, and it owes the lifter
           the full consequence: not just "Push already has Monday" but what that
@@ -281,6 +275,10 @@ export function AddPlannedExerciseForm({
   const [pickedUnit, setPickedUnit] = useState<Unit | null>(null);
   const unit = pickedUnit ?? defaultUnit;
   const [increment, setIncrement] = useState<number | null>(null);
+  // What the last save actually added. Its sibling `AddWorkoutForm` has always
+  // reported; this form closed in silence and left the lifter to notice a new
+  // row above it, which is feedback only if they happen to be looking there.
+  const [added, setAdded] = useState<string | null>(null);
   const { busy, failure, run } = useAsyncAction();
 
   const userExercises = useUserExercises();
@@ -352,6 +350,7 @@ export function AddPlannedExerciseForm({
   function save() {
     if (chosen === null || refused) return;
     void run(async () => {
+      const name = chosen.name;
       await addPlannedExercise(workoutId, {
         exerciseId: chosen.id,
         sets: targets.sets,
@@ -365,22 +364,33 @@ export function AddPlannedExerciseForm({
         notes: [],
         progression,
       });
+      setAdded(name);
       close();
     });
   }
 
   if (!open) {
     return (
-      <Button
-        aria-label={`Add an exercise to ${workoutName}`}
-        onClick={() => setOpen(true)}
-        size="block"
-        type="button"
-        variant="secondary"
-      >
-        <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-        Add an exercise
-      </Button>
+      <div className="flex flex-col gap-2">
+        {added !== null && (
+          <p className="type-body-sm text-actual-ink" role="status">
+            {added} added to {workoutName}.
+          </p>
+        )}
+        <Button
+          aria-label={`Add an exercise to ${workoutName}`}
+          onClick={() => {
+            setAdded(null);
+            setOpen(true);
+          }}
+          size="block"
+          type="button"
+          variant="secondary"
+        >
+          <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          Add an exercise
+        </Button>
+      </div>
     );
   }
 
@@ -389,6 +399,7 @@ export function AddPlannedExerciseForm({
       {chosen === null ? (
         <>
           <TextField
+            autoFocus
             id={`add-planned-${workoutId}`}
             label={`add to ${workoutName}`}
             onCommit={setQuery}
