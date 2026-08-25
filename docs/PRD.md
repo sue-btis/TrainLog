@@ -2440,6 +2440,7 @@ sin schema, sin migración. Cada una es un cambio pequeño e independiente.
 | 4 | workout adherence | ⬜ | Un `Placement` pasado sin `Session` ya se deriva (ADR 0001). |
 | 5 | calendar statistics | ⬜ | Mismo insumo que adherence, otra pantalla. |
 | 6 | advanced charts | ⬜ | Última del grupo: es el contenedor de 1–5, no un requisito propio. Sigue rigiendo §11.11 — un gráfico con conmutador de métrica, nunca un segundo eje Y. |
+| 15 | session effort | ✅ | `SessionSummary.effort` — RPE medio (`10 − RIR`) × minutos, la carga de sesión de Foster. Es del grupo A por naturaleza (función pura, sin schema); numerado al final para no renumerar 7–14. Existe porque el volumen en kg·reps no ve una carrera ni un hold, y un programa híbrido necesita una cifra que sí. |
 
 ## B — Identidad del ejercicio
 
