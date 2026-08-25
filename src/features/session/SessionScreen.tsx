@@ -15,7 +15,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   ArrowUpDown,
   CheckCircle2,
@@ -46,7 +46,6 @@ import {
   saveExerciseSessions,
   saveFinishedSession,
   saveLoggedSet,
-  saveSessionBodyweight,
 } from '@/db';
 import type { ExerciseId, ExerciseSessionId } from '@/domain/ids';
 import {
@@ -60,6 +59,7 @@ import {
 } from '@/domain/session';
 import type { Timestamp } from '@/domain/dates';
 import type { CompletedSet, Exercise, ExerciseSession } from '@/domain/types';
+import { movesBodyweight } from '@/domain/measurement';
 import { ExercisePicker } from '@/features/session/ExercisePicker';
 import { ExerciseReorder } from '@/features/session/ExerciseReorder';
 import { ExerciseView } from '@/features/session/ExerciseView';
@@ -364,17 +364,21 @@ export function SessionScreen() {
         />
       }
     >
-      {/* REQ-108 — the one figure that belongs to the Session rather than to
-          any exercise in it. It opens on the last weigh-in carried forward
-          and stays editable, because a lifter who steps on the scale after
-          training recorded a real number for that day. */}
-      <Bodyweight
-        busy={busy}
-        onChange={(bodyweightKg) =>
-          void run(() => saveSessionBodyweight(session.id, bodyweightKg))
-        }
-        value={session.bodyweightKg}
-      />
+      {/* REQ-108 — bodyweight is stated once, in settings, and the Session
+          records whatever it said when it started. Gym mode only speaks up
+          when a movement in front of the lifter is measured against a
+          bodyweight the app has never been told. */}
+      {(settings?.bodyweightKg ?? null) === null &&
+        entries.some((it) => movesBodyweight(it.exerciseSession.measurement)) && (
+          <p className={cn(WELL, 'type-body-sm text-missed-ink')} role="status">
+            This workout has movements measured against your bodyweight, and the app
+            has never been told yours.{' '}
+            <Link className="underline" to="/settings">
+              Set it in settings
+            </Link>
+            .
+          </p>
+        )}
 
       {entry === undefined ? (
         <section className={WELL}>
@@ -430,65 +434,6 @@ export function SessionScreen() {
           logger (§21). */}
       {entry !== undefined && <PreviousPanel exerciseSession={entry.exerciseSession} />}
     </Frame>
-  );
-}
-
-/**
- * The lifter's bodyweight on the day (REQ-108, DEC-C).
- *
- * One line rather than a control with steppers: it is written once a session
- * and read by the bodyweight-relative figures, not stepped between sets, and
- * §21 says nothing that does not contribute to the current set may compete
- * with it.
- *
- * Empty means never recorded and renders empty — never a zero, which would be
- * a claim about a lifter rather than an absence (AC-112).
- */
-function Bodyweight({
-  value,
-  onChange,
-  busy,
-}: {
-  readonly value: number | null;
-  readonly onChange: (bodyweightKg: number | null) => void;
-  readonly busy: boolean;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-
-  function commit() {
-    if (draft === null) return;
-    const text = draft.trim().replace(',', '.');
-    setDraft(null);
-    if (text === '') {
-      if (value !== null) onChange(null);
-      return;
-    }
-    const parsed = Number(text);
-    // Anything that is not a positive number falls back to the last good
-    // value rather than raising an error nobody can read mid-session.
-    if (Number.isFinite(parsed) && parsed > 0 && parsed !== value) {
-      onChange(Math.round(parsed * 100) / 100);
-    }
-  }
-
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <span className={LABEL}>bodyweight · kg</span>
-      <input
-        aria-label="Bodyweight in kilograms"
-        className="w-24 rounded-md bg-transparent px-2 py-1 text-right type-readout text-ink ring-1 ring-rule"
-        disabled={busy}
-        inputMode="decimal"
-        onBlur={commit}
-        onChange={(event) => setDraft(event.target.value)}
-        onFocus={(event) => event.target.select()}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
-        }}
-        placeholder="—"
-        value={draft ?? (value === null ? '' : String(value))}
-      />
-    </label>
   );
 }
 

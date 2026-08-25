@@ -38,6 +38,7 @@ import {
   TriangleAlert,
   Upload,
   Vibrate,
+  Weight,
   Volume2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -46,6 +47,7 @@ import {
   listSetsForCsv,
   restoreBackup,
   restoreSummary,
+  setBodyweightKg,
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
@@ -285,6 +287,7 @@ function SettingsSection() {
   const settings = useSettings();
   const unitId = useId();
   const rirId = useId();
+  const bodyweightId = useId();
 
   // One read, in flight. Rendering the controls at their defaults first would
   // show a lifter their settings reset for a frame before snapping back.
@@ -292,7 +295,8 @@ function SettingsSection() {
     return <Reading>your settings</Reading>;
   }
 
-  const { defaultUnit, defaultRir, timerVibration, timerSound, keepScreenAwake } = settings;
+  const { defaultUnit, defaultRir, bodyweightKg, timerVibration, timerSound, keepScreenAwake } =
+    settings;
 
   return (
     <section className={WELL}>
@@ -350,6 +354,19 @@ function SettingsSection() {
         </p>
       </div>
 
+      <div className={cn(RULED, 'gap-2')}>
+        <label className="type-title flex items-center gap-2" htmlFor={bodyweightId}>
+          <Weight aria-hidden="true" className="text-ink" size={20} strokeWidth={2.5} />
+          Bodyweight · kg
+        </label>
+        <Bodyweight id={bodyweightId} value={bodyweightKg} />
+        <p className="type-body-sm text-ink-2">
+          What pull-ups, dips and every other movement measured against you are read
+          against. A session records what this said when it started, so changing it
+          never rewrites a session already logged.
+        </p>
+      </div>
+
       <div className={cn(RULED, 'gap-0')}>
         <Head className="pb-2" icon={Bell}>alerts</Head>
         <Toggle
@@ -381,6 +398,53 @@ function SettingsSection() {
 
       <Durability />
     </section>
+  );
+}
+
+/**
+ * The lifter's bodyweight (REQ-108, DEC-C).
+ *
+ * A plain line rather than a control with steppers: it is stated once and read
+ * by everything measured against the lifter, not stepped between sets. It used
+ * to sit at the top of gym mode, where it asked the same question before every
+ * session and competed with the set in front of you (§21).
+ *
+ * Empty means never recorded and renders empty — never a zero, which would be
+ * a claim about a lifter rather than an absence (AC-112).
+ */
+function Bodyweight({ id, value }: { readonly id: string; readonly value: number | null }) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  function commit() {
+    if (draft === null) return;
+    const text = draft.trim().replace(',', '.');
+    setDraft(null);
+    if (text === '') {
+      if (value !== null) void setBodyweightKg(null);
+      return;
+    }
+    const parsed = Number(text);
+    // Anything that is not a positive number falls back to the last good value
+    // rather than raising an error over a mistyped digit.
+    if (Number.isFinite(parsed) && parsed > 0 && parsed !== value) {
+      void setBodyweightKg(Math.round(parsed * 100) / 100);
+    }
+  }
+
+  return (
+    <input
+      className="w-full rounded-md bg-transparent px-3 py-2 type-measure text-ink ring-1 ring-rule"
+      id={id}
+      inputMode="decimal"
+      onBlur={commit}
+      onChange={(event) => setDraft(event.target.value)}
+      onFocus={(event) => event.target.select()}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur();
+      }}
+      placeholder="Not set"
+      value={draft ?? (value === null ? '' : String(value))}
+    />
   );
 }
 
