@@ -81,6 +81,16 @@ export interface MeasurementShape {
   readonly progressAxis: Axis;
   /** Which way is better along `progressAxis`. */
   readonly direction: Direction;
+  /**
+   * Whether the load a set of this type states is read against the lifter's own
+   * bodyweight (REQ-108).
+   *
+   * True where the lifter *is* the load, whole or in part: the three bodyweight
+   * types. False for a type whose weight field is `external` and for the
+   * duration and distance types, which state no load at all — a plank is held
+   * by a body, but nothing about it is read in kilograms.
+   */
+  readonly movesBodyweight: boolean;
 }
 
 /**
@@ -96,6 +106,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     targetAxis: 'reps',
     progressAxis: 'load',
     direction: 'higher',
+    movesBodyweight: false,
   },
   bodyweight_reps: {
     fields: ['reps'],
@@ -103,6 +114,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     targetAxis: 'reps',
     progressAxis: 'reps',
     direction: 'higher',
+    movesBodyweight: true,
   },
   weighted_bodyweight: {
     fields: ['weight', 'reps'],
@@ -110,6 +122,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     targetAxis: 'reps',
     progressAxis: 'load',
     direction: 'higher',
+    movesBodyweight: true,
   },
   assisted_bodyweight: {
     fields: ['weight', 'reps'],
@@ -118,6 +131,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     progressAxis: 'load',
     // Less assistance is a better set (REQ-103). One of exactly two inversions.
     direction: 'lower',
+    movesBodyweight: true,
   },
   duration: {
     fields: ['durationSeconds'],
@@ -125,6 +139,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     targetAxis: 'duration',
     progressAxis: 'duration',
     direction: 'higher',
+    movesBodyweight: false,
   },
   duration_weight: {
     fields: ['durationSeconds', 'weight'],
@@ -132,6 +147,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     targetAxis: 'duration',
     progressAxis: 'load',
     direction: 'higher',
+    movesBodyweight: false,
   },
   distance_duration: {
     fields: ['distance', 'durationSeconds'],
@@ -140,6 +156,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     progressAxis: 'pace',
     // Seconds per metre: a lower pace is a faster one (REQ-103). The second inversion.
     direction: 'lower',
+    movesBodyweight: false,
   },
   weight_distance: {
     fields: ['weight', 'distance'],
@@ -147,6 +164,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     targetAxis: 'distance',
     progressAxis: 'load',
     direction: 'higher',
+    movesBodyweight: false,
   },
   distance: {
     fields: ['distance'],
@@ -155,6 +173,7 @@ const SHAPES: { readonly [M in Measurement]: MeasurementShape } = {
     progressAxis: 'distance',
     // A longer jump is a better jump (REQ-103, DEC-R).
     direction: 'higher',
+    movesBodyweight: false,
   },
 };
 
@@ -181,6 +200,11 @@ export function progressAxisOf(measurement: Measurement): Axis {
 /** Which way is better along the progress axis (REQ-103). */
 export function directionOf(measurement: Measurement): Direction {
   return SHAPES[measurement].direction;
+}
+
+/** Whether the lifter's own bodyweight is part of what a set of this type moves (REQ-108). */
+export function movesBodyweight(measurement: Measurement): boolean {
+  return SHAPES[measurement].movesBodyweight;
 }
 
 /**

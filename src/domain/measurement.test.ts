@@ -19,6 +19,7 @@ import {
   directionOf,
   hasOneRepMax,
   MEASUREMENTS,
+  movesBodyweight,
   primaryAxisOf,
   progressAxisOf,
   shapeOf,
@@ -77,6 +78,21 @@ describe('directionOf (TST-102, REQ-103)', () => {
 
   it('AC-168: distance is higher-is-better — a longer jump is a better jump', () => {
     expect(directionOf('distance')).toBe('higher');
+  });
+});
+
+describe('movesBodyweight (REQ-108)', () => {
+  it('is the three bodyweight types and nothing else', () => {
+    expect(MEASUREMENTS.filter(movesBodyweight)).toEqual([
+      'bodyweight_reps',
+      'weighted_bodyweight',
+      'assisted_bodyweight',
+    ]);
+  });
+
+  it('a barbell lift and a plank state no load against the lifter', () => {
+    expect(movesBodyweight('weight_reps')).toBe(false);
+    expect(movesBodyweight('duration')).toBe(false);
   });
 });
 
