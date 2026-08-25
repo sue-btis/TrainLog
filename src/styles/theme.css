@@ -111,6 +111,16 @@
   /* type families and motion */
   --font-face: Inter, system-ui, sans-serif;
   --font-measure: "Martian Mono", ui-monospace, monospace;
+  /* The document default, and not only the default for text that asked.
+     Every family in this file was reached through a `.type-*` class, so an
+     element without one — a bare <input>, a <SelectTrigger>, a shadcn control
+     that carries size and colour but no type role — fell through to Tailwind's
+     stock stack and rendered in the platform sans. Inter is the UI face of this
+     product (DESIGN.md); nothing in it should be set in Segoe UI. Preflight
+     reads this for `html`, so the whole tree inherits and `.type-*` still wins
+     wherever it is applied. */
+  --default-font-family: var(--font-face);
+  --default-mono-font-family: var(--font-measure);
   --ease-press: cubic-bezier(.22, 1, .36, 1);
   --ease-snap: cubic-bezier(.4, 0, 1, 1);
   --animate-breathe: breathe 2.6s ease-in-out infinite;
