@@ -35,6 +35,7 @@ import {
   saveLoggedSet,
 } from '@/db/repositories/completedSets';
 import { getSessionDetail } from '@/db/repositories/history';
+import { setBodyweightKg } from '@/db/repositories/settings';
 import {
   finishSession,
   logSet,
@@ -301,6 +302,52 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
       plannedRestSeconds: 180,
       plannedProgression: { type: 'double_progression', increment: 2.5 },
     });
+  });
+
+  // REQ-108, AC-111 — bodyweight is stated in settings and dated by the Session
+  // that starts under it.
+  it('records the bodyweight settings hold when the Session starts', async () => {
+    await setBodyweightKg(82.5);
+
+    const started = startWorkout({
+      measurementOf,
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a')],
+      startedAt: 1_000,
+    });
+    await createStartedWorkout(started);
+
+    expect((await getInProgressSession())?.bodyweightKg).toBe(82.5);
+  });
+
+  // The install that recorded bodyweight against Sessions before it was a
+  // setting still opens on its last weigh-in rather than on nothing.
+  it('falls back to the last Session that recorded one when settings hold none', async () => {
+    const earlier = startWorkout({
+      measurementOf,
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a')],
+      startedAt: 1_000,
+    });
+    await createStartedWorkout(earlier);
+    await db.sessions.update(earlier.session.id, {
+      status: 'completed',
+      completedAt: 1_500,
+      bodyweightKg: 78,
+    });
+
+    const later = startWorkout({
+      measurementOf,
+      routineId,
+      workoutId,
+      planned: [plannedAt(0, 'pe-a')],
+      startedAt: 2_000,
+    });
+    await createStartedWorkout(later);
+
+    expect((await getInProgressSession())?.bodyweightKg).toBe(78);
   });
 
   it('refuses a second concurrent Session and writes nothing (AC-6, REQ-058)', async () => {

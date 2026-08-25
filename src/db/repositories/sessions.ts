@@ -11,6 +11,7 @@
  */
 
 import { db } from '@/db/database';
+import { getSettings } from '@/db/repositories/settings';
 import { addDays, parseLocalDate, type LocalDate } from '@/domain/dates';
 import type { SessionId, WorkoutId } from '@/domain/ids';
 import type { ExerciseSession, Session } from '@/domain/types';
@@ -63,19 +64,26 @@ export async function createStartedWorkout(started: {
   readonly session: Session;
   readonly exerciseSessions: readonly ExerciseSession[];
 }): Promise<void> {
+  // REQ-108 — the Session records the bodyweight that was current when it
+  // started, so history stays dated (DEC-C). The figure comes from settings,
+  // where the lifter states it; the walk back through earlier Sessions is the
+  // fallback for an install that recorded bodyweight before it was a setting.
+  // An explicitly supplied value wins: the caller knew something this does not.
+  // Resolved before the transaction opens — `settings` is outside its scope,
+  // and a seed read has nothing to gain from being inside it.
+  const session =
+    started.session.bodyweightKg === null
+      ? {
+          ...started.session,
+          bodyweightKg: (await getSettings()).bodyweightKg ?? (await lastRecordedBodyweightKg()),
+        }
+      : started.session;
+
   await db.transaction('rw', [db.sessions, db.exerciseSessions], async () => {
     const open = await db.sessions.where('status').equals('in_progress').first();
     if (open !== undefined && open.id !== started.session.id) {
       throw new SessionInProgressError(open.id);
     }
-    // REQ-108 — the carry-forward happens here rather than in the domain,
-    // because this is the layer that can see the earlier Sessions. An
-    // explicitly supplied value wins: the caller knew something this lookup
-    // does not.
-    const session =
-      started.session.bodyweightKg === null
-        ? { ...started.session, bodyweightKg: await lastRecordedBodyweightKg() }
-        : started.session;
     await db.sessions.add(session);
     if (started.exerciseSessions.length > 0) {
       await db.exerciseSessions.bulkAdd([...started.exerciseSessions]);
