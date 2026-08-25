@@ -50,6 +50,8 @@ interface ExercisesStepProps {
   readonly file: RoutineFile;
   readonly defaultUnit: Unit;
   readonly issues: IssueIndex;
+  /** Whether an outstanding issue shows its error line yet (see `state.ts`). */
+  readonly announceIssues: boolean;
   readonly activeWorkout: number;
   readonly openRef: ExerciseRef | null;
   /**
@@ -72,6 +74,7 @@ export function ExercisesStep({
   file,
   defaultUnit,
   issues,
+  announceIssues,
   activeWorkout,
   openRef,
   offers,
@@ -87,7 +90,9 @@ export function ExercisesStep({
   const workouts = file.routine.workouts;
   const current = workouts[activeWorkout];
   const nameKey = 'routine.name';
-  const nameIssue = issuesAt(issues, nameKey)[0];
+  // A blank name on a draft nobody has typed into yet is an empty field, not a
+  // mistake. The placeholder is already saying what goes there.
+  const nameIssue = announceIssues ? issuesAt(issues, nameKey)[0] : undefined;
 
   return (
     <>

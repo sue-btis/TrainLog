@@ -44,6 +44,12 @@ interface ActionBarProps {
   readonly onConfirmCancel: (asking: boolean) => void;
   readonly onCancel: () => void;
   readonly issues: readonly SemanticIssue[];
+  /**
+   * Whether to say so. The issues still disable `Accept` when this is false —
+   * see `announceIssues` in `state.ts` for why the two are separate, and why a
+   * suppressed issue can never be the one blocking a lifter without a word.
+   */
+  readonly announceIssues: boolean;
   readonly accepting: boolean;
   readonly failure: string | null;
   readonly onStep: (step: WizardStep) => void;
@@ -54,6 +60,7 @@ interface ActionBarProps {
 export function ActionBar({
   step,
   issues,
+  announceIssues,
   accepting,
   failure,
   confirmingCancel,
@@ -123,7 +130,7 @@ export function ActionBar({
             </div>
           )}
 
-          {blocked && (
+          {blocked && announceIssues && (
             <>
               <p className="sr-only" role="status">
                 {issues.length === 1

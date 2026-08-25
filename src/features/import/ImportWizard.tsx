@@ -147,6 +147,8 @@ export function ImportWizard() {
       type: 'loaded',
       file: blankRoutineFile(DEFAULT_WEEKS),
       defaultUnit: await getDefaultUnit(),
+      // Nothing has been submitted or typed: see `announceIssues` in `state.ts`.
+      announceIssues: false,
     });
   }
 
@@ -226,6 +228,8 @@ export function ImportWizard() {
       type: 'loaded',
       file: parsed.file,
       defaultUnit: await getDefaultUnit(),
+      // Choosing the file is the submission; its problems are findings about it.
+      announceIssues: true,
     });
   }
 
@@ -366,6 +370,7 @@ export function ImportWizard() {
         {state.phase === 'editing' && state.step === 1 && (
           <ExercisesStep
             activeWorkout={activeWorkout}
+            announceIssues={state.announceIssues}
             defaultUnit={state.defaultUnit}
             file={state.file}
             issues={issueIndex}
@@ -402,6 +407,7 @@ export function ImportWizard() {
       {state.phase === 'editing' && (
         <ActionBar
           accepting={state.accepting}
+          announceIssues={state.announceIssues}
           confirmingCancel={leaving}
           failure={state.failure}
           issues={issues}

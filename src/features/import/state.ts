@@ -65,6 +65,25 @@ export type WizardState =
       readonly step: WizardStep;
       readonly accepting: boolean;
       readonly failure: string | null;
+      /**
+       * Whether outstanding semantic issues are *announced* — the counter in
+       * the action bar and the error line under an inline field. It never
+       * decides what is allowed: `Accept` is disabled by the issues themselves,
+       * so a suppressed issue still blocks it.
+       *
+       * False only for a draft nobody has submitted or touched yet, which is
+       * the from-scratch one. Greeting a lifter who pressed "Start from
+       * scratch" two seconds ago with "2 problems still block this routine" is
+       * reporting a mistake they have not had the chance to make, and it
+       * teaches them to read the counter as decoration by step 2, where it is
+       * the only thing pointing at the field in the way.
+       *
+       * A file arrives with it true: choosing the file *is* the submission, and
+       * its problems are findings about something the lifter handed over. That
+       * is not the origin the phase deliberately stopped recording — the first
+       * edit sets it too, and so does `Next`, whatever the draft came from.
+       */
+      readonly announceIssues: boolean;
     }
   | { readonly phase: 'accepted'; readonly summary: AcceptedSummary };
 
@@ -80,6 +99,7 @@ export type WizardAction =
       readonly type: 'loaded';
       readonly file: RoutineFile;
       readonly defaultUnit: Unit;
+      readonly announceIssues: boolean;
     }
   | { readonly type: 'edited'; readonly file: RoutineFile }
   /**
@@ -131,13 +151,17 @@ export function reduceWizard(state: WizardState, action: WizardAction): WizardSt
         step: 1,
         accepting: false,
         failure: null,
+        announceIssues: action.announceIssues,
       };
 
     case 'edited':
       // An edit clears a previous acceptance failure: the user is responding
       // to it, and a stale error under a changed file would be a lie.
+      // The first edit is also the moment issues start being announced: the
+      // lifter has now done something, so what is outstanding is about their
+      // draft rather than about an empty form.
       return state.phase === 'editing'
-        ? { ...state, file: action.file, failure: null }
+        ? { ...state, file: action.file, failure: null, announceIssues: true }
         : state;
 
     case 'weeksBy': {
@@ -158,7 +182,12 @@ export function reduceWizard(state: WizardState, action: WizardAction): WizardSt
         : state;
 
     case 'step':
-      return state.phase === 'editing' ? { ...state, step: action.step } : state;
+      // `Next` announces them too, and that is what keeps the suppression safe:
+      // `Accept` lives on step 2 and step 2 is only reachable through here, so
+      // no issue can be blocking `Accept` while still unannounced.
+      return state.phase === 'editing'
+        ? { ...state, step: action.step, announceIssues: true }
+        : state;
 
     case 'accepting':
       return state.phase === 'editing'
