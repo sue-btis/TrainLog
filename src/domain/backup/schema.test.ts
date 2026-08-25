@@ -220,11 +220,28 @@ describe('parseBackup', () => {
     ]);
   });
 
-  // AC-4a — §18: a newer document is refused rather than partially read.
-  it('rejects a version newer than this build', () => {
+  // AC-4a, TST-116 (REQ-127, AC-143) — §18: a newer document is refused rather
+  // than partially read. `z.object` strips unknown keys before any check runs,
+  // so a build that read one anyway would drop the fields it does not know and
+  // restore a lifter's planks as weight x reps. The gate is the only thing
+  // standing between them and that.
+  it('TST-116 — rejects a version newer than this build', () => {
     const newer = withKey('version', BACKUP_VERSION + 1);
     expect(refusedPaths(newer)).toEqual(['version']);
     expect(refusedBecause(newer)).toContain(String(BACKUP_VERSION + 1));
+    expect(refusedBecause(newer)).toContain(`this app reads version ${BACKUP_VERSION}`);
+    expect(refusedBecause(newer)).toContain('Update the app before restoring it.');
+  });
+
+  // TST-116 — the refusal is about the version, not about the fields a newer
+  // document happens to carry: it fires before the shape is read at all.
+  it('TST-116 — refuses a newer version before reading the rest of the document', () => {
+    const newer = { ...withKey('version', BACKUP_VERSION + 5), routines: 'not a table' };
+    expect(refusedPaths(newer)).toEqual(['version']);
+  });
+
+  it('accepts a version this build reads', () => {
+    expect(accept(withKey('version', BACKUP_VERSION)).version).toBe(BACKUP_VERSION);
   });
 
   it('rejects a missing version', () => {
@@ -338,6 +355,62 @@ describe('parseBackup', () => {
       completedSets: [{ ...SET, reps: '6' }],
     };
     expect(refusedPaths(broken).length).toBeGreaterThan(1);
+  });
+});
+
+/**
+ * TST-128, REQ-139, AC-166 — exactly one target pair per planned exercise.
+ *
+ * The routine-file validator refuses this at import (`validate.test.ts`); this
+ * is the second half, and it is the one that matters most. A row with neither
+ * pair populated is what a file whose rep range met a duration Exercise
+ * produces, and the failure it causes is the worst one this app has: a database
+ * that exports a backup its own validator then refuses. `migrations.test.ts`
+ * exists because that has happened here before.
+ */
+describe('parseBackup target pairs (TST-128)', () => {
+  const bothPairs = { ...PLANNED, minTarget: 30, maxTarget: 45 };
+  const neitherPair = { ...PLANNED, minReps: null, maxReps: null };
+
+  it('refuses a planned exercise stating both a rep range and a target range (AC-166)', () => {
+    const document = withKey('plannedExercises', [bothPairs]);
+    expect(refusedBecause(document)).toContain('never both');
+    expect(refusedPaths(document)).toContain('plannedExercises[0].minTarget');
+  });
+
+  it('refuses a planned exercise stating neither range (AC-166)', () => {
+    const document = withKey('plannedExercises', [neitherPair]);
+    expect(refusedBecause(document)).toContain('needs a range');
+    expect(refusedPaths(document)).toContain('plannedExercises[0].minReps');
+  });
+
+  it('refuses a half-open pair, because a range needs both ends', () => {
+    const document = withKey('plannedExercises', [{ ...PLANNED, maxReps: null }]);
+    expect(refusedBecause(document)).toContain('needs a range');
+  });
+
+  it('applies the same rule to the ExerciseSession snapshot', () => {
+    const both = withKey('exerciseSessions', [
+      { ...PLANNED_ES, plannedMinTarget: 30, plannedMaxTarget: 45 },
+      UNPLANNED_ES,
+    ]);
+    expect(refusedBecause(both)).toContain('never both');
+
+    const neither = withKey('exerciseSessions', [
+      { ...PLANNED_ES, plannedMinReps: null, plannedMaxReps: null },
+      UNPLANNED_ES,
+    ]);
+    expect(refusedBecause(neither)).toContain('needs a range');
+  });
+
+  it('accepts a duration row stating its range in the target pair (AC-165)', () => {
+    const document = accept(
+      withKey('plannedExercises', [
+        { ...PLANNED, exerciseId: 'plank', minReps: null, maxReps: null, minTarget: 45, maxTarget: 45 },
+      ]),
+    );
+    expect(document.plannedExercises[0]?.minTarget).toBe(45);
+    expect(document.plannedExercises[0]?.minReps).toBeNull();
   });
 });
 
@@ -539,5 +612,288 @@ describe('parseBackup numeric bounds', () => {
 
   it('accepts a planned RIR above MAX_RIR, which an older document may carry', () => {
     accept(withRow('plannedExercises', { minRir: 0, maxRir: 50 }));
+  });
+});
+
+
+// ------------------------------------------------------ measurement, v1 and v2
+
+/**
+ * TST-115 (REQ-127, AC-141) — a document written before measurements existed.
+ *
+ * Written out in full rather than derived from `validDocument()`, because the
+ * property under test is an *absence*: not one of the fields this change added
+ * appears anywhere below. A helper that patched them out could drift; a literal
+ * cannot. This is the file a lifter exported months ago, and the only copy of
+ * their training they have.
+ */
+function versionOneDocument(): Record<string, unknown> {
+  return {
+    version: 1,
+    exportedAt: 1_755_000_000_000,
+    routines: [
+      { id: 'r1', name: 'Base', weeks: 4, status: 'active', createdAt: 1_754_000_000_000 },
+    ],
+    workouts: [{ id: 'w1', routineId: 'r1', name: 'Lower', suggestedDays: ['monday'], order: 0 }],
+    plannedExercises: [
+      {
+        id: 'pe1',
+        workoutId: 'w1',
+        exerciseId: 'front-squat',
+        sets: 4,
+        minReps: 5,
+        maxReps: 6,
+        minRir: 1,
+        maxRir: 2,
+        restSeconds: 180,
+        unit: 'kg',
+        focus: null,
+        notes: [],
+        order: 0,
+        progression: { type: 'double_progression', increment: 2.5 },
+      },
+    ],
+    placements: [{ id: 'p1', routineId: 'r1', workoutId: 'w1', date: '2026-08-17' }],
+    exercises: [{ id: 'user-1', name: 'Reverse Hyper', category: null, equipment: null }],
+    sessions: [
+      {
+        id: 's1',
+        routineId: 'r1',
+        workoutId: 'w1',
+        startedAt: 1_755_100_000_000,
+        completedAt: 1_755_103_000_000,
+        status: 'completed',
+      },
+    ],
+    exerciseSessions: [
+      {
+        id: 'es1',
+        sessionId: 's1',
+        exerciseId: 'front-squat',
+        order: 0,
+        status: 'performed',
+        plannedExerciseId: 'pe1',
+        plannedUnit: 'kg',
+        plannedSets: 4,
+        plannedMinReps: 5,
+        plannedMaxReps: 6,
+        plannedMinRir: 1,
+        plannedMaxRir: 2,
+        plannedRestSeconds: 180,
+        plannedProgression: { type: 'double_progression', increment: 2.5 },
+      },
+      {
+        id: 'es2',
+        sessionId: 's1',
+        exerciseId: 'user-1',
+        order: 1,
+        status: 'performed',
+        plannedExerciseId: null,
+      },
+    ],
+    completedSets: [
+      {
+        id: 'cs1',
+        exerciseSessionId: 'es1',
+        setNumber: 1,
+        weight: 75,
+        unit: 'kg',
+        weightKg: 75,
+        reps: 6,
+        rir: 2,
+        completedAt: 1_755_100_500_000,
+      },
+    ],
+    settings: { id: 'settings', defaultUnit: 'kg' },
+  };
+}
+
+describe('TST-115 (REQ-127, AC-141) — a version-1 document still restores', () => {
+  it('carries not one of the fields this change added', () => {
+    // The premise of the fixture, asserted rather than assumed.
+    const added = [
+      'measurement',
+      'bodyweightKg',
+      'minTarget',
+      'maxTarget',
+      'plannedMinTarget',
+      'plannedMaxTarget',
+      'durationSeconds',
+      'distance',
+      'distanceUnit',
+      'distanceM',
+    ];
+    const text = JSON.stringify(versionOneDocument());
+    for (const field of added) expect(text).not.toContain(field);
+  });
+
+  it('is accepted rather than refused for what it lacks', () => {
+    const document = accept(versionOneDocument());
+    expect(document.version).toBe(1);
+    expect(document.completedSets).toHaveLength(1);
+  });
+
+  // REQ-125 — the only measurement provable from a document written before
+  // measurements existed is weight x reps. Nothing else is invented.
+  it('reads every Exercise and ExerciseSession as weight x reps', () => {
+    const document = accept(versionOneDocument());
+    expect(document.exercises[0]?.measurement).toBe('weight_reps');
+    expect(document.exerciseSessions[0]?.measurement).toBe('weight_reps');
+    expect(document.exerciseSessions[1]?.measurement).toBe('weight_reps');
+  });
+
+  // REQ-126 — no backfill invents a bodyweight nobody recorded.
+  it('reads a Session as having no recorded bodyweight', () => {
+    expect(accept(versionOneDocument()).sessions[0]?.bodyweightKg).toBeNull();
+  });
+
+  it('reads the non-rep target pair as absent, on the template and the snapshot', () => {
+    const document = accept(versionOneDocument());
+    expect(document.plannedExercises[0]?.minTarget).toBeNull();
+    expect(document.plannedExercises[0]?.maxTarget).toBeNull();
+
+    const planned = document.exerciseSessions[0];
+    if (planned === undefined || planned.plannedExerciseId === null) {
+      throw new Error('Expected the first ExerciseSession to be a planned one');
+    }
+    expect(planned.plannedMinTarget).toBeNull();
+    expect(planned.plannedMaxTarget).toBeNull();
+    // The rep range it *does* carry is untouched.
+    expect(planned.plannedMinReps).toBe(5);
+    expect(planned.plannedMaxReps).toBe(6);
+  });
+
+  it('reads the four conditional set fields as absent', () => {
+    const set = accept(versionOneDocument()).completedSets[0];
+    expect(set?.durationSeconds).toBeNull();
+    expect(set?.distance).toBeNull();
+    expect(set?.distanceUnit).toBeNull();
+    expect(set?.distanceM).toBeNull();
+    // And the fields it always had are unchanged.
+    expect(set?.reps).toBe(6);
+    expect(set?.weightKg).toBe(75);
+  });
+});
+
+describe('TST-117 (REQ-128, AC-144) — an unreadable measurement is refused', () => {
+  // Closed exactly as `progression` is closed: a type the app cannot read would
+  // become history it cannot show, so it is refused rather than kept as data.
+  it('refuses an unknown measurement on an Exercise, and names the field', () => {
+    const yoga = withKey('exercises', [{ ...EXERCISE, measurement: 'yoga' }]);
+    expect(refusedPaths(yoga)).toEqual(['exercises[0].measurement']);
+    // The path names where, and the message names what would have been legal.
+    // Zod does not echo the offending value back, and R-4 does not need it to:
+    // the path already points at the exact cell to look at.
+    expect(refusedBecause(yoga)).toContain('weight_reps');
+  });
+
+  it('refuses an unknown measurement on a planned ExerciseSession', () => {
+    const yoga = withKey('exerciseSessions', [
+      { ...PLANNED_ES, measurement: 'yoga' },
+      UNPLANNED_ES,
+    ]);
+    expect(refusedPaths(yoga).join(' ')).toContain('exerciseSessions[0].measurement');
+  });
+
+  it('refuses an unknown measurement on an unplanned ExerciseSession', () => {
+    const yoga = withKey('exerciseSessions', [
+      PLANNED_ES,
+      { ...UNPLANNED_ES, measurement: 'yoga' },
+    ]);
+    expect(refusedPaths(yoga).join(' ')).toContain('exerciseSessions[1].measurement');
+  });
+
+  it('refuses an unknown distanceUnit, and names the field', () => {
+    const furlongs = withKey('completedSets', [{ ...SET, distanceUnit: 'furlongs' }]);
+    expect(refusedPaths(furlongs)).toEqual(['completedSets[0].distanceUnit']);
+    expect(refusedBecause(furlongs)).toContain('km');
+  });
+
+  it.each(['weight_reps', 'duration', 'distance_duration', 'distance'])(
+    'accepts the known measurement %s',
+    (measurement) => {
+      const document = accept(withKey('exercises', [{ ...EXERCISE, measurement }]));
+      expect(document.exercises[0]?.measurement).toBe(measurement);
+    },
+  );
+
+  it.each(['m', 'km', 'mi'])('accepts the known distanceUnit %s', (distanceUnit) => {
+    const set = { ...SET, distance: 400, distanceUnit, distanceM: 400 };
+    expect(accept(withKey('completedSets', [set])).completedSets[0]?.distanceUnit).toBe(
+      distanceUnit,
+    );
+  });
+});
+
+/** A version-2 document: every field this change added, populated. */
+function versionTwoDocument(): Record<string, unknown> {
+  return {
+    ...validDocument(),
+    version: 2,
+    plannedExercises: [
+      { ...PLANNED, minReps: null, maxReps: null, minTarget: 400, maxTarget: 800 },
+    ],
+    exercises: [{ ...EXERCISE, measurement: 'distance_duration' }],
+    sessions: [{ ...SESSION, bodyweightKg: 81.4 }],
+    exerciseSessions: [
+      {
+        ...PLANNED_ES,
+        measurement: 'distance_duration',
+        plannedMinReps: null,
+        plannedMaxReps: null,
+        plannedMinTarget: 400,
+        plannedMaxTarget: 800,
+      },
+      { ...UNPLANNED_ES, measurement: 'duration' },
+    ],
+    completedSets: [
+      {
+        ...SET,
+        reps: null,
+        durationSeconds: 96.5,
+        distance: 0.4,
+        distanceUnit: 'km',
+        distanceM: 400,
+      },
+    ],
+  };
+}
+
+describe('AC-142 — a version-2 document re-imports into this build', () => {
+  it('accepts one, with every added field intact', () => {
+    const document = accept(versionTwoDocument());
+
+    expect(document.version).toBe(2);
+    expect(document.exercises[0]?.measurement).toBe('distance_duration');
+    expect(document.sessions[0]?.bodyweightKg).toBe(81.4);
+    expect(document.plannedExercises[0]?.minTarget).toBe(400);
+    expect(document.plannedExercises[0]?.maxTarget).toBe(800);
+    expect(document.exerciseSessions[0]?.measurement).toBe('distance_duration');
+    expect(document.exerciseSessions[1]?.measurement).toBe('duration');
+    expect(document.completedSets[0]).toMatchObject({
+      reps: null,
+      durationSeconds: 96.5,
+      distance: 0.4,
+      distanceUnit: 'km',
+      distanceM: 400,
+    });
+  });
+
+  it('survives a second pass through the parser unchanged', () => {
+    // The round trip the format exists for: what came out of the parser, sent
+    // back through a real string, must come out the same.
+    const once = accept(versionTwoDocument());
+    const twice = accept(JSON.parse(JSON.stringify(once)));
+    expect(twice).toEqual(once);
+  });
+
+  it('keeps the non-rep range of a planned snapshot through the round trip', () => {
+    const planned = accept(versionTwoDocument()).exerciseSessions[0];
+    if (planned === undefined || planned.plannedExerciseId === null) {
+      throw new Error('Expected the first ExerciseSession to be a planned one');
+    }
+    expect(planned.plannedMinTarget).toBe(400);
+    expect(planned.plannedMaxTarget).toBe(800);
+    expect(planned.plannedMinReps).toBeNull();
   });
 });

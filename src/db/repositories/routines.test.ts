@@ -61,6 +61,7 @@ async function addSessionFor(routineId: RoutineId, workoutId: RoutineDraft['work
     startedAt: 1_757_300_000_000,
     completedAt: null,
     status: 'in_progress',
+    bodyweightKg: null,
   };
   await db.sessions.add(session);
   return session;

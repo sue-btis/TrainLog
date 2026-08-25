@@ -16,8 +16,10 @@ import { Link, useParams } from 'react-router';
 import { Card } from '@/components/ui/card';
 import { formatLocalDate } from '@/domain/dates';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
+import type { Measurement } from '@/domain/measurement';
 import type { PlannedExercise, Unit, Weekday } from '@/domain/types';
 import {
+  useExerciseMeasurements,
   useExerciseNames,
   usePlacements,
   usePlannedExercises,
@@ -119,6 +121,9 @@ function WorkoutCard({ workoutId, name, suggestedDays, active, defaultUnit }: Wo
   const planned = usePlannedExercises(workoutId);
   const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
+  // The programme line is written in the axis the exercise is measured on, so
+  // a plank reads `3×45s` rather than `3×45` reps (REQ-112).
+  const measurements = useExerciseMeasurements(exercises.map((it) => it.exerciseId));
 
   return (
     <Card>
@@ -143,6 +148,7 @@ function WorkoutCard({ workoutId, name, suggestedDays, active, defaultUnit }: Wo
             <ExerciseRow
               exercise={exercise}
               key={exercise.id}
+              measurement={measurements?.get(exercise.exerciseId) ?? 'weight_reps'}
               name={names?.get(exercise.exerciseId) ?? '…'}
               position={index + 1}
             />
@@ -163,11 +169,12 @@ function WorkoutCard({ workoutId, name, suggestedDays, active, defaultUnit }: Wo
 
 interface ExerciseRowProps {
   readonly exercise: PlannedExercise;
+  readonly measurement: Measurement;
   readonly name: string;
   readonly position: number;
 }
 
-function ExerciseRow({ exercise, name, position }: ExerciseRowProps) {
+function ExerciseRow({ exercise, measurement, name, position }: ExerciseRowProps) {
   return (
     <article className={ROW}>
       <div className="flex items-start gap-3">
@@ -181,7 +188,9 @@ function ExerciseRow({ exercise, name, position }: ExerciseRowProps) {
           >
             {name}
           </Link>
-          <span className="type-measure-sm text-ink-3">{programmingLine(exercise)}</span>
+          <span className="type-measure-sm text-ink-3">
+            {programmingLine(exercise, measurement)}
+          </span>
           {exercise.focus !== null && (
             <span className="type-caption text-ink-2">{exercise.focus}</span>
           )}

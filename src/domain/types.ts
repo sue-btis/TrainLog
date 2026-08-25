@@ -25,10 +25,12 @@ import type {
   WorkoutId,
 } from '@/domain/ids';
 import type { LocalDate, Timestamp } from '@/domain/dates';
-import type { Unit } from '@/domain/units';
+import type { DistanceUnit, Unit } from '@/domain/units';
+import type { Measurement } from '@/domain/measurement';
 
 export type { LocalDate, Timestamp } from '@/domain/dates';
-export type { Unit } from '@/domain/units';
+export type { DistanceUnit, Unit } from '@/domain/units';
+export type { Measurement } from '@/domain/measurement';
 
 /** A day of the week, as a Workout's `suggestedDays` names it (§12). */
 export type Weekday =
@@ -56,6 +58,12 @@ export interface Exercise {
   readonly name: string;
   readonly category: string | null;
   readonly equipment: string | null;
+  /**
+   * How this movement is measured (REQ-104, DEC-B). Declared here and nowhere
+   * else: a plank does not become a rep exercise on Tuesday. Snapshotted onto
+   * `ExerciseSessionBase` when the exercise starts.
+   */
+  readonly measurement: Measurement;
 }
 
 // ------------------------------------------------------------------ Planning
@@ -128,8 +136,21 @@ export interface PlannedExercise {
   readonly workoutId: WorkoutId;
   readonly exerciseId: ExerciseId;
   readonly sets: number;
-  readonly minReps: number;
-  readonly maxReps: number;
+  /**
+   * The target range, for a type whose target axis is reps (REQ-135, REQ-139).
+   * Nullable since this change; the names and the meaning are unchanged, so no
+   * stored row is rewritten and `parseBackup` needs no field mapping (DEC-Q).
+   */
+  readonly minReps: number | null;
+  readonly maxReps: number | null;
+  /**
+   * The target range for a type whose target axis is *not* reps (REQ-138):
+   * seconds for the duration types, metres for the distance types, both
+   * canonical as `restSeconds` already is. Exactly one of the two pairs is
+   * populated, decided by the Exercise's measurement (REQ-139).
+   */
+  readonly minTarget: number | null;
+  readonly maxTarget: number | null;
   readonly minRir: number | null;
   readonly maxRir: number | null;
   readonly restSeconds: number | null;
@@ -177,6 +198,14 @@ export interface Session {
   readonly startedAt: Timestamp;
   readonly completedAt: Timestamp | null;
   readonly status: SessionStatus;
+  /**
+   * The lifter's bodyweight on the day, or `null` where none has ever been
+   * recorded (REQ-108, DEC-C, DEC-I). A field on `Session` rather than a tenth
+   * table. Carried forward from the most recent non-null value and editable for
+   * the length of the Session. Every row written before this change reads
+   * `null`; no backfill invents one.
+   */
+  readonly bodyweightKg: number | null;
 }
 
 /**
@@ -191,6 +220,13 @@ interface ExerciseSessionBase {
   readonly exerciseId: ExerciseId;
   readonly order: number;
   readonly status: ExerciseSessionStatus;
+  /**
+   * The Exercise's measurement, snapshotted when the exercise starts (REQ-105,
+   * DEC-H). On the base rather than among the `planned*` fields: an unplanned
+   * exercise has a measurement too. Never copied onto `CompletedSet`, so a set
+   * cannot contradict the ExerciseSession above it.
+   */
+  readonly measurement: Measurement;
 }
 
 /**
@@ -210,8 +246,11 @@ export interface PlannedExerciseSession extends ExerciseSessionBase {
    */
   readonly plannedUnit: Unit;
   readonly plannedSets: number;
-  readonly plannedMinReps: number;
-  readonly plannedMaxReps: number;
+  readonly plannedMinReps: number | null;
+  readonly plannedMaxReps: number | null;
+  /** The non-rep target range, snapshotted alongside the rest (REQ-138). */
+  readonly plannedMinTarget: number | null;
+  readonly plannedMaxTarget: number | null;
   readonly plannedMinRir: number | null;
   readonly plannedMaxRir: number | null;
   readonly plannedRestSeconds: number | null;
@@ -249,8 +288,19 @@ export interface CompletedSet {
   readonly weight: number;
   readonly unit: Unit;
   readonly weightKg: number;
-  readonly reps: number;
+  /**
+   * The rep count, or `null` for a type that collects none (REQ-106). Widened
+   * by this change; `weight`, `unit`, `weightKg` and `rir` stay required and
+   * non-null, because every row already on disk has all five (DER-1).
+   */
+  readonly reps: number | null;
   readonly rir: number;
+  /** Seconds held or worked, for a type that collects a duration (REQ-106). */
+  readonly durationSeconds: number | null;
+  /** The distance as entered, with its unit, plus the derived metres (REQ-107). */
+  readonly distance: number | null;
+  readonly distanceUnit: DistanceUnit | null;
+  readonly distanceM: number | null;
   readonly completedAt: Timestamp;
 }
 

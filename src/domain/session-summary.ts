@@ -18,25 +18,51 @@
  * one figure that is not blind to half of itself.
  */
 
-import { estimateOneRepMaxKg, exerciseSeries } from '@/domain/history';
+import { compareProgress, exerciseSeries, recordSetOf } from '@/domain/history';
 import type { ExerciseId } from '@/domain/ids';
+import {
+  progressAxisOf,
+  volumeFamilyOf,
+  type Axis,
+  type Measurement,
+} from '@/domain/measurement';
 import type { SessionHistory } from '@/domain/progression';
 import type { CompletedSet } from '@/domain/types';
 
-/** An exercise whose estimated 1RM in this Session beat every session before it. */
+/**
+ * An exercise whose best value in this Session beat every session before it,
+ * on that exercise's own axis in that axis's own direction (REQ-115).
+ *
+ * `value` is an estimated 1RM for the two types that have one and the raw
+ * axis — assistance, pace, seconds, metres — for the rest. `axis` travels
+ * with it because the number is meaningless without it, and reading the unit
+ * off the exercise a second time is exactly the restatement REQ-102 forbids.
+ */
 export interface SessionRecord {
   readonly exerciseId: ExerciseId;
   /** The set that did it — what the lifter actually performed. */
   readonly set: CompletedSet;
-  readonly estimatedOneRepMaxKg: number;
-  /** The estimate this beat, or `null` where nothing earlier held sets. */
-  readonly previousBestKg: number | null;
+  readonly measurement: Measurement;
+  readonly axis: Axis;
+  readonly value: number;
+  /** The value this beat, or `null` where nothing earlier held sets. */
+  readonly previousValue: number | null;
 }
 
 export interface SessionSummary {
   readonly setsLogged: number;
-  /** `Σ weightKg × reps` across every set of the Session (§11.7 — kilograms). */
+  /**
+   * `Σ weightKg × reps` over the sets whose type produces kilogram-reps, and
+   * only those (REQ-117). A plank and a run are silent here by construction,
+   * not by rounding to zero.
+   */
   readonly volumeKg: number;
+  /** Reps done on the bodyweight-rep types. Its own unit, its own number. */
+  readonly volumeReps: number;
+  /** Seconds held or worked on the duration types. */
+  readonly volumeSeconds: number;
+  /** Metres covered on the distance types. */
+  readonly volumeMetres: number;
   /** Wall-clock minutes, or `null` while the Session is still open. */
   readonly minutes: number | null;
   /**
@@ -85,39 +111,96 @@ export function summarizeSession(
     const series = exerciseSeries(history);
     const index = series.findIndex((point) => point.startedAt === session.startedAt);
     const point = index === -1 ? undefined : series[index];
-    if (point === undefined || !point.isRecord) continue;
+    if (point === undefined || !point.isRecord || point.progressValue === null) continue;
 
-    // The set that produced the estimate, not the heaviest. A lighter set taken
-    // closer to failure can be the one that beat the record, and naming the
-    // heaviest instead would credit the wrong lift.
-    const set = exercise.sets.reduce((best, performed) =>
-      estimateOneRepMaxKg(performed) > estimateOneRepMaxKg(best) ? performed : best,
-    );
+    const { measurement } = exercise.exerciseSession;
 
     records.push({
       exerciseId,
-      set,
-      estimatedOneRepMaxKg: point.estimatedOneRepMaxKg,
+      set: recordSetOf(exercise.sets, measurement),
+      measurement,
+      axis: progressAxisOf(measurement),
+      value: point.progressValue,
       // `isRecord` is false for the first point, so a record always has one before it.
-      previousBestKg: series
+      previousValue: series
         .slice(0, index)
         .reduce<number | null>(
-          (best, earlier) => Math.max(best ?? 0, earlier.estimatedOneRepMaxKg),
+          (best, earlier) =>
+            compareProgress(earlier.progressValue, best, measurement) > 0
+              ? earlier.progressValue
+              : best,
           null,
         ),
     });
   }
 
+  const volume = accumulate(detail);
+
   return {
     setsLogged: sets.length,
-    volumeKg: sets.reduce((total, set) => total + set.weightKg * set.reps, 0),
+    volumeKg: volume.kg_reps,
+    volumeReps: volume.reps,
+    volumeSeconds: volume.seconds,
+    volumeMetres: volume.metres,
     minutes,
     effort: effortOf(sets, minutes),
     performed: countStatus(detail, 'performed'),
     skipped: countStatus(detail, 'skipped'),
     pending: countStatus(detail, 'pending'),
-    records: records.sort((a, b) => b.estimatedOneRepMaxKg - a.estimatedOneRepMaxKg),
+    // Biggest margin over what it beat leads the screen. Ranking by the raw
+    // value would put a 5 km run above a 200 kg squat, and would sort the
+    // inverted axes backwards on top of it.
+    records: records.sort((a, b) => marginOf(b) - marginOf(a)),
   };
+}
+
+/**
+ * The four volume accumulators, each in its own unit and never added to one
+ * another (REQ-116, DEC-D). A Session mixing a squat and a run reports
+ * kilogram-reps and metres separately, and no figure spans the two.
+ *
+ * The family comes from the ExerciseSession's snapshotted measurement, never
+ * from which fields a set happens to carry.
+ */
+function accumulate(detail: SessionHistory): Record<
+  'kg_reps' | 'reps' | 'seconds' | 'metres',
+  number
+> {
+  const totals = { kg_reps: 0, reps: 0, seconds: 0, metres: 0 };
+
+  for (const exercise of detail.exercises) {
+    const family = volumeFamilyOf(exercise.exerciseSession.measurement);
+    for (const set of exercise.sets) {
+      switch (family) {
+        case 'kg_reps':
+          // A set carrying no rep count contributes nothing rather than NaN
+          // or a silent zero-weight product (REQ-117).
+          totals.kg_reps += set.weightKg * (set.reps ?? 0);
+          break;
+        case 'reps':
+          totals.reps += set.reps ?? 0;
+          break;
+        case 'seconds':
+          totals.seconds += set.durationSeconds ?? 0;
+          break;
+        case 'metres':
+          totals.metres += set.distanceM ?? 0;
+          break;
+      }
+    }
+  }
+  return totals;
+}
+
+/**
+ * How far a record beat the mark before it, as a fraction of that mark, so
+ * that records on four different axes can be ranked against each other at
+ * all. A first-ever mark has no margin and sorts last.
+ */
+function marginOf(record: SessionRecord): number {
+  const { previousValue } = record;
+  if (previousValue === null || previousValue === 0) return 0;
+  return Math.abs(record.value - previousValue) / Math.abs(previousValue);
 }
 
 /**

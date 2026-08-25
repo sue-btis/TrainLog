@@ -35,6 +35,7 @@ import { z } from 'zod';
 import { getCatalogExercise } from '@/domain/catalog';
 import { isLocalDate, type LocalDate } from '@/domain/dates';
 import { BACKUP_VERSION, type BackupDocument } from '@/domain/backup/document';
+import { MEASUREMENTS } from '@/domain/measurement';
 import { toId } from '@/domain/ids';
 import type {
   CompletedSetId,
@@ -81,6 +82,17 @@ function idOf<T extends Id<string>>(): z.ZodType<T, string> {
 }
 
 const unit = z.enum(['kg', 'lb']);
+const distanceUnit = z.enum(['m', 'km', 'mi']);
+
+/**
+ * The measurement union, closed exactly as `progression` is closed: a type the
+ * app cannot read is refused rather than kept as data (REQ-128).
+ *
+ * `.default('weight_reps')` is the compatibility rule of REQ-125 expressed in
+ * the parser: a document written before measurements existed carries none, and
+ * the only type provable from that data is weight x reps.
+ */
+const measurement = z.enum(MEASUREMENTS);
 
 /**
  * The numeric vocabulary of a backup (§18).
@@ -152,13 +164,50 @@ const workout = z.object({
   order: count,
 });
 
+/**
+ * Exactly one target pair is populated per planned exercise (REQ-139).
+ *
+ * Both pairs is a contradiction — two ranges, and nothing in the document says
+ * which one the exercise is actually programmed against — and neither is a plan
+ * with no target at all. Both are refused rather than silently resolved by
+ * preferring one, which would be the validator quietly choosing what the lifter
+ * meant.
+ *
+ * A pair counts as populated only when *both* ends are stated: a half-open
+ * range is not a range.
+ */
+function oneTargetPairIssue(
+  value: Readonly<Record<string, unknown>>,
+  repsKeys: readonly [string, string],
+  targetKeys: readonly [string, string],
+): { readonly message: string; readonly path: readonly [string] } | null {
+  const stated = (keys: readonly [string, string]): boolean =>
+    keys.every((key) => value[key] !== null && value[key] !== undefined);
+
+  const onReps = stated(repsKeys);
+  const onTarget = stated(targetKeys);
+  if (onReps !== onTarget) return null;
+
+  return onReps
+    ? {
+        message: `A planned exercise states ${repsKeys[0]}/${repsKeys[1]} or ${targetKeys[0]}/${targetKeys[1]}, never both.`,
+        path: [targetKeys[0]],
+      }
+    : {
+        message: `A planned exercise needs a range in ${repsKeys[0]}/${repsKeys[1]} or in ${targetKeys[0]}/${targetKeys[1]}.`,
+        path: [repsKeys[0]],
+      };
+}
+
 const plannedExercise = z.object({
   id: idOf<PlannedExerciseId>(),
   workoutId: idOf<WorkoutId>(),
   exerciseId: idOf<ExerciseId>(),
   sets: count,
-  minReps: count,
-  maxReps: count,
+  minReps: count.nullable().default(null),
+  maxReps: count.nullable().default(null),
+  minTarget: measure.nullable().default(null),
+  maxTarget: measure.nullable().default(null),
   minRir: measure.nullable(),
   maxRir: measure.nullable(),
   restSeconds: measure.nullable(),
@@ -167,6 +216,16 @@ const plannedExercise = z.object({
   notes: z.array(z.string()),
   order: count,
   progression,
+}).check((ctx) => {
+  const issue = oneTargetPairIssue(ctx.value, ['minReps', 'maxReps'], ['minTarget', 'maxTarget']);
+  if (issue) {
+    ctx.issues.push({
+      code: 'custom',
+      message: issue.message,
+      path: [...issue.path],
+      input: ctx.value,
+    });
+  }
 });
 
 const placement = z.object({
@@ -181,6 +240,7 @@ const exercise = z.object({
   name: z.string(),
   category: z.string().nullable(),
   equipment: z.string().nullable(),
+  measurement: measurement.default('weight_reps'),
 });
 
 const session = z.object({
@@ -190,6 +250,9 @@ const session = z.object({
   startedAt: timestamp,
   completedAt: timestamp.nullable(),
   status: z.enum(['in_progress', 'completed', 'partial']),
+  // Absent on every row written before this existed, and no backfill invents
+  // one (REQ-126).
+  bodyweightKg: measure.nullable().default(null),
 });
 
 const exerciseSessionBase = {
@@ -198,6 +261,7 @@ const exerciseSessionBase = {
   exerciseId: idOf<ExerciseId>(),
   order: count,
   status: z.enum(['pending', 'performed', 'skipped']),
+  measurement: measurement.default('weight_reps'),
 };
 
 /**
@@ -215,12 +279,28 @@ const exerciseSession = z.union([
     plannedExerciseId: idOf<PlannedExerciseId>(),
     plannedUnit: unit,
     plannedSets: count,
-    plannedMinReps: count,
-    plannedMaxReps: count,
+    plannedMinReps: count.nullable().default(null),
+    plannedMaxReps: count.nullable().default(null),
+    plannedMinTarget: measure.nullable().default(null),
+    plannedMaxTarget: measure.nullable().default(null),
     plannedMinRir: measure.nullable(),
     plannedMaxRir: measure.nullable(),
     plannedRestSeconds: measure.nullable(),
     plannedProgression: progression,
+  }).check((ctx) => {
+    const issue = oneTargetPairIssue(
+      ctx.value,
+      ['plannedMinReps', 'plannedMaxReps'],
+      ['plannedMinTarget', 'plannedMaxTarget'],
+    );
+    if (issue) {
+      ctx.issues.push({
+        code: 'custom',
+        message: issue.message,
+        path: [...issue.path],
+        input: ctx.value,
+      });
+    }
   }),
   // `looseObject`, not `object`: a plain object strips unknown keys *before*
   // checks run, so the contradiction would be quietly deleted instead of
@@ -250,6 +330,7 @@ const exerciseSession = z.union([
       exerciseId: row.exerciseId,
       order: row.order,
       status: row.status,
+      measurement: row.measurement,
       plannedExerciseId: row.plannedExerciseId,
     })),
 ]);
@@ -261,8 +342,14 @@ const completedSet = z.object({
   weight: measure,
   unit,
   weightKg: measure,
-  reps: count,
+  reps: count.nullable(),
   rir: measure,
+  // Nullable *and* defaulted: a version-1 document carries none of these and
+  // must not be refused for lacking them (REQ-128).
+  durationSeconds: measure.nullable().default(null),
+  distance: measure.nullable().default(null),
+  distanceUnit: distanceUnit.nullable().default(null),
+  distanceM: measure.nullable().default(null),
   completedAt: timestamp,
 });
 

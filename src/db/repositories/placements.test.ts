@@ -66,6 +66,7 @@ describe('placement mutations (R-42, §11.3)', () => {
     startedAt: Date.parse('2026-09-07T18:00:00Z'),
     completedAt: Date.parse('2026-09-07T19:00:00Z'),
     status: 'completed',
+    bodyweightKg: null,
   };
 
   beforeEach(async () => {

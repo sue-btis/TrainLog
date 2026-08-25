@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toKg, type Unit } from '@/domain/units';
+import { toKg, toMetres, type DistanceUnit, type Unit } from '@/domain/units';
 
 describe('toKg', () => {
   const cases: ReadonlyArray<{ weight: number; unit: Unit; expected: number }> = [
@@ -32,5 +32,51 @@ describe('toKg', () => {
       const decimals = String(toKg(weight, unit)).split('.')[1] ?? '';
       expect(decimals.length).toBeLessThanOrEqual(3);
     }
+  });
+});
+
+/**
+ * `toMetres` is the distance twin of `toKg` (REQ-107, DEC-J): a distance is
+ * stored as entered with its unit, plus a derived metre value every comparison
+ * and chart reads. Two things can silently go wrong — a wrong conversion
+ * factor, and a rounding rule that disagrees with the weight side — so this
+ * block pins the exact factors and the stated 3-decimal precision.
+ */
+describe('toMetres (TST-112)', () => {
+  const cases: ReadonlyArray<{ distance: number; unit: DistanceUnit; expected: number }> = [
+    // The three stated round-trips
+    { distance: 5, unit: 'km', expected: 5000 },
+    { distance: 1, unit: 'mi', expected: 1609.344 },
+    { distance: 42, unit: 'm', expected: 42 },
+    // m passes through, rounded to the same precision as toKg
+    { distance: 0, unit: 'm', expected: 0 },
+    { distance: 2.5, unit: 'm', expected: 2.5 },
+    { distance: 20.00049, unit: 'm', expected: 20 },
+    { distance: 20.0005, unit: 'm', expected: 20.001 },
+    { distance: 20.9999, unit: 'm', expected: 21 },
+    // km is an exact factor of 1000
+    { distance: 0, unit: 'km', expected: 0 },
+    { distance: 1.5, unit: 'km', expected: 1500 },
+    { distance: 0.0001, unit: 'km', expected: 0.1 },
+    // mi converts by the exact factor 1609.344, then rounds
+    { distance: 0, unit: 'mi', expected: 0 },
+    { distance: 0.5, unit: 'mi', expected: 804.672 },
+    { distance: 3, unit: 'mi', expected: 4828.032 },
+  ];
+
+  it.each(cases)('toMetres($distance, $unit) === $expected', ({ distance, unit, expected }) => {
+    expect(toMetres(distance, unit)).toBe(expected);
+  });
+
+  it('TST-112: never returns more than 3 decimal places, exactly as toKg does', () => {
+    for (const { distance, unit } of cases) {
+      const decimals = String(toMetres(distance, unit)).split('.')[1] ?? '';
+      expect(decimals.length).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('TST-112: round-trips a metre value back through its own unit', () => {
+    expect(toMetres(toMetres(5, 'km') / 1000, 'km')).toBe(5000);
+    expect(toMetres(toMetres(1, 'mi') / 1609.344, 'mi')).toBe(1609.344);
   });
 });

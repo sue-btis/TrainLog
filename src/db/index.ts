@@ -55,11 +55,16 @@ export {
 } from '@/db/repositories/placements';
 
 export {
+  ExerciseHasLoggedSetsError,
   ExerciseNameRequiredError,
+  ExerciseNotCorrectableError,
+  correctExerciseMeasurement,
   createUserExercise,
   getExercise,
   getExerciseName,
+  getExerciseMeasurements,
   getExerciseNames,
+  getExercisesById,
   listUserExercises,
   type CreatedExercise,
 } from '@/db/repositories/exercises';
@@ -83,6 +88,8 @@ export {
   createStartedWorkout,
   discardSession,
   getInProgressSession,
+  lastRecordedBodyweightKg,
+  saveSessionBodyweight,
   getLastPerformedWorkout,
   getSession,
   listAllSessions,

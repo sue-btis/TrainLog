@@ -349,6 +349,8 @@ function ExerciseRow({
 }: ExerciseRowProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const base = exercisePath(exerciseRef.workout, exerciseRef.exercise);
+  // A version-2 file may state a target range instead of a rep range (REQ-130).
+  const { reps } = exercise;
   const flagged = hasIssuesUnder(issues, base);
   const expanded = open || flagged;
 
@@ -428,23 +430,30 @@ function ExerciseRow({
                 optional
                 value={exercise.rest_seconds}
               />
-              <NumberField
-                error={errorFor(`${base}.reps`)}
-                id={fieldId(`${base}.reps`)}
-                label="min reps"
-                onCommit={(value) =>
-                  patch({ reps: { ...exercise.reps, min: value ?? exercise.reps.min } })
-                }
-                value={exercise.reps.min}
-              />
-              <NumberField
-                id={`${fieldId(`${base}.reps`)}-max`}
-                label="max reps"
-                onCommit={(value) =>
-                  patch({ reps: { ...exercise.reps, max: value ?? exercise.reps.max } })
-                }
-                value={exercise.reps.max}
-              />
+              {/* A version-2 file may state a target range instead of a rep
+                  range (REQ-130), in which case there is no rep field to edit
+                  and the wizard offers none. */}
+              {reps !== undefined && (
+                <>
+                  <NumberField
+                    error={errorFor(`${base}.reps`)}
+                    id={fieldId(`${base}.reps`)}
+                    label="min reps"
+                    onCommit={(value) =>
+                      patch({ reps: { ...reps, min: value ?? reps.min } })
+                    }
+                    value={reps.min}
+                  />
+                  <NumberField
+                    id={`${fieldId(`${base}.reps`)}-max`}
+                    label="max reps"
+                    onCommit={(value) =>
+                      patch({ reps: { ...reps, max: value ?? reps.max } })
+                    }
+                    value={reps.max}
+                  />
+                </>
+              )}
               <NumberField
                 error={errorFor(`${base}.rir`)}
                 id={fieldId(`${base}.rir`)}
@@ -555,7 +564,12 @@ function ProgressionRow({ error, id, onUseManual }: ProgressionRowProps) {
 
 /** `4×4–6 · RIR 1–2 · 210s · kg` — the programme as the file states it. */
 function programmingLine(exercise: RoutineFileExercise, defaultUnit: Unit): string {
-  const parts = [`${exercise.sets}×${range(exercise.reps.min, exercise.reps.max)}`];
+  const target = exercise.reps ?? exercise.target;
+  const parts = [
+    target === undefined
+      ? `${exercise.sets} sets`
+      : `${exercise.sets}×${range(target.min, target.max)}`,
+  ];
   if (exercise.rir !== undefined) parts.push(`RIR ${range(exercise.rir.min, exercise.rir.max)}`);
   if (exercise.rest_seconds !== undefined) parts.push(`${exercise.rest_seconds}s`);
   parts.push(exercise.unit ?? defaultUnit);

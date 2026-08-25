@@ -61,6 +61,18 @@ const HOSTILE: readonly unknown[] = [
   { __proto__: { polluted: true } },
   '\u0000',
   '𝕏'.repeat(50),
+  // TST-118 (REQ-128) — values shaped like the closed enums this change added.
+  // A near-miss is the input that finds a `startsWith` where an `===` belonged.
+  'weight_reps',
+  'WEIGHT_REPS',
+  'weight_reps ',
+  'yoga',
+  'duration_',
+  'km',
+  'KM',
+  'furlong',
+  ['weight_reps'],
+  { measurement: 'weight_reps' },
 ];
 
 function validDocument(): Record<string, unknown> {
@@ -69,12 +81,90 @@ function validDocument(): Record<string, unknown> {
     exportedAt: 1_755_000_000_000,
     routines: [{ id: 'r1', name: 'Base', weeks: 4, status: 'active', createdAt: 1 }],
     workouts: [{ id: 'w1', routineId: 'r1', name: 'Lower', suggestedDays: ['monday'], order: 0 }],
-    plannedExercises: [],
-    placements: [],
-    exercises: [],
-    sessions: [],
-    exerciseSessions: [],
-    completedSets: [],
+    // TST-118 (REQ-128) — every table is populated, and every row carries the
+    // fields this change added. An empty table cannot be corrupted *inside*,
+    // so with the old fixture the row-level branch of `corrupt` only ever
+    // reached routines and workouts, and the new fields were never fuzzed at
+    // all.
+    plannedExercises: [
+      {
+        id: 'pe1',
+        workoutId: 'w1',
+        exerciseId: 'front-squat',
+        sets: 4,
+        minReps: null,
+        maxReps: null,
+        minTarget: 400,
+        maxTarget: 800,
+        minRir: 1,
+        maxRir: 2,
+        restSeconds: 180,
+        unit: 'kg',
+        focus: null,
+        notes: [],
+        order: 0,
+        progression: { type: 'double_progression', increment: 2.5 },
+      },
+    ],
+    placements: [{ id: 'p1', routineId: 'r1', workoutId: 'w1', date: '2026-08-17' }],
+    exercises: [
+      {
+        id: 'user-1',
+        name: 'Sled Push',
+        category: null,
+        equipment: null,
+        measurement: 'weight_distance',
+      },
+    ],
+    sessions: [
+      {
+        id: 's1',
+        routineId: 'r1',
+        workoutId: 'w1',
+        startedAt: 2,
+        completedAt: 3,
+        status: 'completed',
+        bodyweightKg: 81.4,
+      },
+    ],
+    exerciseSessions: [
+      {
+        id: 'es1',
+        sessionId: 's1',
+        exerciseId: 'front-squat',
+        order: 0,
+        status: 'performed',
+        measurement: 'distance_duration',
+        plannedExerciseId: 'pe1',
+        plannedUnit: 'kg',
+        plannedSets: 4,
+        plannedMinReps: null,
+        plannedMaxReps: null,
+        plannedMinTarget: 400,
+        plannedMaxTarget: 800,
+        plannedMinRir: 1,
+        plannedMaxRir: 2,
+        plannedRestSeconds: 180,
+        plannedProgression: { type: 'double_progression', increment: 2.5 },
+      },
+    ],
+    completedSets: [
+      {
+        id: 'cs1',
+        exerciseSessionId: 'es1',
+        setNumber: 1,
+        weight: 0,
+        unit: 'kg',
+        weightKg: 0,
+        reps: null,
+        rir: 2,
+        durationSeconds: 96.5,
+        distance: 0.4,
+        distanceUnit: 'km',
+        distanceM: 400,
+        completedAt: 4,
+      },
+    ],
     settings: { id: 'settings', defaultUnit: 'kg' },
   };
 }
@@ -162,6 +252,81 @@ describe('parseBackup under hostile input', () => {
       const { threw, emptyRefusal } = probe(text);
       expect(threw, `threw on ${text}`).toBeNull();
       expect(emptyRefusal, `refused ${text} with no reason`).toBe(false);
+    }
+  });
+
+  /**
+   * TST-118 (REQ-128) — the added fields, one at a time.
+   *
+   * The whole-document walk above reaches these only by chance. This one aims
+   * at them: every field this change added, crossed with every hostile value,
+   * with the rest of the document left valid so nothing else can absorb the
+   * blame. Both invariants still hold — a return, and a reason.
+   */
+  it('never throws on a hostile value in any field this change added', () => {
+    const fields: readonly (readonly [string, string])[] = [
+      ['exercises', 'measurement'],
+      ['exerciseSessions', 'measurement'],
+      ['sessions', 'bodyweightKg'],
+      ['plannedExercises', 'minTarget'],
+      ['plannedExercises', 'maxTarget'],
+      ['exerciseSessions', 'plannedMinTarget'],
+      ['exerciseSessions', 'plannedMaxTarget'],
+      ['completedSets', 'reps'],
+      ['completedSets', 'durationSeconds'],
+      ['completedSets', 'distance'],
+      ['completedSets', 'distanceUnit'],
+      ['completedSets', 'distanceM'],
+    ];
+
+    for (const [table, field] of fields) {
+      for (const value of HOSTILE) {
+        const document = validDocument();
+        const rows = document[table] as Record<string, unknown>[];
+        document[table] = [{ ...rows[0], [field]: value }];
+
+        const text = JSON.stringify(document) ?? 'undefined';
+        const { threw, emptyRefusal } = probe(text);
+        // Not `String(value)`: one of the hostile values has a null
+        // `toString`, and a test helper that throws while formatting a
+        // failure message is a worse bug than the one it was reporting.
+        const where = `${table}.${field} = ${text.slice(0, 200)}`;
+        expect(threw, `threw on ${where}`).toBeNull();
+        expect(emptyRefusal, `refused ${where} with no reason`).toBe(false);
+      }
+    }
+  });
+
+  /**
+   * TST-118 (REQ-128) — and a *missing* one is not the same as a hostile one.
+   *
+   * Every added field is nullable and defaulted so a version-1 document is not
+   * refused for lacking it. Deleting them one at a time pins that the defaults
+   * cannot be tripped into throwing either.
+   */
+  it('never throws when an added field is simply absent', () => {
+    const fields: readonly (readonly [string, string])[] = [
+      ['exercises', 'measurement'],
+      ['exerciseSessions', 'measurement'],
+      ['exerciseSessions', 'plannedMinTarget'],
+      ['sessions', 'bodyweightKg'],
+      ['plannedExercises', 'minTarget'],
+      ['completedSets', 'durationSeconds'],
+      ['completedSets', 'distance'],
+      ['completedSets', 'distanceUnit'],
+      ['completedSets', 'distanceM'],
+    ];
+
+    for (const [table, field] of fields) {
+      const document = validDocument();
+      const rows = document[table] as Record<string, unknown>[];
+      const row = { ...rows[0] };
+      delete row[field];
+      document[table] = [row];
+
+      const { threw, emptyRefusal } = probe(JSON.stringify(document) ?? 'undefined');
+      expect(threw, `threw without ${table}.${field}`).toBeNull();
+      expect(emptyRefusal, `refused a missing ${table}.${field} with no reason`).toBe(false);
     }
   });
 

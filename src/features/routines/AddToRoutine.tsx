@@ -27,6 +27,8 @@ import {
   validateRoutineFile,
   type PlannedExerciseDraft,
 } from '@/domain/routine-file';
+import type { RoutineFile } from '@/domain/routine-file';
+import { targetUnitOf, targetsReps } from '@/domain/measurement';
 import { claimantsOfDay, generatePlacements, remainingWeeks } from '@/domain/scheduling';
 import type { Exercise, ProgressionRule, Unit, Weekday, Workout } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
@@ -240,10 +242,42 @@ const INITIAL_TARGETS = {
   sets: 3,
   minReps: 8,
   maxReps: 12,
+  // The non-rep target range (REQ-138), in the axis's canonical unit — which is
+  // `targetUnitOf`'s to say, not this file's. Only one of the two pairs is ever
+  // read, decided by the chosen Exercise's measurement and never by which of
+  // them happens to hold a number (REQ-139), so both can carry a starting
+  // value: a range the lifter will overtype, not a claim about the movement.
+  minTarget: 30,
+  maxTarget: 60,
   minRir: null as number | null,
   maxRir: null as number | null,
   restSeconds: 120 as number | null,
 };
+
+/**
+ * The synthetic file `validateRoutineFile` reads, with the target range in
+ * place of the rep range for a type that states no reps (REQ-139).
+ *
+ * `plannedExerciseDraftFile` writes a rep range and only a rep range, and it
+ * lives in `domain/`, which this form does not write. So the one node that
+ * differs is replaced on the way out rather than a second synthetic file being
+ * built beside it — the rest of the draft, and every rule the validator applies
+ * to it, stays the one the wizard shares. Declaring `version: 2` because a
+ * target range is what version 2 added; dropping `reps` because an exercise
+ * states one range or the other, never both.
+ */
+function draftFileWithTarget(file: RoutineFile, target: { min: number; max: number }): RoutineFile {
+  const workout = file.routine.workouts[0]!;
+  const exercise = workout.exercises[0]!;
+  return {
+    ...file,
+    version: 2,
+    routine: {
+      ...file.routine,
+      workouts: [{ ...workout, exercises: [{ ...exercise, reps: undefined, target }] }],
+    },
+  };
+}
 
 /**
  * Adding a Planned Exercise to a Workout that is already stored (REQ-407…410).
@@ -312,7 +346,21 @@ export function AddPlannedExerciseForm({
     progression,
   };
 
-  const file = chosen === null ? null : plannedExerciseDraftFile(draft, workoutName);
+  // Which pair of targets this movement is programmed in (REQ-139). Read off
+  // the chosen Exercise's declared measurement — the only thing that decides
+  // it — and answered for no Exercise at all only because the fields below are
+  // not on screen until one is bound.
+  const repsAxis = chosen === null || targetsReps(chosen.measurement);
+
+  const file =
+    chosen === null
+      ? null
+      : repsAxis
+        ? plannedExerciseDraftFile(draft, workoutName)
+        : draftFileWithTarget(plannedExerciseDraftFile(draft, workoutName), {
+            min: targets.minTarget,
+            max: targets.maxTarget,
+          });
   const issues = file === null ? [] : validateRoutineFile(file);
 
   // Issues come back rooted at the synthetic file, so a form field finds its own
@@ -354,8 +402,13 @@ export function AddPlannedExerciseForm({
       await addPlannedExercise(workoutId, {
         exerciseId: chosen.id,
         sets: targets.sets,
-        minReps: targets.minReps,
-        maxReps: targets.maxReps,
+        // Exactly one pair is written, and the measurement decides which
+        // (REQ-139, AC-164, AC-165). The other is `null` — not zero, and not
+        // the number the unused fields still hold in state.
+        minReps: repsAxis ? targets.minReps : null,
+        maxReps: repsAxis ? targets.maxReps : null,
+        minTarget: repsAxis ? null : targets.minTarget,
+        maxTarget: repsAxis ? null : targets.maxTarget,
         minRir: targets.minRir,
         maxRir: targets.maxRir,
         restSeconds: targets.restSeconds,
@@ -451,19 +504,51 @@ export function AddPlannedExerciseForm({
               optional
               value={targets.restSeconds ?? undefined}
             />
-            <NumberField
-              error={errorFor('reps')}
-              id={`add-planned-min-reps-${workoutId}`}
-              label="min reps"
-              onCommit={(value) => setTargets({ ...targets, minReps: value ?? targets.minReps })}
-              value={targets.minReps}
-            />
-            <NumberField
-              id={`add-planned-max-reps-${workoutId}`}
-              label="max reps"
-              onCommit={(value) => setTargets({ ...targets, maxReps: value ?? targets.maxReps })}
-              value={targets.maxReps}
-            />
+            {/* The range this movement is programmed in, and only that one
+                (REQ-134, AC-155): a plank collects no rep range, because it has
+                none to collect. The caption comes from `targetUnitOf`, so the
+                unit a duration or a distance target is stated in is said in
+                `measurement.ts` and nowhere else (REQ-102). A distance is
+                entered in its canonical metres — the value stored — rather than
+                in kilometres over a conversion this form would then be the
+                second place to state. */}
+            {repsAxis ? (
+              <>
+                <NumberField
+                  error={errorFor('reps')}
+                  id={`add-planned-min-reps-${workoutId}`}
+                  label="min reps"
+                  onCommit={(value) => setTargets({ ...targets, minReps: value ?? targets.minReps })}
+                  value={targets.minReps}
+                />
+                <NumberField
+                  id={`add-planned-max-reps-${workoutId}`}
+                  label="max reps"
+                  onCommit={(value) => setTargets({ ...targets, maxReps: value ?? targets.maxReps })}
+                  value={targets.maxReps}
+                />
+              </>
+            ) : (
+              <>
+                <NumberField
+                  error={errorFor('target')}
+                  id={`add-planned-min-target-${workoutId}`}
+                  label={`min ${targetUnitOf(chosen.measurement)}`}
+                  onCommit={(value) =>
+                    setTargets({ ...targets, minTarget: value ?? targets.minTarget })
+                  }
+                  value={targets.minTarget}
+                />
+                <NumberField
+                  id={`add-planned-max-target-${workoutId}`}
+                  label={`max ${targetUnitOf(chosen.measurement)}`}
+                  onCommit={(value) =>
+                    setTargets({ ...targets, maxTarget: value ?? targets.maxTarget })
+                  }
+                  value={targets.maxTarget}
+                />
+              </>
+            )}
             <NumberField
               error={targets.minRir === null ? refusals.rir : errorFor('rir')}
               id={`add-planned-min-rir-${workoutId}`}

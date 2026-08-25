@@ -26,6 +26,10 @@ import {
   startWorkout,
 } from '@/domain/session';
 
+/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
+const measurement = 'weight_reps' as const;
+const measurementOf = () => measurement;
+
 const routineId = toId<RoutineId>('routine-1');
 const workoutId = toId<WorkoutId>('workout-1');
 const sessionId = toId<SessionId>('session-1');
@@ -39,6 +43,8 @@ function plannedExercise(): PlannedExercise {
     sets: 4,
     minReps: 4,
     maxReps: 6,
+    minTarget: null,
+    maxTarget: null,
     minRir: 1,
     maxRir: 2,
     restSeconds: 210,
@@ -67,6 +73,7 @@ describe('startSession (REQ-050, AC-050, AC-051)', () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
 
     expect(Object.keys(session).sort()).toEqual([
+      'bodyweightKg',
       'completedAt',
       'id',
       'routineId',
@@ -81,7 +88,7 @@ describe('TST-010 snapshot regression (REQ-051, REQ-052, REQ-053)', () => {
   it('copies every planned field into the ExerciseSession (AC-052)', () => {
     const planned = plannedExercise();
 
-    const exerciseSession = startPlannedExercise({ sessionId, planned, order: 0 });
+    const exerciseSession = startPlannedExercise({ measurement, sessionId, planned, order: 0 });
 
     expect(exerciseSession).toMatchObject({
       sessionId,
@@ -101,7 +108,7 @@ describe('TST-010 snapshot regression (REQ-051, REQ-052, REQ-053)', () => {
 
   it('is unchanged when the PlannedExercise is mutated afterwards (AC-053)', () => {
     const planned: PlannedExercise = plannedExercise();
-    const exerciseSession = startPlannedExercise({ sessionId, planned, order: 0 });
+    const exerciseSession = startPlannedExercise({ measurement, sessionId, planned, order: 0 });
     const before: PlannedExerciseSession = { ...exerciseSession };
 
     // The template is edited after the session started.
@@ -126,6 +133,7 @@ describe('TST-010 snapshot regression (REQ-051, REQ-052, REQ-053)', () => {
 
   it('is unchanged when the PlannedExercise is replaced by a re-import (AC-053)', () => {
     const exerciseSession = startPlannedExercise({
+      measurement,
       sessionId,
       planned: plannedExercise(),
       order: 0,
@@ -145,7 +153,7 @@ describe('TST-010 snapshot regression (REQ-051, REQ-052, REQ-053)', () => {
   });
 
   it('gives an unplanned exercise a null plannedExerciseId and no planned targets (AC-054)', () => {
-    const unplanned = startUnplannedExercise({ sessionId, exerciseId, order: 3 });
+    const unplanned = startUnplannedExercise({ measurement, sessionId, exerciseId, order: 3 });
 
     expect(unplanned).toMatchObject({
       sessionId,
@@ -163,7 +171,7 @@ describe('TST-010 snapshot regression (REQ-051, REQ-052, REQ-053)', () => {
 
 describe('TST-011 set logging, deviation and status derivation (REQ-054...REQ-057)', () => {
   const planned = plannedExercise();
-  const start = () => startPlannedExercise({ sessionId, planned, order: 0 });
+  const start = () => startPlannedExercise({ measurement, sessionId, planned, order: 0 });
 
   it('stores weight and unit as entered plus derived weightKg (AC-055)', () => {
     const { set } = logSet({
@@ -254,7 +262,7 @@ describe('TST-011 set logging, deviation and status derivation (REQ-054...REQ-05
     const performed = [
       { ...start(), status: 'performed' as const },
       {
-        ...startUnplannedExercise({ sessionId, exerciseId, order: 1 }),
+        ...startUnplannedExercise({ measurement, sessionId, exerciseId, order: 1 }),
         status: 'performed' as const,
       },
     ];
@@ -307,6 +315,7 @@ describe('startWorkout (R-2, AC-3, AC-4)', () => {
     const planned = [plannedAt(1, 'planned-b'), plannedAt(0, 'planned-a')];
 
     const { session, exerciseSessions } = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned,
@@ -328,6 +337,7 @@ describe('startWorkout (R-2, AC-3, AC-4)', () => {
     const planned = plannedAt(0, 'planned-a');
 
     const { exerciseSessions } = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [planned],
@@ -351,6 +361,7 @@ describe('startWorkout (R-2, AC-3, AC-4)', () => {
     const pounds: PlannedExercise = { ...plannedAt(0, 'planned-lb'), unit: 'lb' };
 
     const { exerciseSessions } = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [pounds],
@@ -362,6 +373,7 @@ describe('startWorkout (R-2, AC-3, AC-4)', () => {
 
   it('starts a Workout with no exercises (AC-3)', () => {
     const { session, exerciseSessions } = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [],
@@ -376,14 +388,14 @@ describe('startWorkout (R-2, AC-3, AC-4)', () => {
 describe('moveExerciseSession (R-3, AC-9…AC-12)', () => {
   function three(): PlannedExerciseSession[] {
     return [0, 1, 2].map((order) => ({
-      ...startPlannedExercise({ sessionId, planned: plannedExercise(), order }),
+      ...startPlannedExercise({ measurement, sessionId, planned: plannedExercise(), order }),
       id: toId<ExerciseSessionId>(`es-${order}`),
     }));
   }
 
   function five(): PlannedExerciseSession[] {
     return [0, 1, 2, 3, 4].map((order) => ({
-      ...startPlannedExercise({ sessionId, planned: plannedExercise(), order }),
+      ...startPlannedExercise({ measurement, sessionId, planned: plannedExercise(), order }),
       id: toId<ExerciseSessionId>(`es-${order}`),
     }));
   }
@@ -501,6 +513,7 @@ describe('restRemaining (R-7, AC-13, AC-14)', () => {
 
 function loggedSets(count: number): CompletedSet[] {
   let exercise: PlannedExerciseSession = startPlannedExercise({
+    measurement,
     sessionId,
     planned: plannedExercise(),
     order: 0,
@@ -553,7 +566,7 @@ describe('editSet (R-4, AC-11)', () => {
 
 describe('removeSet (R-4, AC-12, AC-13)', () => {
   const exercise = (): PlannedExerciseSession => ({
-    ...startPlannedExercise({ sessionId, planned: plannedExercise(), order: 0 }),
+    ...startPlannedExercise({ measurement, sessionId, planned: plannedExercise(), order: 0 }),
     status: 'performed',
   });
 

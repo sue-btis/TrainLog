@@ -48,8 +48,15 @@ import type {
  * lifter's saved backups must not be invalidated by a change they cannot see.
  *
  * Bump this only when the document's own shape changes.
+ *
+ * v1 -> v2 carries `measurement`, `bodyweightKg`, the non-rep target pair and
+ * the four conditional set fields. The bump is not bookkeeping: `z.object`
+ * strips unknown keys before checks run, so an older build handed a v2
+ * document would silently drop `measurement` and restore a lifter's planks and
+ * runs as weight x reps. The version gate is the only thing standing between
+ * them and that, which is why it has to move (REQ-127, ASM-3).
  */
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 /**
  * The §17 document: a version, when it was taken, and the nine tables.

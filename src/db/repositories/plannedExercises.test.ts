@@ -38,6 +38,8 @@ const targets: Omit<PlannedExercise, 'id' | 'workoutId' | 'order'> = {
   sets: 3,
   minReps: 8,
   maxReps: 12,
+  minTarget: null,
+  maxTarget: null,
   minRir: 1,
   maxRir: 2,
   restSeconds: 120,
@@ -124,6 +126,7 @@ describe('addPlannedExercise', () => {
       startedAt: 1_700_000_000_000,
       completedAt: 1_700_003_600_000,
       status: 'completed',
+      bodyweightKg: null,
     };
     const exerciseSession: ExerciseSession = {
       id: toId<ExerciseSessionId>('es-1'),
@@ -131,11 +134,14 @@ describe('addPlannedExercise', () => {
       exerciseId: toId<ExerciseId>('front-squat'),
       order: 0,
       status: 'performed',
+      measurement: 'weight_reps',
       plannedExerciseId: plannedExerciseId as PlannedExerciseId,
       plannedUnit: 'kg',
       plannedSets: 4,
       plannedMinReps: 4,
       plannedMaxReps: 6,
+      plannedMinTarget: null,
+      plannedMaxTarget: null,
       plannedMinRir: 1,
       plannedMaxRir: 2,
       plannedRestSeconds: 180,
@@ -150,6 +156,10 @@ describe('addPlannedExercise', () => {
       weightKg: 100,
       reps: 5,
       rir: 2,
+      durationSeconds: null,
+      distance: null,
+      distanceUnit: null,
+      distanceM: null,
       completedAt: 1_700_001_000_000,
     };
     await db.sessions.add(session);

@@ -81,6 +81,10 @@ export function stepOfIssue(issue: SemanticIssue): 1 | 2 {
 /** The recovery half of every message, by code. */
 const FIX: Record<SemanticIssueCode, string> = {
   reps_range_inverted: 'Lower min reps, or raise max reps, so min is not above max.',
+  target_range_inverted: 'Lower the minimum, or raise the maximum, so min is not above max.',
+  target_pair_ambiguous:
+    'Keep the rep range or the target range, whichever this movement is measured in, and remove the other.',
+  target_pair_missing: 'Give the exercise a rep range, or a target range if it is not measured in reps.',
   rir_out_of_range: `Set both ends of the range between ${MIN_RIR} and ${MAX_RIR}.`,
   rest_seconds_negative: 'Enter 0 seconds or more.',
   sets_not_positive: 'Enter at least 1 set.',
@@ -110,7 +114,13 @@ function problemOf(
 
   switch (issue.code) {
     case 'reps_range_inverted':
-      return `Min reps (${exercise.reps.min}) is above max reps (${exercise.reps.max}).`;
+      return exercise.reps === undefined
+        ? issue.message
+        : `Min reps (${exercise.reps.min}) is above max reps (${exercise.reps.max}).`;
+    case 'target_range_inverted':
+    case 'target_pair_ambiguous':
+    case 'target_pair_missing':
+      return issue.message;
     case 'rir_out_of_range':
       return exercise.rir === undefined
         ? `RIR is outside ${MIN_RIR}–${MAX_RIR}.`

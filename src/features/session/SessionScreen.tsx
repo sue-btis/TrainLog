@@ -46,6 +46,7 @@ import {
   saveExerciseSessions,
   saveFinishedSession,
   saveLoggedSet,
+  saveSessionBodyweight,
 } from '@/db';
 import type { ExerciseId, ExerciseSessionId } from '@/domain/ids';
 import {
@@ -58,14 +59,14 @@ import {
   startUnplannedExercise,
 } from '@/domain/session';
 import type { Timestamp } from '@/domain/dates';
-import type { CompletedSet, ExerciseSession } from '@/domain/types';
+import type { CompletedSet, Exercise, ExerciseSession } from '@/domain/types';
 import type { Unit } from '@/domain/units';
 import { ExercisePicker } from '@/features/session/ExercisePicker';
 import { ExerciseReorder } from '@/features/session/ExerciseReorder';
 import { ExerciseView } from '@/features/session/ExerciseView';
 import { PreviousPanel } from '@/features/session/PreviousPanel';
 import { RestTimer } from '@/features/session/RestTimer';
-import type { SetValues } from '@/features/session/SetLogger';
+import { valuesFor, type SetValues } from '@/features/session/SetLogger';
 import { useWakeLock } from '@/features/session/useWakeLock';
 import {
   useSettings,
@@ -139,15 +140,17 @@ export function SessionScreen() {
 
   async function log(values: SetValues, unit: Unit, setNumber: number) {
     if (entry === undefined) return;
+    // The projection to the domain's nulls is `valuesFor`'s, reading the
+    // measurement's own shape table — this screen states no per-type fact of
+    // its own (REQ-102, REQ-106).
     await run(() =>
       saveLoggedSet(
         logSet({
           exerciseSession: entry.exerciseSession,
           setNumber,
-          weight: values.weight,
           unit,
-          reps: values.reps,
           rir: values.rir,
+          ...valuesFor(entry.exerciseSession.measurement, values),
           completedAt: Date.now(),
         }),
       ),
@@ -159,9 +162,16 @@ export function SessionScreen() {
    * this only stores them, and `weightKg` is re-derived there rather than here.
    */
   async function editLoggedSet(set: CompletedSet, values: SetValues, unit: Unit) {
+    const owner = entries.find((it) => it.exerciseSession.id === set.exerciseSessionId);
+    if (owner === undefined) return;
     await run(() =>
       saveEditedSet(
-        editSet({ set, weight: values.weight, unit, reps: values.reps, rir: values.rir }),
+        editSet({
+          set,
+          unit,
+          rir: values.rir,
+          ...valuesFor(owner.exerciseSession.measurement, values),
+        }),
       ),
     );
   }
@@ -232,12 +242,17 @@ export function SessionScreen() {
    * FR-15 — an exercise with no plan behind it. It goes on the end, carries no
    * targets and gets no suggestion (§11.9); a substitution is this plus a skip.
    */
-  function addUnplanned(exerciseId: ExerciseId) {
+  function addUnplanned(exercise: Exercise) {
     if (session === undefined) return;
     setPicking(false);
     void run(async () => {
       await addExerciseSession(
-        startUnplannedExercise({ sessionId: session.id, exerciseId, order: entries.length }),
+        startUnplannedExercise({
+          sessionId: session.id,
+          exerciseId: exercise.id,
+          measurement: exercise.measurement,
+          order: entries.length,
+        }),
       );
       setIndex(entries.length);
     });
@@ -350,6 +365,18 @@ export function SessionScreen() {
         />
       }
     >
+      {/* REQ-108 — the one figure that belongs to the Session rather than to
+          any exercise in it. It opens on the last weigh-in carried forward
+          and stays editable, because a lifter who steps on the scale after
+          training recorded a real number for that day. */}
+      <Bodyweight
+        busy={busy}
+        onChange={(bodyweightKg) =>
+          void run(() => saveSessionBodyweight(session.id, bodyweightKg))
+        }
+        value={session.bodyweightKg}
+      />
+
       {entry === undefined ? (
         <section className={WELL}>
           <p className="type-title">This Workout has no exercises</p>
@@ -404,6 +431,65 @@ export function SessionScreen() {
           logger (§21). */}
       {entry !== undefined && <PreviousPanel exerciseSession={entry.exerciseSession} />}
     </Frame>
+  );
+}
+
+/**
+ * The lifter's bodyweight on the day (REQ-108, DEC-C).
+ *
+ * One line rather than a control with steppers: it is written once a session
+ * and read by the bodyweight-relative figures, not stepped between sets, and
+ * §21 says nothing that does not contribute to the current set may compete
+ * with it.
+ *
+ * Empty means never recorded and renders empty — never a zero, which would be
+ * a claim about a lifter rather than an absence (AC-112).
+ */
+function Bodyweight({
+  value,
+  onChange,
+  busy,
+}: {
+  readonly value: number | null;
+  readonly onChange: (bodyweightKg: number | null) => void;
+  readonly busy: boolean;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  function commit() {
+    if (draft === null) return;
+    const text = draft.trim().replace(',', '.');
+    setDraft(null);
+    if (text === '') {
+      if (value !== null) onChange(null);
+      return;
+    }
+    const parsed = Number(text);
+    // Anything that is not a positive number falls back to the last good
+    // value rather than raising an error nobody can read mid-session.
+    if (Number.isFinite(parsed) && parsed > 0 && parsed !== value) {
+      onChange(Math.round(parsed * 100) / 100);
+    }
+  }
+
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className={LABEL}>bodyweight · kg</span>
+      <input
+        aria-label="Bodyweight in kilograms"
+        className="w-24 rounded-md bg-transparent px-2 py-1 text-right type-readout text-ink ring-1 ring-rule"
+        disabled={busy}
+        inputMode="decimal"
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value)}
+        onFocus={(event) => event.target.select()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+        }}
+        placeholder="—"
+        value={draft ?? (value === null ? '' : String(value))}
+      />
+    </label>
   );
 }
 

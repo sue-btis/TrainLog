@@ -30,13 +30,21 @@ import type {
   SessionStatus,
   UnplannedExerciseSession,
 } from '@/domain/types';
-import { toKg, type Unit } from '@/domain/units';
+import { toKg, toMetres, type DistanceUnit, type Unit } from '@/domain/units';
+import type { Measurement } from '@/domain/measurement';
 
 export interface StartSessionInput {
   readonly routineId: RoutineId;
   readonly workoutId: WorkoutId;
   /** The instant the session started. Never read from the clock here (DEC-008). */
   readonly startedAt: Timestamp;
+  /**
+   * The bodyweight this Session opens on - the most recent non-null value from
+   * any earlier Session, or `null` where none has ever been recorded (REQ-108).
+   * The carry-forward itself belongs to the repository, which is what can see
+   * the earlier Sessions; this only records what it was handed.
+   */
+  readonly bodyweightKg?: number | null;
 }
 
 /**
@@ -50,6 +58,7 @@ export function startSession({
   routineId,
   workoutId,
   startedAt,
+  bodyweightKg = null,
 }: StartSessionInput): Session {
   return {
     id: newId<SessionId>(),
@@ -58,6 +67,7 @@ export function startSession({
     startedAt,
     completedAt: null,
     status: 'in_progress',
+    bodyweightKg,
   };
 }
 
@@ -65,6 +75,12 @@ export interface StartPlannedExerciseInput {
   readonly sessionId: SessionId;
   /** The template being executed. Read once, here, and never again (ADR 0002). */
   readonly planned: PlannedExercise;
+  /**
+   * The Exercise's measurement (REQ-105). Passed in rather than read off
+   * `planned`, because it is declared on the Exercise and this module reads no
+   * storage: whoever resolved the Exercise resolves this with it.
+   */
+  readonly measurement: Measurement;
   /** Position within the Session — free to differ from `planned.order` (§11.5). */
   readonly order: number;
 }
@@ -80,6 +96,7 @@ export interface StartPlannedExerciseInput {
 export function startPlannedExercise({
   sessionId,
   planned,
+  measurement,
   order,
 }: StartPlannedExerciseInput): PlannedExerciseSession {
   return {
@@ -88,11 +105,14 @@ export function startPlannedExercise({
     exerciseId: planned.exerciseId,
     order,
     status: 'pending',
+    measurement,
     plannedExerciseId: planned.id,
     plannedUnit: planned.unit,
     plannedSets: planned.sets,
     plannedMinReps: planned.minReps,
     plannedMaxReps: planned.maxReps,
+    plannedMinTarget: planned.minTarget,
+    plannedMaxTarget: planned.maxTarget,
     plannedMinRir: planned.minRir,
     plannedMaxRir: planned.maxRir,
     plannedRestSeconds: planned.restSeconds,
@@ -103,6 +123,8 @@ export function startPlannedExercise({
 export interface StartUnplannedExerciseInput {
   readonly sessionId: SessionId;
   readonly exerciseId: ExerciseId;
+  /** The Exercise's measurement (REQ-105). An unplanned exercise has one too. */
+  readonly measurement: Measurement;
   readonly order: number;
 }
 
@@ -114,6 +136,7 @@ export interface StartUnplannedExerciseInput {
 export function startUnplannedExercise({
   sessionId,
   exerciseId,
+  measurement,
   order,
 }: StartUnplannedExerciseInput): UnplannedExerciseSession {
   return {
@@ -122,6 +145,7 @@ export function startUnplannedExercise({
     exerciseId,
     order,
     status: 'pending',
+    measurement,
     plannedExerciseId: null,
   };
 }
@@ -133,9 +157,15 @@ export interface LogSetInput<T extends ExerciseSession> {
   /** The weight exactly as entered, in `unit`. */
   readonly weight: number;
   readonly unit: Unit;
-  readonly reps: number;
+  /** The rep count, or `null` for a type that collects none (REQ-106). */
+  readonly reps: number | null;
   /** The RIR actually achieved, not the planned one (§30). */
   readonly rir: number;
+  /** Seconds held or worked, for a type that collects a duration (REQ-106). */
+  readonly durationSeconds?: number | null;
+  /** The distance as entered, with its unit; `distanceM` is derived (REQ-107). */
+  readonly distance?: number | null;
+  readonly distanceUnit?: DistanceUnit | null;
   readonly completedAt: Timestamp;
 }
 
@@ -155,6 +185,9 @@ export function logSet<T extends ExerciseSession>({
   unit,
   reps,
   rir,
+  durationSeconds = null,
+  distance = null,
+  distanceUnit = null,
   completedAt,
 }: LogSetInput<T>): { readonly set: CompletedSet; readonly exerciseSession: T } {
   const set: CompletedSet = {
@@ -166,6 +199,10 @@ export function logSet<T extends ExerciseSession>({
     weightKg: toKg(weight, unit),
     reps,
     rir,
+    durationSeconds,
+    distance,
+    distanceUnit,
+    distanceM: metresOf(distance, distanceUnit),
     completedAt,
   };
 
@@ -210,7 +247,10 @@ export interface StartWorkoutInput {
   readonly workoutId: WorkoutId;
   /** The Workout's PlannedExercises. Read once, here, and never again (ADR 0002). */
   readonly planned: readonly PlannedExercise[];
+  /** Resolves each exercise's measurement, for the snapshot (REQ-105). */
+  readonly measurementOf: (exerciseId: ExerciseId) => Measurement;
   readonly startedAt: Timestamp;
+  readonly bodyweightKg?: number | null;
 }
 
 /**
@@ -232,15 +272,24 @@ export function startWorkout({
   routineId,
   workoutId,
   planned,
+  measurementOf,
   startedAt,
+  bodyweightKg = null,
 }: StartWorkoutInput): {
   readonly session: Session;
   readonly exerciseSessions: readonly PlannedExerciseSession[];
 } {
-  const session = startSession({ routineId, workoutId, startedAt });
+  const session = startSession({ routineId, workoutId, startedAt, bodyweightKg });
   const exerciseSessions = [...planned]
     .sort((a, b) => a.order - b.order)
-    .map((exercise, order) => startPlannedExercise({ sessionId: session.id, planned: exercise, order }));
+    .map((exercise, order) =>
+      startPlannedExercise({
+        sessionId: session.id,
+        planned: exercise,
+        measurement: measurementOf(exercise.exerciseId),
+        order,
+      }),
+    );
 
   return { session, exerciseSessions };
 }
@@ -324,8 +373,11 @@ export interface EditSetInput {
   /** The corrected weight, exactly as entered, in `unit`. */
   readonly weight: number;
   readonly unit: Unit;
-  readonly reps: number;
+  readonly reps: number | null;
   readonly rir: number;
+  readonly durationSeconds?: number | null;
+  readonly distance?: number | null;
+  readonly distanceUnit?: DistanceUnit | null;
 }
 
 /**
@@ -339,8 +391,37 @@ export interface EditSetInput {
  * Identity, position and `completedAt` survive untouched: the set is the same
  * set, performed at the same moment. Only what was recorded about it changes.
  */
-export function editSet({ set, weight, unit, reps, rir }: EditSetInput): CompletedSet {
-  return { ...set, weight, unit, weightKg: toKg(weight, unit), reps, rir };
+export function editSet({
+  set,
+  weight,
+  unit,
+  reps,
+  rir,
+  durationSeconds = set.durationSeconds,
+  distance = set.distance,
+  distanceUnit = set.distanceUnit,
+}: EditSetInput): CompletedSet {
+  return {
+    ...set,
+    weight,
+    unit,
+    weightKg: toKg(weight, unit),
+    reps,
+    rir,
+    durationSeconds,
+    distance,
+    distanceUnit,
+    distanceM: metresOf(distance, distanceUnit),
+  };
+}
+
+/**
+ * The canonical metres of an entered distance, or `null` where the set carries
+ * none. What `toKg` does for weight, for the second unit axis (REQ-107).
+ */
+function metresOf(distance: number | null, unit: DistanceUnit | null): number | null {
+  if (distance === null || unit === null) return null;
+  return toMetres(distance, unit);
 }
 
 export interface RemoveSetInput<T extends ExerciseSession> {

@@ -27,15 +27,136 @@
 import { useId, useState } from 'react';
 import { Check, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { ExerciseSession } from '@/domain/types';
-import type { Unit } from '@/domain/units';
+import {
+  primaryAxisOf,
+  shapeOf,
+  targetsReps,
+  weightMeaningOf,
+  type Measurement,
+  type SetField,
+} from '@/domain/measurement';
+import type { CompletedSet, ExerciseSession } from '@/domain/types';
+import { DISTANCE_UNITS, type DistanceUnit, type Unit } from '@/domain/units';
 import { ICON_STROKE, LABEL, READOUT, READOUT_INPUT, STEPPER } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
+/**
+ * What the fields hold while a set is being entered.
+ *
+ * Every value is a number here, including the ones a given type does not
+ * collect: a control that is not on screen still has to hold *something*, and
+ * a nullable draft would put the absence in two places — the shape table and
+ * the form state — free to disagree. `valuesFor` below is the one place the
+ * projection to the domain's nulls happens, and it reads the shape table.
+ */
 export interface SetValues {
   readonly weight: number;
   readonly reps: number;
   readonly rir: number;
+  readonly durationSeconds: number;
+  /** The distance as entered, in `distanceUnit`. The metres are derived. */
+  readonly distance: number;
+  readonly distanceUnit: DistanceUnit;
+}
+
+/** What a set opens on before anything is known about it. */
+export const EMPTY_VALUES: SetValues = {
+  weight: 0,
+  reps: 0,
+  rir: 0,
+  durationSeconds: 0,
+  distance: 0,
+  distanceUnit: 'm',
+};
+
+/**
+ * The values a set of this type actually carries — everything else `null`
+ * (REQ-106).
+ *
+ * The projection reads the shape table rather than guessing from which numbers
+ * are non-zero: a plank held for zero seconds and a squat that collects no
+ * seconds are different facts, and only the type tells them apart.
+ */
+export function valuesFor(
+  measurement: Measurement,
+  values: SetValues,
+): {
+  readonly weight: number;
+  readonly reps: number | null;
+  readonly durationSeconds: number | null;
+  readonly distance: number | null;
+  readonly distanceUnit: DistanceUnit | null;
+} {
+  const carries = (field: SetField): boolean => shapeOf(measurement).fields.includes(field);
+  return {
+    // `weight` stays required and non-null on the stored set (DER-1); a type
+    // that collects none stores the zero every row already carries.
+    weight: carries('weight') ? values.weight : 0,
+    reps: carries('reps') ? values.reps : null,
+    durationSeconds: carries('durationSeconds') ? values.durationSeconds : null,
+    distance: carries('distance') ? values.distance : null,
+    distanceUnit: carries('distance') ? values.distanceUnit : null,
+  };
+}
+
+/** The values a logged set is corrected from — the mirror of `valuesFor`. */
+export function valuesOf(set: CompletedSet): SetValues {
+  return {
+    weight: set.weight,
+    reps: set.reps ?? 0,
+    rir: set.rir,
+    durationSeconds: set.durationSeconds ?? 0,
+    distance: set.distance ?? 0,
+    distanceUnit: set.distanceUnit ?? 'm',
+  };
+}
+
+/**
+ * Whether this set can be logged (REQ-110, AC-115).
+ *
+ * Per type, and read off the primary axis: a plank with no seconds and a jump
+ * with no distance are as unfinished as a bench press with no reps.
+ * `reps === 0` is no longer the universal guard — a plank held 30 seconds for
+ * zero reps is a real set.
+ */
+export function isComplete(measurement: Measurement, values: SetValues): boolean {
+  switch (primaryAxisOf(measurement)) {
+    case 'reps':
+      return values.reps > 0;
+    case 'duration':
+      return values.durationSeconds > 0;
+    case 'distance':
+      return values.distance > 0;
+    // No type states its programme range on load or on pace, so neither is a
+    // primary axis and neither is reachable.
+    case 'load':
+    case 'pace':
+      return true;
+  }
+}
+
+/** What the button says while the primary axis is still empty. */
+function missingAxis(measurement: Measurement): string {
+  switch (primaryAxisOf(measurement)) {
+    case 'duration':
+      return 'Set the seconds first';
+    case 'distance':
+      return 'Set the distance first';
+    default:
+      return 'Set the reps first';
+  }
+}
+
+/** What the weight field is called, for a type that collects one (REQ-109). */
+function weightLabel(measurement: Measurement): string {
+  switch (weightMeaningOf(measurement)) {
+    case 'added':
+      return 'added weight';
+    case 'assisted':
+      return 'assistance';
+    default:
+      return 'weight';
+  }
 }
 
 /**
@@ -48,12 +169,18 @@ export interface SetValues {
  * what the set in front of you was measured against.
  */
 export interface SetTargets {
-  readonly reps: readonly [number, number] | null;
+  /**
+   * The window on the type's **target axis** — reps for a rep-axis type,
+   * seconds or metres otherwise. Which of the two stored pairs it comes from
+   * is decided by the measurement, never by testing which is non-null
+   * (REQ-139).
+   */
+  readonly primary: readonly [number, number] | null;
   readonly rir: readonly [number, number] | null;
 }
 
 /** No plan, so nothing to deviate from — an unplanned exercise (FR-14). */
-export const NO_TARGETS: SetTargets = { reps: null, rir: null };
+export const NO_TARGETS: SetTargets = { primary: null, rir: null };
 
 /**
  * The targets an ExerciseSession carries. An unplanned exercise has none, and
@@ -62,15 +189,29 @@ export const NO_TARGETS: SetTargets = { reps: null, rir: null };
  */
 export function targetsOf(exerciseSession: ExerciseSession): SetTargets {
   if (exerciseSession.plannedExerciseId === null) return NO_TARGETS;
-  const { plannedMinReps, plannedMaxReps, plannedMinRir, plannedMaxRir } = exerciseSession;
+  const {
+    measurement,
+    plannedMinReps,
+    plannedMaxReps,
+    plannedMinTarget,
+    plannedMaxTarget,
+    plannedMinRir,
+    plannedMaxRir,
+  } = exerciseSession;
+
+  const [min, max] = targetsReps(measurement)
+    ? [plannedMinReps, plannedMaxReps]
+    : [plannedMinTarget, plannedMaxTarget];
+
   return {
-    reps: [plannedMinReps, plannedMaxReps],
+    primary: min === null || max === null ? null : [min, max],
     rir:
       plannedMinRir === null || plannedMaxRir === null ? null : [plannedMinRir, plannedMaxRir],
   };
 }
 
 interface SetLoggerProps {
+  readonly measurement: Measurement;
   readonly setNumber: number;
   readonly values: SetValues;
   readonly onChange: (values: SetValues) => void;
@@ -91,38 +232,84 @@ interface SetLoggerProps {
  * apart on the screen a lifter uses one-handed.
  */
 export function SetFields({
+  measurement,
   values,
   onChange,
   unit,
   weightStep,
   targets,
 }: {
+  readonly measurement: Measurement;
   readonly values: SetValues;
   readonly onChange: (values: SetValues) => void;
   readonly unit: Unit;
   readonly weightStep: number;
   readonly targets: SetTargets;
 }) {
+  const { fields } = shapeOf(measurement);
+  const primary = primaryAxisOf(measurement);
+  const collects = (field: SetField): boolean => fields.includes(field);
+  // The window belongs to the target axis, so it marks whichever field that
+  // axis is read from — reps for a squat, seconds for a plank (REQ-102).
+  const windowFor = (axis: 'reps' | 'duration' | 'distance') =>
+    primary === axis ? targets.primary : null;
+
   return (
     <>
-      <div className="flex items-stretch gap-2">
-        <Field
-          label="weight"
-          onChange={(weight) => onChange({ ...values, weight })}
-          step={weightStep}
-          unit={unit}
-          value={values.weight}
-        />
-      </div>
+      {collects('weight') && (
+        <div className="flex items-stretch gap-2">
+          <Field
+            label={weightLabel(measurement)}
+            onChange={(weight) => onChange({ ...values, weight })}
+            step={weightStep}
+            unit={unit}
+            value={values.weight}
+          />
+        </div>
+      )}
+
+      {collects('durationSeconds') && (
+        <div className="flex items-stretch gap-2">
+          <Field
+            label="seconds"
+            onChange={(durationSeconds) => onChange({ ...values, durationSeconds })}
+            step={5}
+            target={windowFor('duration')}
+            value={values.durationSeconds}
+          />
+        </div>
+      )}
+
+      {collects('distance') && (
+        <div className="flex items-stretch gap-2">
+          <Field
+            label="distance"
+            onChange={(distance) => onChange({ ...values, distance })}
+            step={1}
+            // The window is stated in canonical metres, so it only marks the
+            // field while the field is reading metres.
+            target={values.distanceUnit === 'm' ? windowFor('distance') : null}
+            value={values.distance}
+          />
+          <DistanceUnitPicker
+            onChange={(distanceUnit) => onChange({ ...values, distanceUnit })}
+            value={values.distanceUnit}
+          />
+        </div>
+      )}
 
       <div className="flex items-stretch gap-2">
-        <Field
-          label="reps"
-          onChange={(reps) => onChange({ ...values, reps })}
-          step={1}
-          target={targets.reps}
-          value={values.reps}
-        />
+        {collects('reps') && (
+          <Field
+            label="reps"
+            onChange={(reps) => onChange({ ...values, reps })}
+            step={1}
+            target={windowFor('reps')}
+            value={values.reps}
+          />
+        )}
+        {/* RIR is asked of every type: §30 stores the RIR actually achieved and
+            `effortOf` is the one cross-modal figure, blind to nothing (DEC-E). */}
         <Field
           label="RIR"
           onChange={(rir) => onChange({ ...values, rir })}
@@ -135,7 +322,44 @@ export function SetFields({
   );
 }
 
+/**
+ * Which unit the distance in front of you is in.
+ *
+ * Three buttons rather than a select: DESIGN.md keeps a keypad and a native
+ * picker off this screen, and a three-way choice fits in the space one field
+ * label occupies. The stored `distanceM` is derived from whichever is chosen,
+ * so switching never rewrites the number the lifter typed.
+ */
+function DistanceUnitPicker({
+  value,
+  onChange,
+}: {
+  readonly value: DistanceUnit;
+  readonly onChange: (unit: DistanceUnit) => void;
+}) {
+  return (
+    <div aria-label="Distance unit" className="flex flex-col justify-center gap-1" role="group">
+      {DISTANCE_UNITS.map((unit) => (
+        <button
+          aria-pressed={unit === value}
+          className={cn(
+            STEPPER,
+            'h-8 w-12 type-body-sm',
+            unit === value ? 'text-ink ring-1 ring-actual' : 'text-ink-3',
+          )}
+          key={unit}
+          onClick={() => onChange(unit)}
+          type="button"
+        >
+          {unit}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SetLogger({
+  measurement,
   setNumber,
   values,
   onChange,
@@ -145,11 +369,17 @@ export function SetLogger({
   onComplete,
   busy,
 }: SetLoggerProps) {
+  // Nothing on the type's primary axis is the one combination that is not a
+  // set. A load of zero is a bodyweight exercise and an RIR of zero is a set
+  // taken to failure — both are real training and both stay loggable.
+  const complete = isComplete(measurement, values);
+
   return (
     <section className="flex flex-col gap-3">
       <span className={LABEL}>set {setNumber}</span>
 
       <SetFields
+        measurement={measurement}
         onChange={onChange}
         targets={targets}
         unit={unit}
@@ -157,18 +387,15 @@ export function SetLogger({
         weightStep={weightStep}
       />
 
-      {/* Zero reps is the one combination that is not a set. A load of zero is
-          a bodyweight exercise and an RIR of zero is a set taken to failure —
-          both are real training and both stay loggable. */}
       <Button
-        disabled={busy || values.reps === 0}
+        disabled={busy || !complete}
         onClick={onComplete}
         size="block"
         type="button"
         variant="primary"
       >
         <Check aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-        {values.reps === 0 ? 'Set the reps first' : 'Complete set'}
+        {complete ? 'Complete set' : missingAxis(measurement)}
       </Button>
     </section>
   );

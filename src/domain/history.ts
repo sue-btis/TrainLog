@@ -14,9 +14,23 @@
 
 import { formatLocalDate, type LocalDate } from '@/domain/dates';
 import type { SessionHistory } from '@/domain/progression';
+import {
+  axisValue,
+  compareOnAxis,
+  directionOf,
+  hasOneRepMax,
+  progressAxisOf,
+  secondaryAxisOf,
+  volumeFamilyOf,
+  type Direction,
+  type Measurement,
+  type VolumeFamily,
+} from '@/domain/measurement';
 import type { CompletedSet, Timestamp } from '@/domain/types';
 
 export interface ExerciseSummary {
+  /** The type every figure below is read under (REQ-102). */
+  readonly measurement: Measurement;
   /** How many sessions actually hold sets for this exercise. */
   readonly sessions: number;
   /**
@@ -39,14 +53,101 @@ function setsOf(entry: SessionHistory): readonly CompletedSet[] {
 }
 
 /**
- * The heavier of two sets, or the one with more reps when the load is equal
- * (A-1). §11.10 shows a best set as `77.5 × 5` without saying how it is chosen;
- * load first is the only reading that makes the figure mean "the most you have
- * lifted".
+ * Orders two values along a direction, `null` meaning "the set does not carry
+ * this axis" and losing to any number it is compared with.
+ *
+ * Positive when `a` is the better of the two, negative when `b` is.
  */
-function better(a: CompletedSet, b: CompletedSet): CompletedSet {
-  if (a.weightKg !== b.weightKg) return a.weightKg > b.weightKg ? a : b;
-  return a.reps >= b.reps ? a : b;
+function compareValues(a: number | null, b: number | null, direction: Direction): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return -1;
+  if (b === null) return 1;
+  return compareOnAxis(a, b, direction);
+}
+
+/**
+ * The better of two sets, on the type's own progress axis in that axis's own
+ * direction, ties broken on the secondary axis (REQ-113).
+ *
+ * For `weight_reps` this is the heavier set, or the one with more reps when the
+ * load is equal — §11.10's `77.5 × 5`, unchanged. For `assisted_bodyweight` it
+ * is the *less assisted* set, which is the same rule read through a sign the
+ * axis owns rather than a comparison this function decides.
+ *
+ * `a` wins a dead heat, so the earlier set of two identical ones is kept and a
+ * repeat is not a new best.
+ */
+export function better(a: CompletedSet, b: CompletedSet, measurement: Measurement): CompletedSet {
+  const axis = progressAxisOf(measurement);
+  const primary = compareValues(
+    axisValue(a, axis),
+    axisValue(b, axis),
+    directionOf(measurement),
+  );
+  if (primary !== 0) return primary > 0 ? a : b;
+
+  const secondary = secondaryAxisOf(measurement);
+  if (secondary === null) return a;
+  return compareValues(axisValue(a, secondary), axisValue(b, secondary), 'higher') >= 0
+    ? a
+    : b;
+}
+
+/** The best of several sets. Empty input is a caller error, as `reduce` says. */
+function bestOf(sets: readonly CompletedSet[], measurement: Measurement): CompletedSet {
+  return sets.reduce((a, b) => better(a, b, measurement));
+}
+
+/**
+ * The set a Session's record is credited to (REQ-115).
+ *
+ * For a type with an estimated 1RM that is the set with the highest estimate,
+ * not the heaviest: a lighter set taken closer to failure can be the one that
+ * beat the record, and naming the heaviest would credit the wrong lift. For
+ * every other type it is simply the best set on the progress axis.
+ */
+export function recordSetOf(
+  sets: readonly CompletedSet[],
+  measurement: Measurement,
+): CompletedSet {
+  if (!hasOneRepMax(measurement)) return bestOf(sets, measurement);
+  return sets.reduce((best, performed) =>
+    (estimateOneRepMaxKg(performed, measurement) ?? 0) >
+    (estimateOneRepMaxKg(best, measurement) ?? 0)
+      ? performed
+      : best,
+  );
+}
+
+/**
+ * Orders two progress-axis values in a type's own direction, exported so that
+ * a caller ranking records does not have to restate the sign (REQ-102).
+ * Positive when `a` is the better of the two.
+ */
+export function compareProgress(
+  a: number | null,
+  b: number | null,
+  measurement: Measurement,
+): number {
+  return compareValues(a, b, directionOf(measurement));
+}
+
+/**
+ * The measurement a history is read under.
+ *
+ * Every ExerciseSession in one exercise's history carries the same type — the
+ * declaration lives on the Exercise, and correcting it is refused once any set
+ * references it (REQ-133) — so the first one found is the answer. An empty
+ * history reads `weight_reps`, the same fallback the migration applies and for
+ * the same reason (REQ-125).
+ */
+export function measurementOf(history: readonly SessionHistory[]): Measurement {
+  for (const entry of history) {
+    for (const exercise of entry.exercises) {
+      return exercise.exerciseSession.measurement;
+    }
+  }
+  return 'weight_reps';
 }
 
 /**
@@ -64,11 +165,23 @@ function better(a: CompletedSet, b: CompletedSet): CompletedSet {
  * reps, and a cap is a product decision nobody has taken — the consequence is
  * recorded in this change's spec rather than papered over here.
  */
-export function estimateOneRepMaxKg(performed: CompletedSet): number {
-  return performed.weightKg * (1 + (performed.reps + performed.rir) / 30);
+export function estimateOneRepMaxKg(
+  performed: CompletedSet,
+  measurement: Measurement,
+): number | null {
+  // Defined only for the two types carrying an external or added load with a
+  // rep count (REQ-114). For the other seven there is no estimate and no
+  // substitute: Riegel and every endurance equivalent were rejected (DEC-P).
+  if (!hasOneRepMax(measurement)) return null;
+  // `weighted_bodyweight` reads the added weight alone and never folds in
+  // `Session.bodyweightKg`: the stored `weighted-dip` history means added
+  // weight, and folding bodyweight in would silently restate every past
+  // estimate (AC-160).
+  return performed.weightKg * (1 + ((performed.reps ?? 0) + performed.rir) / 30);
 }
 
 const EMPTY: ExerciseSummary = {
+  measurement: 'weight_reps',
   sessions: 0,
   workingWeight: null,
   bestSet: null,
@@ -92,6 +205,7 @@ export function summarizeExercise(history: readonly SessionHistory[]): ExerciseS
   const performed = history.filter((entry) => setsOf(entry).length > 0);
   if (performed.length === 0) return EMPTY;
 
+  const measurement = measurementOf(history);
   const allSets = performed.flatMap(setsOf);
 
   const latestCompleted = performed
@@ -103,10 +217,11 @@ export function summarizeExercise(history: readonly SessionHistory[]): ExerciseS
     );
 
   return {
+    measurement,
     sessions: performed.length,
     workingWeight:
-      latestCompleted === null ? null : setsOf(latestCompleted).reduce(better),
-    bestSet: allSets.reduce(better),
+      latestCompleted === null ? null : bestOf(setsOf(latestCompleted), measurement),
+    bestSet: bestOf(allSets, measurement),
     heaviest: allSets.reduce((a, b) => (b.weightKg > a.weightKg ? b : a)),
     lightest: allSets.reduce((a, b) => (b.weightKg < a.weightKg ? b : a)),
     lastPerformed: performed.reduce(
@@ -134,23 +249,45 @@ export interface ExercisePoint {
   readonly date: LocalDate;
   /** What orders the series. The date cannot: two Sessions can share a day. */
   readonly startedAt: Timestamp;
+  /** The type this point is read under (REQ-102). */
+  readonly measurement: Measurement;
   readonly topSetKg: number;
   readonly topSetReps: number;
   /** Every rep of the exercise in that Session, at any load. */
   readonly reps: number;
-  /** `Σ weightKg × reps` — the work moved. */
-  readonly volumeKg: number;
+  /** Every second held or worked in that Session. */
+  readonly durationSeconds: number;
+  /** Every metre covered in that Session. */
+  readonly distanceM: number;
+  /** Seconds per metre over the Session, or `null` for a type with no pace. */
+  readonly pace: number | null;
+  /**
+   * The work done, in the unit of the type's own family — kilogram-reps, reps,
+   * seconds or metres. Never comparable across families and never summed with
+   * one (REQ-116, DEC-D), which is why the family travels with the number.
+   */
+  readonly volume: number;
+  readonly volumeFamily: VolumeFamily;
   /**
    * The best `estimateOneRepMaxKg` of the session — across every set, not the
    * estimate of the set `better()` returns. `better()` chooses by load, so it
    * hands back a heavy double on a day a lighter set demonstrated more; taking
    * the estimate from it would throw that day's real showing away.
    */
-  readonly estimatedOneRepMaxKg: number;
+  readonly estimatedOneRepMaxKg: number | null;
   /**
-   * Whether this session's estimate beats every earlier one — strictly, so a
-   * repeat is not a record, and never for the first session, which has nothing
-   * to beat. Marking every opening session would make the mark mean nothing.
+   * What a record is read on: the best value of the Session on the type's
+   * progress axis (REQ-115). For `weight_reps` and `weighted_bodyweight` that
+   * is the estimated 1RM, which is today's rule unchanged; for the rest it is
+   * the axis itself — assistance, pace, seconds, metres. `null` for a Session
+   * whose sets carry nothing on that axis.
+   */
+  readonly progressValue: number | null;
+  /**
+   * Whether this session beats every earlier one on that axis, in that axis's
+   * own direction — strictly, so a repeat is not a record, and never for the
+   * first session, which has nothing to beat. Marking every opening session
+   * would make the mark mean nothing.
    */
   readonly isRecord: boolean;
 }
@@ -172,36 +309,111 @@ export interface ExercisePoint {
  * than reversed.
  */
 export function exerciseSeries(history: readonly SessionHistory[]): ExercisePoint[] {
+  const measurement = measurementOf(history);
+  const direction = directionOf(measurement);
+  const family = volumeFamilyOf(measurement);
+
   const ordered = history
     .filter((entry) => setsOf(entry).length > 0)
     .map((entry) => {
       const sets = setsOf(entry);
-      const top = sets.reduce(better);
+      const top = bestOf(sets, measurement);
+      const durationSeconds = total(sets, (set) => set.durationSeconds);
+      const distanceM = total(sets, (set) => set.distanceM);
+      const reps = total(sets, (set) => set.reps);
 
       return {
         date: formatLocalDate(new Date(entry.session.startedAt)),
         startedAt: entry.session.startedAt,
+        measurement,
         topSetKg: top.weightKg,
-        topSetReps: top.reps,
-        reps: sets.reduce((total, performed) => total + performed.reps, 0),
-        volumeKg: sets.reduce((total, performed) => total + performed.weightKg * performed.reps, 0),
-        estimatedOneRepMaxKg: sets.reduce(
-          (best, performed) => Math.max(best, estimateOneRepMaxKg(performed)),
-          0,
-        ),
+        topSetReps: top.reps ?? 0,
+        reps,
+        durationSeconds,
+        distanceM,
+        // The Session's own pace, not the mean of its sets': a slow kilometre
+        // and a fast one average by distance, not by count.
+        pace: distanceM === 0 ? null : durationSeconds / distanceM,
+        volume: volumeOf(sets, family),
+        volumeFamily: family,
+        estimatedOneRepMaxKg: bestEstimate(sets, measurement),
+        progressValue: progressValueOf(sets, measurement),
       };
     })
     .sort((a, b) => a.startedAt - b.startedAt);
 
-  // A running maximum, and only after the sort: the repository hands history
-  // over newest first, and reading records in that order would crown the oldest
-  // session and miss the newest. `index > 0` rather than a sentinel on `best`,
-  // because a bodyweight set logged at 0 kg estimates 0 — a real value, not an
-  // absent one, and the session after it must still be able to beat it.
-  let best = 0;
+  // A running best, and only after the sort: the repository hands history over
+  // newest first, and reading records in that order would crown the oldest
+  // session and miss the newest. Running *best*, not running maximum: on an
+  // inverted axis a maximum crowns the worst session there has been.
+  //
+  // `index > 0` rather than a sentinel on `best`, because a bodyweight set
+  // logged at 0 kg estimates 0 — a real value, not an absent one, and the
+  // session after it must still be able to beat it.
+  let best: number | null = null;
   return ordered.map((point, index) => {
-    const isRecord = index > 0 && point.estimatedOneRepMaxKg > best;
-    best = Math.max(best, point.estimatedOneRepMaxKg);
+    const isRecord =
+      index > 0 &&
+      point.progressValue !== null &&
+      compareValues(point.progressValue, best, direction) > 0;
+    if (compareValues(point.progressValue, best, direction) > 0) best = point.progressValue;
     return { ...point, isRecord };
   });
+}
+
+/** Sums one nullable field over a Session's sets; an absent value adds nothing. */
+function total(
+  sets: readonly CompletedSet[],
+  of: (set: CompletedSet) => number | null,
+): number {
+  return sets.reduce((sum, set) => sum + (of(set) ?? 0), 0);
+}
+
+/** The work done, in the unit of its own family. Four accumulators (REQ-116). */
+function volumeOf(sets: readonly CompletedSet[], family: VolumeFamily): number {
+  switch (family) {
+    case 'kg_reps':
+      return sets.reduce((sum, set) => sum + set.weightKg * (set.reps ?? 0), 0);
+    case 'reps':
+      return total(sets, (set) => set.reps);
+    case 'seconds':
+      return total(sets, (set) => set.durationSeconds);
+    case 'metres':
+      return total(sets, (set) => set.distanceM);
+  }
+}
+
+/**
+ * The best estimate of a Session — across every set, not the estimate of the
+ * set `better()` returns. `better()` chooses by load, so it hands back a heavy
+ * double on a day a lighter set demonstrated more.
+ */
+function bestEstimate(
+  sets: readonly CompletedSet[],
+  measurement: Measurement,
+): number | null {
+  if (!hasOneRepMax(measurement)) return null;
+  return sets.reduce<number | null>((best, performed) => {
+    const estimate = estimateOneRepMaxKg(performed, measurement);
+    if (estimate === null) return best;
+    return best === null ? estimate : Math.max(best, estimate);
+  }, null);
+}
+
+/**
+ * What a record is read on for this type (REQ-115): the estimated 1RM where the
+ * type has one, the progress axis itself otherwise.
+ */
+function progressValueOf(
+  sets: readonly CompletedSet[],
+  measurement: Measurement,
+): number | null {
+  if (hasOneRepMax(measurement)) return bestEstimate(sets, measurement);
+
+  const axis = progressAxisOf(measurement);
+  const direction = directionOf(measurement);
+  return sets.reduce<number | null>((best, performed) => {
+    const value = axisValue(performed, axis);
+    return compareValues(value, best, direction) > 0 ? value : best;
+  }, null);
 }

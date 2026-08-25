@@ -31,6 +31,9 @@ import type {
 import type { CompletedSet, PlannedExercise, PlannedExerciseSession } from '@/domain/types';
 import { toKg } from '@/domain/units';
 
+/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
+const measurement = 'weight_reps' as const;
+
 const sessionId = toId<SessionId>('session-1');
 const workoutId = toId<WorkoutId>('workout-1');
 
@@ -41,6 +44,8 @@ const planned: PlannedExercise = {
   sets: 4,
   minReps: 4,
   maxReps: 6,
+  minTarget: null,
+  maxTarget: null,
   minRir: 1,
   maxRir: 2,
   restSeconds: 180,
@@ -56,7 +61,7 @@ async function seed(count: number): Promise<{
   exercise: PlannedExerciseSession;
   sets: CompletedSet[];
 }> {
-  let exercise = startPlannedExercise({ sessionId, planned, order: 0 });
+  let exercise = startPlannedExercise({ measurement, sessionId, planned, order: 0 });
   await db.exerciseSessions.add(exercise);
 
   const sets: CompletedSet[] = [];

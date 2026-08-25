@@ -95,11 +95,28 @@ _Avoid_: Extra, ad-hoc exercise, freestyle
 
 ### Measurement
 
+**Measurement**:
+How an Exercise is measured — one of nine types, declared on the Exercise and
+snapshotted onto the Exercise Session when it starts. The type decides which
+value fields a Completed Set collects, which axis a record and a progression
+advance are read on, and whether higher or lower is better on that axis. Two
+of the nine read lower-is-better: assisted bodyweight, on its assistance, and
+distance-with-duration, on its pace. Stated in exactly one module; nothing
+outside it restates any of those facts.
+_Avoid_: Set type, exercise kind, modality
+
 **Unit**:
 The weight unit an Exercise is logged in, kg or lb, fixed per Exercise. Every
 recorded weight also carries a derived kilogram value used for all comparison,
 charting and progression.
 _Avoid_: Measure, scale
+
+**Distance Unit**:
+The unit a distance is logged in — m, km or mi — on its own axis beside Unit,
+which is never widened to carry it. Every recorded distance also carries a
+derived metre value, `distanceM`, used for all comparison, charting and
+progression, exactly as the kilogram value is for weight.
+_Avoid_: Length unit, Unit (which means weight)
 
 **Effort**:
 Foster's session load for one Session: the mean RPE of its sets times its

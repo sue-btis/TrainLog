@@ -56,6 +56,10 @@ import type {
 } from '@/domain/ids';
 import type { PlannedExercise } from '@/domain/types';
 
+/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
+const measurement = 'weight_reps' as const;
+const measurementOf = () => measurement;
+
 const routineId = toId<RoutineId>('routine-1');
 const workoutId = toId<WorkoutId>('workout-1');
 const squat = toId<ExerciseId>('back-squat');
@@ -67,6 +71,8 @@ const planned: PlannedExercise = {
   sets: 4,
   minReps: 4,
   maxReps: 6,
+  minTarget: null,
+  maxTarget: null,
   minRir: 1,
   maxRir: 2,
   restSeconds: 180,
@@ -86,7 +92,7 @@ describe('TST-021 — in-progress session recovery', () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
     await createStartedWorkout({ session, exerciseSessions: [] });
 
-    const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
+    const exercise = startPlannedExercise({ measurement, sessionId: session.id, planned, order: 0 });
     await addExerciseSession(exercise);
 
     let current = exercise;
@@ -122,7 +128,7 @@ describe('TST-021 — in-progress session recovery', () => {
   it('AC-056 — a logged set is readable from a second handle before the Session finishes', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
     await createStartedWorkout({ session, exerciseSessions: [] });
-    const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
+    const exercise = startPlannedExercise({ measurement, sessionId: session.id, planned, order: 0 });
     await addExerciseSession(exercise);
 
     const logged = logSet({
@@ -173,7 +179,7 @@ describe('TST-021 — in-progress session recovery', () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
     await createStartedWorkout({ session, exerciseSessions: [] });
     const skipped = skipExercise(
-      startUnplannedExercise({ sessionId: session.id, exerciseId: squat, order: 0 }),
+      startUnplannedExercise({ measurement, sessionId: session.id, exerciseId: squat, order: 0 }),
     );
     await addExerciseSession(skipped);
     await saveExerciseSession(skipped);
@@ -209,6 +215,7 @@ describe('session range reads (R-43, R-44)', () => {
     startedAt,
     completedAt: startedAt + 3_600_000,
     status: 'completed' as const,
+    bodyweightKg: null,
   });
 
   beforeEach(async () => {
@@ -255,6 +262,7 @@ function plannedAt(order: number, id: string): PlannedExercise {
 describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
   it('writes the Session and every ExerciseSession together, in order (AC-3)', async () => {
     const started = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [plannedAt(1, 'pe-b'), plannedAt(0, 'pe-a')],
@@ -276,6 +284,7 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
 
   it('stores the snapshotted targets, not a reference to the template (AC-4)', async () => {
     const started = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [plannedAt(0, 'pe-a')],
@@ -296,6 +305,7 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
 
   it('refuses a second concurrent Session and writes nothing (AC-6, REQ-058)', async () => {
     const first = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [plannedAt(0, 'pe-a')],
@@ -304,6 +314,7 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
     await createStartedWorkout(first);
 
     const second = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [plannedAt(0, 'pe-b')],
@@ -319,6 +330,7 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
 
   it('leaves neither the Session nor any exercise behind when a write fails (AC-5)', async () => {
     const started = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [plannedAt(0, 'pe-a'), plannedAt(1, 'pe-b')],
@@ -344,7 +356,7 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
   });
 
   it('starts a Workout that has no exercises', async () => {
-    const started = startWorkout({ routineId, workoutId, planned: [], startedAt: 1_000 });
+    const started = startWorkout({ measurementOf, routineId, workoutId, planned: [], startedAt: 1_000 });
 
     await createStartedWorkout(started);
 
@@ -356,6 +368,7 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
 describe('saveExerciseSessions (R-10, AC-20)', () => {
   it('persists a reorder without touching the PlannedExercises behind it', async () => {
     const started = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [plannedAt(0, 'pe-a'), plannedAt(1, 'pe-b'), plannedAt(2, 'pe-c')],
@@ -380,6 +393,7 @@ describe('saveExerciseSessions (R-10, AC-20)', () => {
 
   it('writes nothing for an empty list, rather than opening a transaction', async () => {
     const started = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [plannedAt(0, 'pe-a')],
@@ -416,6 +430,7 @@ describe('session history reads (R-1, R-5)', () => {
         startedAt: 1_000,
         completedAt: 2_000,
         status: 'completed',
+        bodyweightKg: null,
       },
       {
         id: toId<SessionId>('s-live'),
@@ -424,6 +439,7 @@ describe('session history reads (R-1, R-5)', () => {
         startedAt: 9_000,
         completedAt: null,
         status: 'in_progress',
+        bodyweightKg: null,
       },
       {
         id: toId<SessionId>('s-partial'),
@@ -432,6 +448,7 @@ describe('session history reads (R-1, R-5)', () => {
         startedAt: 5_000,
         completedAt: 6_000,
         status: 'partial',
+        bodyweightKg: null,
       },
     ]);
 
@@ -448,6 +465,7 @@ describe('session history reads (R-1, R-5)', () => {
     await db.plannedExercises.add(planned);
 
     const started = startWorkout({
+      measurementOf,
       routineId,
       workoutId,
       planned: [planned],
@@ -478,7 +496,7 @@ describe('session history reads (R-1, R-5)', () => {
 describe('discardSession — the way out of a Session started by mistake (§35)', () => {
   it('erases the Session and its exercises, leaving nothing behind', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
+    const exercise = startPlannedExercise({ measurement, sessionId: session.id, planned, order: 0 });
     await createStartedWorkout({ session, exerciseSessions: [exercise] });
 
     await discardSession(session.id);
@@ -494,7 +512,7 @@ describe('discardSession — the way out of a Session started by mistake (§35)'
 
   it('refuses a Session that holds a logged set, and changes nothing', async () => {
     const session = startSession({ routineId, workoutId, startedAt: 1_000 });
-    const exercise = startPlannedExercise({ sessionId: session.id, planned, order: 0 });
+    const exercise = startPlannedExercise({ measurement, sessionId: session.id, planned, order: 0 });
     await createStartedWorkout({ session, exerciseSessions: [exercise] });
 
     const logged = logSet({

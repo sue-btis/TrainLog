@@ -148,3 +148,90 @@ irreversible migration. A user's IndexedDB is the only copy of their training
 history, this change alters what a stored set *is*, and the backup format moves
 with it. Routine-authoring was strict because ASM-1 kept it out of the schema
 entirely; that assumption does not survive here.
+
+---
+
+## Decisions taken after the audit (2026-08-25)
+
+The audit (`audit.md`) raised nine decisions and approved none, as its skill
+requires. All nine are now taken. They are recorded here because this is the
+document that holds approved decisions; `audit.md` stays a factual snapshot.
+
+**Correction to DEC-B.** Its conclusion stands — the discriminator belongs on
+`Exercise`, because a plank does not become a rep exercise on Tuesday — but its
+stated reason is false about this repository. `unit` does **not** live on
+`Exercise`. It is declared on `PlannedExercise`, snapshotted as
+`ExerciseSession.plannedUnit`, and copied onto `CompletedSet.unit`. §11.7 says
+the unit is *conceptually* the exercise's; the code declares it on the plan and
+makes it travel. That three-place pattern is the precedent DEC-H follows.
+
+- **DEC-H — `measurement` is declared on `Exercise` and snapshotted onto
+  `ExerciseSessionBase`.** On the base, not among the `planned*` fields: an
+  unplanned exercise has a measurement too, because the type is identity of the
+  movement rather than a target of the programme. `SessionHistory` therefore
+  already carries it, so `domain/history.ts` and `domain/progression/index.ts`
+  keep their signatures. Not copied onto `CompletedSet` — a per-row copy nothing
+  reads, free to contradict the ExerciseSession above it. `SetPill` and
+  `features/ui/format.ts` take it as a prop.
+
+- **DEC-I — bodyweight is a field on `Session`, not a tenth table.** A new field
+  on a table that is already exported, so REQ-070, §17 and `schema.test.ts:147`
+  are untouched. Carried forward from the last Session and editable. Sessions
+  are dated, so this satisfies DEC-C's "recorded over time" without new
+  structure. The ceiling is stated rather than hidden: a rest-day weigh-in has
+  nowhere to go until bodyweight tracking becomes its own feature.
+
+- **DEC-J — distance carries its own unit axis.** `DistanceUnit = 'm' | 'km' |
+  'mi'` with a derived `distanceM`, mirroring `Unit` and `toKg` exactly. Storing
+  metres always would store a number the lifter never typed, which §11.7
+  explicitly avoids for weight. One enum covers a run in kilometres and a
+  farmer's walk in metres. `Unit` keeps its CONTEXT.md meaning — weight only.
+
+- **DEC-K — the routine file format moves to v2, and v1 stays accepted.** A v1
+  file means every exercise is `weight_reps`, which is the same backfill rule
+  the stored data follows. `reps` is structurally required in v1 and a routine
+  file may mint an Exercise, so the file must be able to declare a measurement;
+  that is a format change. `docs/bloque-a-acumulacion.yaml` and
+  `docs/bloque-b-intensificacion.yaml` keep importing untouched.
+
+- **DEC-L — the catalog declares a type for all 96 rows in this change, and no
+  stored set is rewritten.** Catalog data is build-time and costs no migration
+  (DEC-007). This is what makes the backfill lossless: a stored `push-up` set
+  holding `weight: 0` reads correctly under the new type without being touched,
+  because `bodyweight_reps` does not read that field and `weighted_bodyweight`
+  reads 0 as "no added weight" — which is the truth. The reinterpretation comes
+  from the Exercise's declaration, never from guessing about a set. This closes
+  the audit's DEC-Q5 and DEC-Q7 together; they are one decision.
+
+- **DEC-M — user-created Exercises are backfilled to `weight_reps`.** The only
+  type provable from the data. The audit established that nothing distinguishes
+  a bodyweight set from a weighted set entered at zero, so any other answer is a
+  guess. DEC-O is the correction path.
+
+- **DEC-N — `CSV_HEADER` grows by appending, never by inserting.**
+  `…,rir,measurement,duration_s,distance,distance_unit`. Every existing column
+  keeps its index, so a positional parser survives. Same additive precedent by
+  which `unit` was already added past §19's example.
+
+- **DEC-O — an Exercise's measurement may be corrected while it holds no
+  logged sets.** Refused once history exists. Changing a measurement is not a
+  rename: it touches no identity and cannot split a history under §26, so the
+  verb is narrow and safe. With sets already logged it *is* reinterpretation,
+  which this change excludes and §39 item 7 owns. Catalog Exercises are
+  build-time and are not editable.
+
+- **DEC-P — a record is the best value on the type's own axis, in that axis's
+  better direction.** It reuses the axis-and-sign function DEC-A·3 already
+  forces into existence, so it adds no formula. Riegel is rejected for now: a
+  new formula and a product claim §11.11 does not make. Estimated 1RM stays
+  defined only for the types that have one.
+
+### Still open, deliberately
+
+- §39 has no row for this change. Group C lists items 9–12 and measurement is
+  absent, so the spec adds a numbered row and updates the table in the same
+  commit, as §39 itself instructs.
+- Whether `SCHEMA_VERSION` and `BACKUP_VERSION` both move. The audit validated
+  the premise (ASM-3: `z.object` strips unknown keys, which is why
+  `backup/schema.ts` reaches for `looseObject` where it must not), but the
+  decision belongs in the spec beside the migration it versions.

@@ -15,12 +15,19 @@ import { useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CompletedSetId } from '@/domain/ids';
+import { targetUnitOf, targetsReps } from '@/domain/measurement';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import type { LoadSuggestion } from '@/domain/progression';
 import { suggestLoad } from '@/domain/progression';
 import type { Unit } from '@/domain/units';
 import { SetEditor } from '@/features/session/SetEditor';
-import { SetLogger, targetsOf, type SetValues } from '@/features/session/SetLogger';
+import {
+  EMPTY_VALUES,
+  SetLogger,
+  targetsOf,
+  valuesOf,
+  type SetValues,
+} from '@/features/session/SetLogger';
 import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
 import { Figure } from '@/features/ui/Figure';
 import { snapshotFigures } from '@/features/ui/format';
@@ -162,6 +169,7 @@ export function ExerciseView({
           <SetEditor
             busy={busy}
             key={editedSet.id}
+            measurement={exerciseSession.measurement}
             onCancel={() => setEditing(null)}
             onDelete={() => {
               setEditing(null);
@@ -190,6 +198,7 @@ export function ExerciseView({
         ) : (
           <SetLogger
             busy={busy}
+            measurement={exerciseSession.measurement}
             onChange={setValues}
             onComplete={() => {
               setAddingExtra(false);
@@ -480,16 +489,40 @@ function openingValues(
   defaultRir: number | null,
 ): SetValues {
   const planned = exerciseSession.plannedExerciseId === null ? null : exerciseSession;
-  const reps = planned?.plannedMaxReps ?? previousSets[0]?.reps ?? 0;
   const rir = planned?.plannedMinRir ?? previousSets[0]?.rir ?? defaultRir ?? 0;
 
+  // The last set of this exercise, in this Session, is the strongest opening
+  // there is: it is what the lifter just did, on every axis at once.
   const lastLogged = sets.at(-1);
-  if (lastLogged !== undefined) {
-    return { weight: lastLogged.weight, reps: lastLogged.reps, rir: lastLogged.rir };
-  }
+  if (lastLogged !== undefined) return valuesOf(lastLogged);
 
-  if (suggestion !== null) return { weight: suggestion.weight, reps, rir };
+  // Otherwise the previous session's first set carries every axis the type
+  // collects, and the plan's own target overrides the one axis it states.
   const previous = previousSets[0];
-  if (previous !== undefined) return { weight: previous.weight, reps, rir };
-  return { weight: 0, reps, rir };
+  const base: SetValues = previous === undefined ? { ...EMPTY_VALUES, rir } : { ...valuesOf(previous), rir };
+
+  const opening = targetsReps(exerciseSession.measurement)
+    ? { ...base, reps: planned?.plannedMaxReps ?? base.reps }
+    : { ...base, ...targetOpening(exerciseSession, planned?.plannedMaxTarget ?? null, base) };
+
+  // §29 makes the load the thing that moves, so a suggestion overrides it and
+  // nothing else.
+  return suggestion === null ? opening : { ...opening, weight: suggestion.weight };
+}
+
+/**
+ * The planned target, put on whichever axis the type states it — seconds or
+ * metres, both canonical, so a `km` entry is left as the lifter last had it
+ * rather than being handed a metre count in a kilometre field.
+ */
+function targetOpening(
+  exerciseSession: ExerciseSession,
+  plannedMaxTarget: number | null,
+  base: SetValues,
+): Partial<SetValues> {
+  if (plannedMaxTarget === null) return {};
+  if (targetUnitOf(exerciseSession.measurement) === 'seconds') {
+    return { durationSeconds: plannedMaxTarget };
+  }
+  return base.distanceUnit === 'm' ? { distance: plannedMaxTarget } : {};
 }

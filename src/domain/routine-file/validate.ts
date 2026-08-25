@@ -12,6 +12,9 @@ import type { FieldPath, RoutineFile } from '@/domain/routine-file/schema';
 /** The checks of §11.1, as codes a UI can switch on. */
 export type SemanticIssueCode =
   | 'reps_range_inverted'
+  | 'target_range_inverted'
+  | 'target_pair_ambiguous'
+  | 'target_pair_missing'
   | 'rir_out_of_range'
   | 'rest_seconds_negative'
   | 'sets_not_positive'
@@ -95,11 +98,42 @@ export function validateRoutineFile(file: RoutineFile): readonly SemanticIssue[]
       ];
       const where = `${workout.name} → ${exercise.name}`;
 
-      if (exercise.reps.min > exercise.reps.max) {
+      const { reps, target } = exercise;
+
+      if (reps !== undefined && reps.min > reps.max) {
         issues.push({
           code: 'reps_range_inverted',
           paths: [at('reps')],
           message: `${where}: min_reps cannot be greater than max_reps.`,
+        });
+      }
+
+      if (target !== undefined && target.min > target.max) {
+        issues.push({
+          code: 'target_range_inverted',
+          paths: [at('target')],
+          message: `${where}: the target range cannot run backwards.`,
+        });
+      }
+
+      // Exactly one target pair, decided by the measurement (REQ-139). Both
+      // populated is a contradiction and neither is a plan with no target,
+      // and both are refused rather than silently resolved by preferring
+      // one — which would be this file quietly choosing what the lifter
+      // meant.
+      if (reps !== undefined && target !== undefined) {
+        issues.push({
+          code: 'target_pair_ambiguous',
+          paths: [at('reps'), at('target')],
+          message: `${where}: an exercise states a rep range or a target range, never both.`,
+        });
+      }
+
+      if (reps === undefined && target === undefined) {
+        issues.push({
+          code: 'target_pair_missing',
+          paths: [at('reps')],
+          message: `${where}: an exercise needs a rep range or a target range.`,
         });
       }
 

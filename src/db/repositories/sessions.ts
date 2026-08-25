@@ -68,11 +68,59 @@ export async function createStartedWorkout(started: {
     if (open !== undefined && open.id !== started.session.id) {
       throw new SessionInProgressError(open.id);
     }
-    await db.sessions.add(started.session);
+    // REQ-108 — the carry-forward happens here rather than in the domain,
+    // because this is the layer that can see the earlier Sessions. An
+    // explicitly supplied value wins: the caller knew something this lookup
+    // does not.
+    const session =
+      started.session.bodyweightKg === null
+        ? { ...started.session, bodyweightKg: await lastRecordedBodyweightKg() }
+        : started.session;
+    await db.sessions.add(session);
     if (started.exerciseSessions.length > 0) {
       await db.exerciseSessions.bulkAdd([...started.exerciseSessions]);
     }
   });
+}
+
+/**
+ * The most recent bodyweight anyone recorded, or `null` where none ever was
+ * (REQ-108, DEC-C).
+ *
+ * Newest first over the `startedAt` index, taking the first Session that
+ * carries one: a Session where the lifter did not weigh in is skipped rather
+ * than treated as "no bodyweight", the same way `lastCompletedSets` walks
+ * back past a Session that did not include the exercise.
+ *
+ * `null` reads as null everywhere and nothing displays a zero: a bodyweight
+ * of zero is not a fact about a lifter (AC-112).
+ */
+export async function lastRecordedBodyweightKg(): Promise<number | null> {
+  let found: number | null = null;
+  await db.sessions
+    .orderBy('startedAt')
+    .reverse()
+    .until(() => found !== null, true)
+    .each((session) => {
+      if (found === null && (session.bodyweightKg ?? null) !== null) {
+        found = session.bodyweightKg;
+      }
+    });
+  return found;
+}
+
+/**
+ * Corrects the bodyweight recorded against one Session (REQ-108).
+ *
+ * Editable for the length of the Session, and afterwards: a lifter who
+ * weighed in after training recorded a real number for that day, and the
+ * alternative is a figure they cannot fix.
+ */
+export async function saveSessionBodyweight(
+  id: SessionId,
+  bodyweightKg: number | null,
+): Promise<void> {
+  await db.sessions.update(id, { bodyweightKg });
 }
 
 /**

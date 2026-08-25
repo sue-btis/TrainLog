@@ -9,6 +9,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   getActiveRoutine,
+  getExerciseMeasurements,
   getExerciseNames,
   getInProgressSession,
   getLastPerformedWorkout,
@@ -60,6 +61,15 @@ export function usePlannedExercises(workoutId: WorkoutId | null) {
 export function useExerciseNames(ids: readonly ExerciseId[]) {
   const key = ids.join(',');
   return useLiveQuery(() => getExerciseNames(key === '' ? [] : (key.split(',') as ExerciseId[])), [key]);
+}
+
+/** How each of these exercises is measured, for the start-of-exercise snapshot (REQ-105). */
+export function useExerciseMeasurements(ids: readonly ExerciseId[]) {
+  const key = ids.join(',');
+  return useLiveQuery(
+    () => getExerciseMeasurements(key === '' ? [] : (key.split(',') as ExerciseId[])),
+    [key],
+  );
 }
 
 export function useInProgressSession() {

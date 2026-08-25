@@ -7,11 +7,24 @@
 # Cardio (fuera del archivo): HIIT 30 s fuerte / 90 s descanso x 4-6, martes y
 # sábado. Miércoles caminata o bici suave 30 min. Domingo descanso.
 #
-# Los saltos, holds y habilidades usan `sets: N, reps: {min:1,max:1}` porque el
-# formato v1 no tiene campo de duración: la prescripción real va en `notes`.
-# Todos ellos son `manual` - no hay carga que incrementar.
+# Formato v2. Los tres holds — Planche Lean, Handstand Hold, Tuck Planche Hold —
+# ya no fingen ser series de una repetición: se miden en tiempo y declaran su
+# objetivo en `target`, en segundos. Los segundos que antes vivían en `notes`
+# son ahora el objetivo real, así que la app puede marcarlos y graficarlos.
+#
+# Van por `exercise_id` contra el catálogo, así que Bloque A y Bloque B
+# comparten el mismo historial en cada uno de los tres.
+#
+# Broad Jump se mide en distancia, con un rango a propósito ancho: el programa
+# no fija un objetivo, se salta al máximo, y un rango estrecho marcaría como
+# «fuera de plan» un salto que no lo está. La regla real — parar cuando la
+# distancia cae respecto a la primera serie — sigue en `notes`, porque es una
+# comparación contra el propio día y el formato no la puede enunciar.
+#
+# Las habilidades siguen en el eje de repeticiones. Todos ellos son `manual`:
+# no hay carga que incrementar.
 
-version: 1
+version: 2
 
 routine:
   name: "Bloque A - Acumulación (Sem 1-4)"
@@ -34,13 +47,15 @@ routine:
           progression: { type: "manual" }
 
         - name: "Broad Jump"
+          exercise_id: "broad-jump"
           category: "quadriceps"
           sets: 4
-          reps: { min: 3, max: 3 }
+          target: { min: 1.5, max: 3.5 }
           rest_seconds: 120
           focus: "Potencia horizontal"
           notes:
             - "Máxima distancia, aterrizaje absorbido y estable"
+            - "El rango es deliberadamente ancho: no hay objetivo, se salta al máximo"
             - "Si la distancia cae respecto a la primera serie, para"
           progression: { type: "manual" }
 
@@ -164,24 +179,24 @@ routine:
           progression: { type: "manual" }
 
         - name: "Planche Lean"
+          exercise_id: "planche-lean"
           category: "shoulders"
           sets: 4
-          reps: { min: 1, max: 1 }
+          target: { min: 15, max: 30 }
           rest_seconds: 90
           focus: "Progresión de planche"
           notes:
-            - "15-30 s por serie"
             - "Escápulas protraídas, cadera abierta, adelantar hasta el límite controlable"
           progression: { type: "manual" }
 
         - name: "Handstand Hold"
+          exercise_id: "handstand-hold"
           category: "shoulders"
           sets: 4
-          reps: { min: 1, max: 1 }
+          target: { min: 20, max: 40 }
           rest_seconds: 90
           focus: "Línea corporal"
           notes:
-            - "20-40 s por serie"
             - "Hombros elevados, core firme"
           progression: { type: "manual" }
 
@@ -341,13 +356,13 @@ routine:
           progression: { type: "double_progression", increment: 2 }
 
         - name: "Tuck Planche Hold"
+          exercise_id: "tuck-planche-hold"
           category: "shoulders"
           sets: 3
-          reps: { min: 1, max: 1 }
+          target: { min: 10, max: 20 }
           rest_seconds: 120
           focus: "Progresión de planche"
           notes:
-            - "10-20 s por serie"
             - "Avanza a advanced tuck sólo cuando sostengas 3 x 20 s limpios"
           progression: { type: "manual" }
 

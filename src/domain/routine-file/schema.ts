@@ -23,6 +23,7 @@
 
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { MEASUREMENTS } from '@/domain/measurement';
 import type { Weekday } from '@/domain/types';
 
 const weekdaySchema = z.enum([
@@ -60,8 +61,24 @@ const exerciseSchema = z.object({
   exercise_id: z.string().optional(),
   category: z.string().optional(),
   unit: z.enum(['kg', 'lb']).optional(),
+  /**
+   * How the movement is measured (v2 only, REQ-130). Omitted means
+   * `weight_reps`, which is what every version-1 file has always meant. It
+   * applies only where the import mints the Exercise: a name that resolves
+   * to one the app already knows keeps its own type (REQ-131, §26).
+   */
+  measurement: z.enum(MEASUREMENTS).optional(),
   sets: z.number(),
-  reps: rangeSchema,
+  /**
+   * The rep range. Optional since v2: a plank has none, and states its
+   * target in `target` below instead (REQ-139 — exactly one of the two).
+   */
+  reps: rangeSchema.optional(),
+  /**
+   * The non-rep target range, in the axis's canonical unit — seconds for a
+   * duration exercise, metres for a distance one (REQ-138).
+   */
+  target: rangeSchema.optional(),
   rir: rangeSchema.optional(),
   rest_seconds: z.number().optional(),
   focus: z.string().optional(),
@@ -75,8 +92,15 @@ const workoutSchema = z.object({
   exercises: z.array(exerciseSchema),
 });
 
+/**
+ * The format version the file declares.
+ *
+ * `1` is still accepted and means every exercise is weight x reps (DEC-K).
+ * `2` may declare a measurement per exercise and may omit `reps` for a type
+ * that has none.
+ */
 const routineFileSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   routine: z.object({
     name: z.string(),
     weeks: z.number(),

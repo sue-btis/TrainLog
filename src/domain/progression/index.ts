@@ -17,6 +17,16 @@
  */
 
 import type { ExerciseId } from '@/domain/ids';
+import { measurementOf } from '@/domain/history';
+import {
+  axisValue,
+  directionOf,
+  progressAxisOf,
+  targetAxisOf,
+  targetsReps,
+  type Axis,
+  type Measurement,
+} from '@/domain/measurement';
 import type {
   CompletedSet,
   ExerciseSession,
@@ -58,6 +68,19 @@ export interface LoadSuggestion {
   readonly weight: number;
   readonly unit: Unit;
   readonly weightKg: number;
+  /**
+   * The axis the suggestion moves on — the type's progress axis (REQ-119).
+   * `load` for the five types carrying one, and then `weight` above is the
+   * suggestion. For the rest the load does not move at all and `value` below
+   * is the whole of the advance.
+   */
+  readonly axis: Axis;
+  /**
+   * The suggested value on `axis`, in that axis's own canonical unit: the same
+   * number as `weight` for a load axis, seconds for a duration axis, metres for
+   * a distance axis, reps for a rep axis, seconds per metre for pace.
+   */
+  readonly value: number;
   readonly targetMet: boolean;
 }
 
@@ -66,8 +89,16 @@ interface ProgressionTarget {
   readonly exerciseId: ExerciseId;
   /** N in §29 — the planned set count. */
   readonly plannedSets: number;
+  /** The type the two axes are read off (REQ-102). */
+  readonly measurement: Measurement;
   /** The upper end of the planned rep range — the rep target of §29. */
-  readonly maxReps: number;
+  /**
+   * The upper end of the range on the type's **target axis**, in that axis's
+   * canonical unit — reps, seconds or metres (REQ-119, REQ-139). `null` where
+   * the programme stated no range, which yields no suggestion for the same
+   * reason an unplanned exercise does: there is nothing to have met.
+   */
+  readonly targetMax: number | null;
   readonly rule: ProgressionRule;
 }
 
@@ -76,12 +107,21 @@ interface ProgressionTarget {
  * ExerciseSession snapshot (already started). An unplanned exercise has no rule
  * and no targets, so it yields `null` and therefore no suggestion (REQ-065).
  */
-function targetOf(exercise: PlannedExercise | ExerciseSession): ProgressionTarget | null {
+function targetOf(
+  exercise: PlannedExercise | ExerciseSession,
+  measurement: Measurement,
+): ProgressionTarget | null {
+  // Exactly one of the two target pairs is populated, and which one is decided
+  // by the measurement rather than by testing which field is non-null
+  // (REQ-139).
+  const onReps = targetsReps(measurement);
+
   if (!('plannedExerciseId' in exercise)) {
     return {
       exerciseId: exercise.exerciseId,
       plannedSets: exercise.sets,
-      maxReps: exercise.maxReps,
+      measurement,
+      targetMax: onReps ? exercise.maxReps : exercise.maxTarget,
       rule: exercise.progression,
     };
   }
@@ -89,9 +129,24 @@ function targetOf(exercise: PlannedExercise | ExerciseSession): ProgressionTarge
   return {
     exerciseId: exercise.exerciseId,
     plannedSets: exercise.plannedSets,
-    maxReps: exercise.plannedMaxReps,
+    measurement,
+    targetMax: onReps ? exercise.plannedMaxReps : exercise.plannedMaxTarget,
     rule: exercise.plannedProgression,
   };
+}
+
+/**
+ * The type an exercise's progression is read under.
+ *
+ * An ExerciseSession carries its own snapshot (REQ-105). A PlannedExercise
+ * does not — the declaration lives on the Exercise — so it is read off the
+ * history being consulted, which is the same Exercise's.
+ */
+function measurementFor(
+  exercise: PlannedExercise | ExerciseSession,
+  history: readonly SessionHistory[],
+): Measurement {
+  return 'plannedExerciseId' in exercise ? exercise.measurement : measurementOf(history);
 }
 
 /**
@@ -126,11 +181,14 @@ function lastCompletedSets(
  * `weight` and `unit` come straight off the set, so no conversion happens and
  * no rounding can creep in; `weightKg` is the value the set already carries.
  */
-function repeat(previous: CompletedSet): LoadSuggestion {
+function repeat(previous: CompletedSet, measurement: Measurement): LoadSuggestion {
+  const axis = progressAxisOf(measurement);
   return {
     weight: previous.weight,
     unit: previous.unit,
     weightKg: previous.weightKg,
+    axis,
+    value: axis === 'load' ? previous.weight : (axisValue(previous, axis) ?? 0),
     targetMet: false,
   };
 }
@@ -159,20 +217,53 @@ function doubleProgression(
   previous: CompletedSet,
   sets: readonly CompletedSet[],
   plannedSets: number,
-  maxReps: number,
+  targetMax: number,
   increment: number,
+  measurement: Measurement,
 ): LoadSuggestion {
+  const target = targetAxisOf(measurement);
   const evaluated = sets.slice(0, plannedSets);
+  // Every target axis is higher-is-better — reps, seconds, metres — so the
+  // comparison needs no sign of its own. The sign lives on the progress axis,
+  // below.
   const targetMet =
-    evaluated.length === plannedSets && evaluated.every((set) => set.reps >= maxReps);
+    evaluated.length === plannedSets &&
+    evaluated.every((set) => (axisValue(set, target) ?? 0) >= targetMax);
 
-  if (!targetMet) return repeat(previous);
+  if (!targetMet) return repeat(previous, measurement);
 
-  const weight = previous.weight + increment;
+  const axis = progressAxisOf(measurement);
+  const direction = directionOf(measurement);
+
+  if (axis === 'load') {
+    // Advancing means *reducing* assistance on an inverted load axis, floored
+    // at zero — there is no such thing as negative help (REQ-120).
+    const weight =
+      direction === 'higher'
+        ? previous.weight + increment
+        : Math.max(0, previous.weight - increment);
+    return {
+      weight,
+      unit: previous.unit,
+      weightKg: toKg(weight, previous.unit),
+      axis,
+      value: weight,
+      targetMet: true,
+    };
+  }
+
+  // No load axis, so the load does not move and the advance is on the axis the
+  // target itself is stated on — more reps, more seconds, more metres, or a
+  // lower pace (DER-2). Floored at zero for the same reason assistance is.
+  const current = axisValue(previous, axis) ?? 0;
+  const value =
+    direction === 'higher' ? current + increment : Math.max(0, current - increment);
   return {
-    weight,
+    weight: previous.weight,
     unit: previous.unit,
-    weightKg: toKg(weight, previous.unit),
+    weightKg: previous.weightKg,
+    axis,
+    value,
     targetMet: true,
   };
 }
@@ -209,8 +300,11 @@ export function projectNextLoad(
   exercise: ExerciseSession,
   sets: readonly CompletedSet[],
 ): LoadSuggestion | null {
-  const target = targetOf(exercise);
+  const measurement = exercise.measurement;
+  const target = targetOf(exercise, measurement);
   if (target === null) return null;
+  // No range stated is nothing to have met.
+  if (target.targetMax === null) return null;
 
   const first = sets[0];
   if (first === undefined) return null;
@@ -220,8 +314,9 @@ export function projectNextLoad(
     first,
     sets,
     target.plannedSets,
-    target.maxReps,
+    target.targetMax,
     target.rule.increment,
+    measurement,
   );
   return projected.targetMet ? projected : null;
 }
@@ -230,7 +325,8 @@ export function suggestLoad(
   exercise: PlannedExercise | ExerciseSession,
   history: readonly SessionHistory[],
 ): LoadSuggestion | null {
-  const target = targetOf(exercise);
+  const measurement = measurementFor(exercise, history);
+  const target = targetOf(exercise, measurement);
   if (target === null) return null;
 
   const sets = lastCompletedSets(history, target.exerciseId);
@@ -240,15 +336,17 @@ export function suggestLoad(
   switch (target.rule.type) {
     // §28 — history is kept and shown; the load never advances by itself.
     case 'manual':
-      return repeat(previous);
+      return repeat(previous, measurement);
 
     case 'double_progression':
+      if (target.targetMax === null) return repeat(previous, measurement);
       return doubleProgression(
         previous,
         sets,
         target.plannedSets,
-        target.maxReps,
+        target.targetMax,
         target.rule.increment,
+        measurement,
       );
   }
 }

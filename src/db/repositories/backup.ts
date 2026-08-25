@@ -212,6 +212,12 @@ export async function listSetsForCsv(): Promise<CsvRow[]> {
           unit: set.unit,
           reps: set.reps,
           rir: set.rir,
+          // From the ExerciseSession's snapshot, never inferred from which
+          // fields the set happens to carry (DEC-H).
+          measurement: exerciseSession.measurement,
+          durationSeconds: set.durationSeconds,
+          distance: set.distance,
+          distanceUnit: set.distanceUnit,
         });
       }
     }

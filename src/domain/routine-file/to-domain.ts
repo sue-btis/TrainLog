@@ -10,6 +10,7 @@
  */
 
 import { findExerciseByName, getCatalogExercise } from '@/domain/catalog';
+import { targetsReps } from '@/domain/measurement';
 import { newId, toId } from '@/domain/ids';
 import type {
   ExerciseId,
@@ -75,6 +76,11 @@ export function resolveFileExercise(
       name: fileExercise.name.trim(),
       category: fileExercise.category ?? null,
       equipment: null,
+      // The file's declaration applies only where the import mints the
+      // Exercise (REQ-131): the two returns above hand back an incumbent
+      // and never restate its type. Omitted means weight x reps, which is
+      // what every version-1 file has always meant (REQ-130, DEC-K).
+      measurement: fileExercise.measurement ?? 'weight_reps',
     },
   };
 }
@@ -139,14 +145,20 @@ export function routineFileToDomain(
         createdExercises.push(resolved.exercise);
         knownExercises.push(resolved.exercise);
       }
+      const onReps = targetsReps(resolved.exercise.measurement);
 
       plannedExercises.push({
         id: newId<PlannedExerciseId>(),
         workoutId,
         exerciseId: resolved.exercise.id,
         sets: fileExercise.sets,
-        minReps: fileExercise.reps.min,
-        maxReps: fileExercise.reps.max,
+        // Exactly one of the two pairs is populated, and which one is
+        // decided by the Exercise's measurement rather than by which key the
+        // file happened to write (REQ-139).
+        minReps: onReps ? (fileExercise.reps?.min ?? null) : null,
+        maxReps: onReps ? (fileExercise.reps?.max ?? null) : null,
+        minTarget: onReps ? null : (fileExercise.target?.min ?? null),
+        maxTarget: onReps ? null : (fileExercise.target?.max ?? null),
         minRir: fileExercise.rir?.min ?? null,
         maxRir: fileExercise.rir?.max ?? null,
         restSeconds: fileExercise.rest_seconds ?? null,

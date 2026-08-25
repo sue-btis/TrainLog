@@ -95,6 +95,43 @@ describe('validateRoutineFile — semantic checks (TST-003)', () => {
     expect(issues[0]?.message).toContain('monday');
   });
 
+  it('refuses an exercise stating both a rep range and a target range (TST-128, REQ-139, AC-166)', () => {
+    const issues = validateRoutineFile(
+      aFile([
+        aWorkout({
+          exercises: [
+            anExercise({ reps: { min: 8, max: 12 }, target: { min: 45, max: 60 } }),
+          ],
+        }),
+      ]),
+    );
+    expect(issues.map((i) => i.code)).toEqual(['target_pair_ambiguous']);
+    expect(pathsOf(issues)).toEqual([
+      'routine.workouts[0].exercises[0].reps',
+      'routine.workouts[0].exercises[0].target',
+    ]);
+  });
+
+  it('refuses an exercise stating neither range (TST-128, REQ-139, AC-166)', () => {
+    const issues = validateRoutineFile(
+      aFile([aWorkout({ exercises: [anExercise({ reps: undefined })] })]),
+    );
+    expect(issues.map((i) => i.code)).toEqual(['target_pair_missing']);
+    expect(pathsOf(issues)).toEqual(['routine.workouts[0].exercises[0].reps']);
+  });
+
+  it('reports a target range that runs backwards', () => {
+    const issues = validateRoutineFile(
+      aFile([
+        aWorkout({
+          exercises: [anExercise({ reps: undefined, target: { min: 60, max: 45 } })],
+        }),
+      ]),
+    );
+    expect(issues.map((i) => i.code)).toEqual(['target_range_inverted']);
+    expect(pathsOf(issues)).toEqual(['routine.workouts[0].exercises[0].target']);
+  });
+
   it('reports every issue in a file that violates several checks', () => {
     const issues = validateRoutineFile(
       aFile([

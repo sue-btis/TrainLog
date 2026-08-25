@@ -43,13 +43,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { createUserExercise, type CreatedExercise } from '@/db';
+import { correctExerciseMeasurement, createUserExercise, type CreatedExercise } from '@/db';
 import {
   CATALOG,
   CATALOG_CATEGORIES,
   CATALOG_EQUIPMENT,
   groupExercises,
 } from '@/domain/catalog';
+import { MEASUREMENTS, type Measurement } from '@/domain/measurement';
 import type { Exercise } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
 import { SelectField, TextField } from '@/features/ui/fields';
@@ -94,6 +95,35 @@ const BANDS: readonly {
 /** Every category a band names, so the last band can take what is left over. */
 const NAMED = new Set(BANDS.flatMap(({ categories }) => categories ?? []));
 
+/**
+ * How each measurement type is said to a lifter (REQ-132).
+ *
+ * `Record<Measurement, string>` rather than a lookup with a fallback: a tenth
+ * type added to the union stops the build here instead of reaching a screen as
+ * `distance_duration`. The wording is the gym's, not the union's.
+ */
+const MEASUREMENT_LABELS: Record<Measurement, string> = {
+  weight_reps: 'Weight × reps',
+  bodyweight_reps: 'Bodyweight reps',
+  weighted_bodyweight: 'Weighted bodyweight',
+  assisted_bodyweight: 'Assisted bodyweight',
+  duration: 'Time',
+  duration_weight: 'Time + weight',
+  distance_duration: 'Distance + time',
+  weight_distance: 'Weight + distance',
+  distance: 'Distance',
+};
+
+/**
+ * The options, derived from `MEASUREMENTS` rather than written out again, so a
+ * type can never be silently missing from the form.
+ */
+const MEASUREMENT_OPTIONS: readonly { readonly value: Measurement; readonly label: string }[] =
+  MEASUREMENTS.map((measurement) => ({
+    value: measurement,
+    label: MEASUREMENT_LABELS[measurement],
+  }));
+
 export function ExerciseCatalogScreen() {
   const user = useUserExercises();
   const [params] = useSearchParams();
@@ -101,6 +131,10 @@ export function ExerciseCatalogScreen() {
   const [equipment, setEquipment] = useState(ANY);
 
   const all = useMemo<readonly Exercise[]>(() => [...(user ?? []), ...CATALOG], [user]);
+
+  // Which rows the lifter owns. A catalog Exercise is measured the way the
+  // build says and is never corrected here (AC-154).
+  const mine = useMemo(() => new Set((user ?? []).map((exercise) => exercise.id)), [user]);
 
   // Taken from every exercise, never from the filtered ones: an option list
   // that shrinks as you use it leaves no way back to the value you just left.
@@ -239,18 +273,20 @@ export function ExerciseCatalogScreen() {
 
               <div className={ROW_LIST}>
                 {group.exercises.map((exercise) => (
-                  <Link
-                    className={cn(ROW, PRESS)}
-                    key={exercise.id}
-                    to={`/exercises/${exercise.id}`}
-                  >
-                    <span className="type-title">{exercise.name}</span>
-                    {exercise.equipment !== null && (
-                      <span className="type-measure-sm capitalize text-ink-3">
-                        {exercise.equipment}
-                      </span>
-                    )}
-                  </Link>
+                  <div className={ROW} key={exercise.id}>
+                    <Link
+                      className={cn('flex flex-col gap-1.5', PRESS)}
+                      to={`/exercises/${exercise.id}`}
+                    >
+                      <span className="type-title">{exercise.name}</span>
+                      {exercise.equipment !== null && (
+                        <span className="type-measure-sm capitalize text-ink-3">
+                          {exercise.equipment}
+                        </span>
+                      )}
+                    </Link>
+                    {mine.has(exercise.id) && <CorrectMeasurement exercise={exercise} />}
+                  </div>
                 ))}
               </div>
             </Card>
@@ -286,6 +322,9 @@ function NewExercise() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState(UNSPECIFIED);
   const [equipment, setEquipment] = useState(UNSPECIFIED);
+  // The type the vast majority of movements are (REQ-132): a lifter adding a
+  // barbell variation should not have to say so.
+  const [measurement, setMeasurement] = useState<Measurement>('weight_reps');
   const [outcome, setOutcome] = useState<CreatedExercise | null>(null);
   const { busy, failure, run } = useAsyncAction();
 
@@ -294,6 +333,7 @@ function NewExercise() {
     setName('');
     setCategory(UNSPECIFIED);
     setEquipment(UNSPECIFIED);
+    setMeasurement('weight_reps');
   }
 
   async function submit() {
@@ -302,6 +342,7 @@ function NewExercise() {
         name,
         category: category === UNSPECIFIED ? null : category,
         equipment: equipment === UNSPECIFIED ? null : equipment,
+        measurement,
       });
       setOutcome(result);
       if (result.created) close();
@@ -356,6 +397,15 @@ function NewExercise() {
         optionClass="capitalize"
         options={vocabulary(CATALOG_EQUIPMENT, 'No equipment')}
         value={equipment}
+      />
+
+      <SelectField
+        id="new-exercise-measurement"
+        label="measured as"
+        onCommit={setMeasurement}
+        optionClass="type-body-sm"
+        options={MEASUREMENT_OPTIONS}
+        value={measurement}
       />
 
       {outcome !== null && !outcome.created && (
@@ -429,5 +479,33 @@ function Outcome({
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Correcting a movement the lifter measured wrong on the way in (REQ-133,
+ * AC-153, AC-154).
+ *
+ * Offered on the row rather than behind a dialog: it is one field, and the
+ * moment a lifter notices "that plank is logging reps" is the moment they are
+ * looking at the row. The repository refuses once anything has been logged —
+ * the measurement decides how those sets are read — and the refusal is shown
+ * where the attempt was made rather than swallowed.
+ */
+function CorrectMeasurement({ exercise }: { readonly exercise: Exercise }) {
+  const { failure, run } = useAsyncAction();
+
+  return (
+    <>
+      <SelectField
+        id={`measurement-${exercise.id}`}
+        label="measured as"
+        onCommit={(next) => void run(() => correctExerciseMeasurement(exercise.id, next))}
+        optionClass="type-body-sm"
+        options={MEASUREMENT_OPTIONS}
+        value={exercise.measurement}
+      />
+      {failure !== null && <p className={cn('type-body-sm', 'text-missed')}>{failure}</p>}
+    </>
   );
 }

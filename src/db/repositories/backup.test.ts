@@ -72,6 +72,8 @@ const plannedExercise: PlannedExercise = {
   sets: 4,
   minReps: 5,
   maxReps: 6,
+  minTarget: null,
+  maxTarget: null,
   minRir: 1,
   maxRir: 2,
   restSeconds: 180,
@@ -94,6 +96,7 @@ const userExercise: Exercise = {
   name: 'Reverse Hyper',
   category: null,
   equipment: null,
+  measurement: 'weight_reps',
 };
 
 /**
@@ -111,6 +114,7 @@ const session: Session = {
   startedAt: STARTED_AT,
   completedAt: STARTED_AT + 3_600_000,
   status: 'completed',
+  bodyweightKg: null,
 };
 
 const plannedSession: ExerciseSession = {
@@ -119,11 +123,14 @@ const plannedSession: ExerciseSession = {
   exerciseId: CATALOG,
   order: 0,
   status: 'performed',
+  measurement: 'weight_reps',
   plannedExerciseId: plannedExercise.id,
   plannedUnit: 'kg',
   plannedSets: 4,
   plannedMinReps: 5,
   plannedMaxReps: 6,
+  plannedMinTarget: null,
+  plannedMaxTarget: null,
   plannedMinRir: 1,
   plannedMaxRir: 2,
   plannedRestSeconds: 180,
@@ -136,6 +143,7 @@ const unplannedSession: ExerciseSession = {
   exerciseId: USER_EXERCISE,
   order: 1,
   status: 'performed',
+  measurement: 'weight_reps',
   plannedExerciseId: null,
 };
 
@@ -148,6 +156,10 @@ const completedSet: CompletedSet = {
   weightKg: 75,
   reps: 6,
   rir: 2,
+  durationSeconds: null,
+  distance: null,
+  distanceUnit: null,
+  distanceM: null,
   completedAt: 1_755_100_500_000,
 };
 
@@ -200,7 +212,7 @@ describe('exportBackup', () => {
 
   it('stamps the version and the caller‑supplied instant', async () => {
     const document = await exportBackup(EXPORTED_AT);
-    expect(document.version).toBe(1);
+    expect(document.version).toBe(2);
     expect(document.exportedAt).toBe(EXPORTED_AT);
   });
 
@@ -404,6 +416,10 @@ describe('listSetsForCsv', () => {
         unit: 'kg',
         reps: 6,
         rir: 2,
+        measurement: 'weight_reps',
+        durationSeconds: null,
+        distance: null,
+        distanceUnit: null,
       },
     ]);
   });

@@ -37,6 +37,7 @@ function session(workoutId: string, startedAt: number): Session {
     startedAt,
     completedAt: null,
     status: 'completed',
+    bodyweightKg: null,
   };
 }
 
@@ -235,6 +236,8 @@ describe('estimateDuration (R-41, §11.4, D2)', () => {
     sets,
     minReps: 4,
     maxReps: 6,
+    minTarget: null,
+    maxTarget: null,
     minRir: null,
     maxRir: null,
     restSeconds,

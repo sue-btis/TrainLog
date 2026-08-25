@@ -69,7 +69,11 @@ export interface FieldNote {
  * allowed and which pairs have to agree.
  */
 export const FIELD_NOTES: readonly FieldNote[] = [
-  { name: 'version', required: true, note: 'Always 1. Anything else is refused.' },
+  {
+    name: 'version',
+    required: true,
+    note: '1 or 2. A version 1 file means every exercise is weight × reps; version 2 may declare a measurement per exercise. Anything else is refused.',
+  },
   { name: 'routine.name', required: true, note: 'What the routine is called.' },
   { name: 'routine.weeks', required: true, note: 'How many weeks the block runs. A whole number, 1 or more.' },
   { name: 'workouts[].name', required: true, note: 'What one training day is called — a Workout carries no date.' },

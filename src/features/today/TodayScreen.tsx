@@ -23,12 +23,14 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createStartedWorkout } from '@/db';
 import { addDays, formatLocalDate } from '@/domain/dates';
-import type { WorkoutId } from '@/domain/ids';
+import type { ExerciseId, WorkoutId } from '@/domain/ids';
 import { estimateDuration, isMissed, nextWorkoutInRotation } from '@/domain/scheduling';
 import { startWorkout } from '@/domain/session';
+import type { Measurement } from '@/domain/measurement';
 import type { PlannedExercise, Session, Workout } from '@/domain/types';
 import {
   useActiveRoutine,
+  useExerciseMeasurements,
   useExerciseNames,
   useInProgressSession,
   useLastPerformedWorkout,
@@ -190,7 +192,7 @@ export function TodayScreen() {
             <TabsContent value={shown.id}>
               <WorkoutCard
                 busy={busy}
-                onStart={(exercises) =>
+                onStart={(exercises, measurementOf) =>
                   // R-2 — the Session and every snapshotted exercise are written
                   // in one transaction, so `/session` cannot arrive before the
                   // rows it reads exist. A refusal (REQ-058: another session is
@@ -202,6 +204,7 @@ export function TodayScreen() {
                         routineId: routine.id,
                         workoutId: shown.id,
                         planned: exercises,
+                        measurementOf,
                         startedAt: Date.now(),
                       }),
                     );
@@ -248,7 +251,10 @@ interface WorkoutCardProps {
   readonly recordedToday: Session | undefined;
   /** Whether the start is already in flight — the control it belongs to says so. */
   readonly busy: boolean;
-  readonly onStart: (exercises: readonly PlannedExercise[]) => void;
+  readonly onStart: (
+    exercises: readonly PlannedExercise[],
+    measurementOf: (exerciseId: ExerciseId) => Measurement,
+  ) => void;
 }
 
 function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCardProps) {
@@ -259,6 +265,11 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
   const planned = usePlannedExercises(workout.id);
   const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
+  const measurements = useExerciseMeasurements(exercises.map((exercise) => exercise.exerciseId));
+  // `weight_reps` where an id resolves to nothing, the same fallback the
+  // migration applies and for the same reason (REQ-125).
+  const measurementOf = (id: ExerciseId): Measurement =>
+    measurements?.get(id) ?? 'weight_reps';
 
   return (
     <Card>
@@ -289,7 +300,7 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
                 <span className="type-measure-sm text-ink-3">{index + 1}</span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="type-title">{names?.get(exercise.exerciseId) ?? '…'}</span>
-                  <span className="type-measure-sm text-ink-3">{programmingLine(exercise)}</span>
+                  <span className="type-measure-sm text-ink-3">{programmingLine(exercise, measurementOf(exercise.exerciseId))}</span>
                 </div>
               </div>
             </article>
@@ -319,7 +330,7 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
           </Button>
           <Button
             disabled={busy}
-            onClick={() => onStart(exercises)}
+            onClick={() => onStart(exercises, measurementOf)}
             size="block"
             type="button"
             variant="quiet"
@@ -330,7 +341,7 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
       ) : (
         <Button
           disabled={busy}
-          onClick={() => onStart(exercises)}
+          onClick={() => onStart(exercises, measurementOf)}
           size="block"
           type="button"
           variant="primary"
