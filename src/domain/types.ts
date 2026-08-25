@@ -332,6 +332,17 @@ export interface Settings {
   /** Whether the screen is held awake for the length of a session (§11.6). */
   readonly keepScreenAwake?: boolean;
   /**
+   * The lifter's bodyweight in kilograms, or `null` where it has never been
+   * given (REQ-108).
+   *
+   * It is a setting rather than a per-Session question because it is a fact
+   * about the lifter that changes slowly, and asking for it at the top of gym
+   * mode put it in front of every set. A Session still records the figure that
+   * was current when it started, so history stays dated (DEC-C); this is where
+   * that figure comes from.
+   */
+  readonly bodyweightKg?: number | null;
+  /**
    * When a backup was last exported, or `null` for never.
    *
    * The app has no server, so the export button is the only thing standing

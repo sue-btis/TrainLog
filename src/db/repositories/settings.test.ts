@@ -17,6 +17,7 @@ import {
   DEFAULT_UNIT,
   getDefaultUnit,
   getSettings,
+  setBodyweightKg,
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
@@ -44,6 +45,9 @@ describe('settings', () => {
       // Never backed up is the state every install starts in, and the one the
       // settings screen has to be able to say out loud.
       lastBackupAt: null,
+      // Never weighed in. Null, never zero — a zero would be a claim about a
+      // lifter rather than an absence (AC-112).
+      bodyweightKg: null,
     });
   });
 
@@ -73,6 +77,7 @@ describe('settings', () => {
     await setDefaultRir(2);
     await setTimerSound(true);
     await setKeepScreenAwake(false);
+    await setBodyweightKg(82.5);
 
     db.close();
     await db.open();
@@ -85,6 +90,7 @@ describe('settings', () => {
       timerSound: true,
       keepScreenAwake: false,
       lastBackupAt: null,
+      bodyweightKg: 82.5,
     });
   });
 
@@ -96,6 +102,14 @@ describe('settings', () => {
 
     expect(await db.settings.count()).toBe(1);
     expect(await getDefaultUnit()).toBe('kg');
+  });
+
+  // REQ-108, AC-112 — bodyweight is stated here, once, and cleared to null.
+  it('clears a bodyweight to null rather than zero', async () => {
+    await setBodyweightKg(82.5);
+    await setBodyweightKg(null);
+
+    expect((await getSettings()).bodyweightKg).toBeNull();
   });
 
   it('stores no RIR opinion as null rather than zero', async () => {

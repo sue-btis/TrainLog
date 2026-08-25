@@ -42,6 +42,7 @@ export const DEFAULT_SETTINGS: ResolvedSettings = {
   timerSound: false,
   keepScreenAwake: true,
   lastBackupAt: null,
+  bodyweightKg: null,
 };
 
 /** Fills in whatever the stored row does not carry. Never writes. */
@@ -94,6 +95,14 @@ export async function setTimerSound(on: boolean): Promise<void> {
 
 export async function setKeepScreenAwake(on: boolean): Promise<void> {
   await setSetting('keepScreenAwake', on);
+}
+
+/**
+ * The lifter's bodyweight (REQ-108). `null` clears it; nothing already recorded
+ * against a past Session is touched.
+ */
+export async function setBodyweightKg(bodyweightKg: number | null): Promise<void> {
+  await setSetting('bodyweightKg', bodyweightKg);
 }
 
 /** Stamped by a successful export, and read by the line that says how long ago. */

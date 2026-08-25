@@ -74,6 +74,7 @@ export {
   DEFAULT_UNIT,
   getDefaultUnit,
   getSettings,
+  setBodyweightKg,
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
