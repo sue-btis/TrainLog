@@ -36,6 +36,12 @@ seven new untracked source files. 26 tracked files, 813 insertions.
 
 Regression floor (§12): 458. Actual 543. No test skipped or weakened.
 
+Superseded figure, kept as the reading of this verification: two later
+passes moved the count — the third deleted a dead decider and the fifth
+added `features/import/issues.test.ts`. The current suite is **551** across
+34 files; `execution.md`’s fifth-pass section carries the measurement and the
+shared-tree caveat that goes with it.
+
 ### Changed-line coverage on new production logic
 
 Strict profile asks ≥90% line and ≥80% branch where supported. `@vitest/coverage-v8`

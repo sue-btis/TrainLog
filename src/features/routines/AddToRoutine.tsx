@@ -31,6 +31,7 @@ import { claimantsOfDay, generatePlacements, remainingWeeks } from '@/domain/sch
 import type { Exercise, ProgressionRule, Unit, Weekday, Workout } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
 import { NumberField, SelectField, TextField } from '@/features/import/fields';
+import { describeIssue } from '@/features/import/issues';
 import { weekdayName } from '@/features/ui/format';
 import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
@@ -277,7 +278,13 @@ export function AddPlannedExerciseForm({
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<Exercise | null>(null);
   const [targets, setTargets] = useState(INITIAL_TARGETS);
-  const [unit, setUnit] = useState<Unit>(defaultUnit);
+  // Only the lifter's own pick is state. Seeding it from `defaultUnit` froze
+  // whatever the first render happened to see, and `useSettings` resolves a
+  // tick later than this form mounts — so a lifter who trains in pounds got a
+  // form in kilos, every time, with no way to tell it was a default and not
+  // their setting.
+  const [pickedUnit, setPickedUnit] = useState<Unit | null>(null);
+  const unit = pickedUnit ?? defaultUnit;
   const [increment, setIncrement] = useState<number | null>(null);
   const { busy, failure, run } = useAsyncAction();
 
@@ -312,14 +319,22 @@ export function AddPlannedExerciseForm({
     progression,
   };
 
-  const issues =
-    chosen === null ? [] : validateRoutineFile(plannedExerciseDraftFile(draft, workoutName));
+  const file = chosen === null ? null : plannedExerciseDraftFile(draft, workoutName);
+  const issues = file === null ? [] : validateRoutineFile(file);
 
   // Issues come back rooted at the synthetic file, so a form field finds its own
   // by the path's trailing segment rather than by the Workout indices between.
-  const errorFor = (segment: string): string | null =>
-    issues.find((issue) => issue.paths.some((path) => path[path.length - 1] === segment))
-      ?.message ?? null;
+  //
+  // The message goes through `describeIssue`, the same as the wizard's fields:
+  // `issue.message` names the file path a lifter on this screen never saw, and
+  // stops at the problem — the sentence that says what to do about it is the
+  // half that matters under a field.
+  const errorFor = (segment: string): string | null => {
+    const issue = issues.find((entry) => entry.paths.some((path) => path[path.length - 1] === segment));
+    return issue === undefined
+      ? null
+      : describeIssue(issue, file?.routine.workouts[0]?.exercises[0]);
+  };
 
   // The two shapes the validator's closed code union cannot state, and that the
   // wizard's path cannot produce either — a half RIR range and an increment
@@ -334,6 +349,7 @@ export function AddPlannedExerciseForm({
     setChosen(null);
     setQuery('');
     setTargets(INITIAL_TARGETS);
+    setPickedUnit(null);
     setIncrement(null);
     setOpen(false);
   }
@@ -475,7 +491,7 @@ export function AddPlannedExerciseForm({
             <SelectField
               id={`add-planned-unit-${workoutId}`}
               label="unit"
-              onCommit={setUnit}
+              onCommit={setPickedUnit}
               options={UNITS}
               value={unit}
             />
@@ -495,10 +511,10 @@ export function AddPlannedExerciseForm({
           </p>
 
           {failure !== null && (
-        <p className={alert('missed')} role="alert">
-          {failure}
-        </p>
-      )}
+            <p className={alert('missed')} role="alert">
+              {failure}
+            </p>
+          )}
 
           <div className="flex items-center gap-2">
             <Button disabled={busy || issues.length > 0 || refused} onClick={save} type="button">

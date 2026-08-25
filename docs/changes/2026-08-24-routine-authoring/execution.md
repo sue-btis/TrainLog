@@ -613,3 +613,39 @@ DOM read, the same limitation this file and `verification.md` already record):
 **Not exercised:** `role="alert"` on the two failure lines and `role="status"`
 on the collision warning — both need a write failure or a claimed day that this
 seed data has no way to produce. Attribute placement reviewed, not observed.
+
+### Fifth pass — the three the second audit found still open
+
+| # | What was wrong | Where it was fixed |
+| --- | --- | --- |
+| P-1 | `unit` was seeded from the `defaultUnit` prop with `useState`, and `useSettings` resolves a tick after this form mounts — so a lifter set to pounds got a form in kilos every time, with no way to tell a default from their setting | `AddToRoutine.tsx` — only the explicit pick is state (`pickedUnit`), the setting is the fallback: `pickedUnit ?? defaultUnit`. `close()` forgets it with the rest of the form |
+| P-2 | The form showed `issue.message` raw: it names a file path this screen never showed, and stops at the problem. The wizard's fields show `describeIssue`, which adds what to do | `AddToRoutine.tsx` — the synthetic file is built once and its row handed to `describeIssue` inside `errorFor` |
+| P-3 | The `failure` block in `AddPlannedExerciseForm` sat four levels out, at the sibling form's indentation | `AddToRoutine.tsx` — reindented, markup untouched |
+
+**Test added:** `features/import/issues.test.ts` — the seam P-2 newly depends
+on. `describeIssue` reads the row's own fields and `plannedExerciseDraftFile`
+is what shapes that row; the two cases pin the four sentences this form can
+show and assert none of them leaks the file path again. Mutation-checked:
+dropping the row argument back to `undefined` fails both.
+
+**P-1 carries no test, deliberately.** The fix removes the state that lost the
+race, so there is no branch left to assert — a test over `pickedUnit ??
+defaultUnit` is tautological. The guard that would catch a regression is a
+render with settings arriving late, and this repo has no render harness; adding
+one (jsdom + testing-library) is a larger change than the fix. Recorded as debt.
+
+**Gates rerun:** `typecheck` pass · `lint` pass · `test` **551** passing, 34
+files · `build` pass. That 551 is a shared-tree figure, the same caveat as
+above: on this change alone it is the 545 already recorded plus the two new
+cases — 547 by construction, not measured in a detached worktree this time.
+
+**Observed in the app** (dev server, 375x812, real IndexedDB, settings set to
+`lb`):
+
+- P-1 — with the fix: `increment (lb)` and the unit select on `lb`. With the
+  seeding put back on purpose, the same screen and the same settings read
+  `increment (kg)` again. The evidence is the difference, not one reading; the
+  fix was restored immediately.
+- P-2 — `sets` set to `0` now reads *"Sets is 0. Enter at least 1 set."*, where
+  it used to read *"Push → Back Squat: sets must be greater than zero."*, and
+  Add exercise stays disabled.
