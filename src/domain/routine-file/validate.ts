@@ -16,7 +16,9 @@ export type SemanticIssueCode =
   | 'rest_seconds_negative'
   | 'sets_not_positive'
   | 'progression_unrecognized'
-  | 'suggested_day_shared';
+  | 'suggested_day_shared'
+  | 'routine_has_no_workouts'
+  | 'routine_name_blank';
 
 /** One semantic problem, addressed to the field or fields that caused it. */
 export interface SemanticIssue {
@@ -38,6 +40,48 @@ const KNOWN_PROGRESSION_TYPES = new Set(['manual', 'double_progression']);
 /** Returns every semantic issue in `file`. An empty array means it is clean. */
 export function validateRoutineFile(file: RoutineFile): readonly SemanticIssue[] {
   const issues: SemanticIssue[] = [];
+
+  // A Routine authored in the wizard starts with no name at all, and a name is
+  // what every list, Today and the wizard header render it by. Semantic rather
+  // than structural on purpose: `.min(1)` on `routine.name` would reject the
+  // blank draft the from-scratch flow opens on, which is the one thing that
+  // must stay parseable (§11.1, and the file's own Structural/Semantic split).
+  //
+  // Unlike `routine_has_no_workouts` below, this one has a field to point at,
+  // so it carries a path and the action bar can jump to it.
+  const unnamed = file.routine.name.trim() === '';
+  if (unnamed) {
+    issues.push({
+      code: 'routine_name_blank',
+      paths: [['routine', 'name']],
+      message: 'This routine has no name.',
+    });
+  }
+
+  // A routine with no Workouts describes no training, and accepting one is not
+  // harmless: a draft always arrives `active`, so `importRoutine` archives the
+  // lifter's real programme to make room for an empty shell. The structural
+  // tier cannot catch it — `z.array()` carries no minimum — and every loop
+  // below iterates zero times over it, so without this the file is clean.
+  //
+  // A *Workout* with no exercises stays valid on purpose. It runs end to end
+  // (`createStartedWorkout`), and `deleteExercise` deliberately allows emptying
+  // one so the wizard cannot trap a user who removed the last exercise.
+  if (file.routine.workouts.length === 0) {
+    issues.push({
+      code: 'routine_has_no_workouts',
+      // Empty because there is no field to point at: the issue is the absence
+      // of one. The wizard already tolerates that — `indexIssues` skips it and
+      // `jumpToIssue` returns early — so it blocks `Accept` and states why,
+      // which is all it can usefully do.
+      paths: [],
+      // Naming the routine is the whole point of the sentence, so a draft that
+      // has no name yet says "This routine" rather than opening with a space.
+      message: unnamed
+        ? 'This routine declares no Workouts.'
+        : `${file.routine.name} declares no Workouts.`,
+    });
+  }
 
   file.routine.workouts.forEach((workout, workoutIndex) => {
     workout.exercises.forEach((exercise, exerciseIndex) => {

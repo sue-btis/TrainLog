@@ -1,22 +1,32 @@
 /**
  * Routines (§11.2).
  *
- * A Routine is immutable once accepted, so this screen holds no editor — only
+ * This screen holds no editor — a Routine is corrected in the wizard before it
+ * is accepted, and added to on its own detail screen — only
  * the three things §11.2 says a lifter does with one: make it the current
- * programme, put it away, or get rid of it. Editing means importing again,
- * which is why `Import routine` sits at the top.
+ * programme, put it away, or get rid of it.
  *
  * Deleting is refused while any Session references the Routine (§37): history
  * outranks tidiness, and the refusal says so and offers archiving instead.
  *
+ * Two ways in sit at the top, because a Routine now has two origins:
  * `Import routine` opens the file picker here and hands the wizard what it
  * chose, rather than routing to a wizard step whose only content is the same
- * request a second time.
+ * request a second time; `Start from scratch` opens the same wizard on a blank
+ * draft, with no file involved at all (REQ-200).
  */
 
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Archive, ChevronRight, FileUp, Play, Trash2, TriangleAlert } from 'lucide-react';
+import {
+  Archive,
+  ChevronRight,
+  FileUp,
+  PencilLine,
+  Play,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import {
   RoutineHasSessionsError,
   activateRoutine,
@@ -33,7 +43,16 @@ import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
 import { plural, shortDate } from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
-import { ICON_STROKE, LABEL, WELL, alert, chip } from '@/features/ui/styles';
+import {
+  BUTTON_BASE,
+  BUTTON_SIZE,
+  BUTTON_VARIANT,
+  ICON_STROKE,
+  LABEL,
+  WELL,
+  alert,
+  chip,
+} from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 import { formatLocalDate } from '@/domain/dates';
 
@@ -69,6 +88,16 @@ export function RoutinesScreen() {
         Import routine
       </ImportRoutineButton>
 
+      {/* The other way in, and the same size: a routine built here is not a
+          lesser routine than one that arrived as a file. */}
+      <Link
+        className={cn(BUTTON_BASE, BUTTON_VARIANT.secondary, BUTTON_SIZE.block)}
+        to="/import?new=1"
+      >
+        <PencilLine aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+        Start from scratch
+      </Link>
+
       <ConversionPromptButton />
 
       {failure !== null && (
@@ -86,8 +115,9 @@ export function RoutinesScreen() {
         <section className={WELL}>
           <p className="type-title">No routines yet</p>
           <p className="type-body-sm text-ink-2">
-            A routine is a YAML file describing your programme — its Workouts, their
-            exercises and the days they fall on. Import one and it becomes your calendar.
+            A routine is your programme — its Workouts, their exercises and the days they
+            fall on. Import one as a YAML file, or build one here; either way it becomes
+            your calendar.
           </p>
         </section>
       ) : (
@@ -137,7 +167,7 @@ function RoutineRow({ routine, refusal, busy, onActivate, onArchive, onDelete }:
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="type-title">{routine.name}</h2>
           <p className="type-measure-sm text-ink-3">
-            {plural(routine.weeks, 'week')} · imported {shortDate(formatLocalDate(new Date(routine.createdAt)))}
+            {plural(routine.weeks, 'week')} · created {shortDate(formatLocalDate(new Date(routine.createdAt)))}
           </p>
         </div>
         <span className={chip(active ? 'actual' : 'neutral')}>{routine.status}</span>

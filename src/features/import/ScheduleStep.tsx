@@ -1,8 +1,11 @@
 /**
  * Step 2 — Days and Weeks (§11.1).
  *
- * The days shown are the ones the file suggested, already assigned; the user
- * confirms or changes them, and sets how long the programme runs. Accepting
+ * The days shown are the ones the draft suggests, already assigned — from a
+ * file that declared them, or from what was chosen while authoring here. When
+ * nothing suggests anything the opening line says so instead of claiming a
+ * suggestion the lifter can see is not there. The user confirms or changes
+ * them, and sets how long the programme runs. Accepting
  * turns both into Placements, which are the user's from that moment on — the
  * suggested days are never read again (§12).
  *
@@ -20,25 +23,8 @@ import { generatePlacements } from '@/domain/scheduling';
 import type { Weekday, Workout } from '@/domain/types';
 import { describeIssue, fieldId, workoutPath } from '@/features/import/issues';
 import { MAX_WEEKS, MIN_WEEKS } from '@/features/import/state';
-import {
-  FOCUS_RING,
-  ICON_STROKE,
-  LABEL,
-  PRESS,
-  WELL,
-  chip,
-} from '@/features/ui/styles';
-import { cn } from '@/lib/utils';
-
-const WEEKDAYS: readonly { readonly day: Weekday; readonly short: string }[] = [
-  { day: 'monday', short: 'mon' },
-  { day: 'tuesday', short: 'tue' },
-  { day: 'wednesday', short: 'wed' },
-  { day: 'thursday', short: 'thu' },
-  { day: 'friday', short: 'fri' },
-  { day: 'saturday', short: 'sat' },
-  { day: 'sunday', short: 'sun' },
-];
+import { SuggestedDays } from '@/features/ui/SuggestedDays';
+import { ICON_STROKE, LABEL, WELL, chip } from '@/features/ui/styles';
 
 interface ScheduleStepProps {
   readonly file: RoutineFile;
@@ -54,10 +40,19 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
   const first = placements[0]?.date;
   const last = placements[placements.length - 1]?.date;
 
+  // Whether anything has been suggested at all — not where the draft came from.
+  // The editing phase deliberately stopped recording that, and rightly: a file
+  // may declare no `suggested_days` either, and it is just as wrong to tell that
+  // lifter these are the days their routine suggests. What decides the sentence
+  // is whether there is a suggestion on the screen to talk about.
+  const suggested = file.routine.workouts.some((workout) => workout.suggested_days.length > 0);
+
   return (
     <>
       <p className="type-lede text-ink-2">
-        These are the days your file suggested. Change them if your week looks different.
+        {suggested
+          ? 'These are the days this routine suggests. Change them if your week looks different.'
+          : 'Choose the days each Workout should fall on. You can move them on the calendar afterwards.'}
       </p>
 
       <Card>
@@ -122,38 +117,13 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
               </p>
             </div>
 
-            <div
-              aria-describedby={clash === undefined ? undefined : errorId}
-              aria-label={`Suggested days for ${workout.name}`}
-              className="grid grid-cols-4 gap-2"
-              role="group"
-            >
-              {WEEKDAYS.map(({ day, short }) => {
-                const on = workout.suggested_days.includes(day);
-                const conflicted = on && claimedElsewhere.has(day);
-                return (
-                  <button
-                    aria-label={dayName(day)}
-                    aria-pressed={on}
-                    className={cn(
-                      'flex min-h-12 items-center justify-center rounded-control type-label',
-                      PRESS,
-                      FOCUS_RING,
-                      conflicted
-                        ? 'bg-missed-ink text-on-fill'
-                        : on
-                          ? 'bg-planned-ink text-on-fill'
-                          : 'bg-card text-ink-3 shadow-dome hover:shadow-dome-lift',
-                    )}
-                    key={day}
-                    onClick={() => onToggleDay(index, day)}
-                    type="button"
-                  >
-                    {short}
-                  </button>
-                );
-              })}
-            </div>
+            <SuggestedDays
+              conflicted={(day) => claimedElsewhere.has(day)}
+              describedBy={clash === undefined ? undefined : errorId}
+              label={`Suggested days for ${workout.name}`}
+              onToggle={(day) => onToggleDay(index, day)}
+              selected={workout.suggested_days}
+            />
 
             {clash !== undefined && (
               <p className="type-caption text-missed-ink" id={errorId}>
@@ -225,10 +195,6 @@ function previewPlacements(file: RoutineFile, today: LocalDate) {
   }));
 
   return generatePlacements({ workouts, weeks: file.routine.weeks, anchorDate: today });
-}
-
-function dayName(day: Weekday): string {
-  return day.charAt(0).toUpperCase() + day.slice(1);
 }
 
 function longDate(date: LocalDate): string {

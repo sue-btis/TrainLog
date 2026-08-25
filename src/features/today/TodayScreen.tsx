@@ -48,6 +48,9 @@ import {
   shortDate,
 } from '@/features/ui/format';
 import {
+  BUTTON_BASE,
+  BUTTON_SIZE,
+  BUTTON_VARIANT,
   FOCUS_RING,
   ICON_STROKE,
   LABEL,
@@ -160,7 +163,8 @@ export function TodayScreen() {
         <section className={WELL}>
           <p className="type-title">{routine.name} has no Workouts</p>
           <p className="type-body-sm text-ink-2">
-            Import a routine file that declares at least one Workout.
+            Add one on this routine&rsquo;s own screen, or import a routine that declares
+            at least one.
           </p>
         </section>
       ) : (
@@ -223,9 +227,15 @@ function NoRoutine() {
       <FileUp aria-hidden="true" className="text-ink-3" size={24} strokeWidth={ICON_STROKE} />
       <p className="type-title">No active routine</p>
       <p className="type-body-sm text-ink-2">
-        Import a routine file and today will know what to train.
+        Give today a programme to work from — import a routine file, or build one here.
       </p>
       <ImportRoutineButton>Import a routine</ImportRoutineButton>
+      <Link
+        className={cn(BUTTON_BASE, BUTTON_VARIANT.secondary, BUTTON_SIZE.block)}
+        to="/import?new=1"
+      >
+        Start from scratch
+      </Link>
     </section>
   );
 }

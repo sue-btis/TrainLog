@@ -8,14 +8,17 @@
  * semantic issue is open and stays open: it is the one thing standing between
  * the lifter and `Accept`, so it does not get to hide.
  *
- * §11.1 gives no way to add an exercise in the MVP, so none is offered.
+ * The routine name and each Workout name are fields here, not labels: a draft
+ * authored from scratch arrives with neither, and a file that named one badly
+ * was previously uncorrectable without editing the file and choosing it again.
  */
 
 import { useState } from 'react';
-import { ArrowRight, EllipsisVertical, Pencil, Trash2, TriangleAlert } from 'lucide-react';
-import type { ExerciseRef, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
+import { ArrowRight, EllipsisVertical, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import type { ExerciseRef, Offer, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import type { Unit } from '@/domain/types';
-import { NotesField, NumberField, SelectField } from '@/features/import/fields';
+import { AddExercise } from '@/features/import/AddExercise';
+import { NotesField, NumberField, SelectField, TextField } from '@/features/ui/fields';
 import {
   describeIssue,
   exercisePath,
@@ -47,36 +50,65 @@ interface ExercisesStepProps {
   readonly file: RoutineFile;
   readonly defaultUnit: Unit;
   readonly issues: IssueIndex;
+  /** Whether an outstanding issue shows its error line yet (see `state.ts`). */
+  readonly announceIssues: boolean;
   readonly activeWorkout: number;
   readonly openRef: ExerciseRef | null;
+  /**
+   * Everything the picker may offer, merged and ordered in the domain. Passed
+   * in rather than derived here: it depends on the lifter's persisted
+   * Exercises, which is a database read, and this component performs none.
+   */
+  readonly offers: readonly Offer[];
   readonly onActiveWorkout: (index: number) => void;
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
   readonly onDelete: (ref: ExerciseRef) => void;
+  readonly onRoutineName: (name: string) => void;
+  readonly onWorkoutName: (workout: number, name: string) => void;
+  readonly onAddWorkout: (name: string) => void;
+  readonly onAddExercise: (workout: number, offer: Offer) => void;
 }
 
 export function ExercisesStep({
   file,
   defaultUnit,
   issues,
+  announceIssues,
   activeWorkout,
   openRef,
+  offers,
   onActiveWorkout,
   onToggle,
   onEdit,
   onDelete,
+  onRoutineName,
+  onWorkoutName,
+  onAddWorkout,
+  onAddExercise,
 }: ExercisesStepProps) {
   const workouts = file.routine.workouts;
   const current = workouts[activeWorkout];
+  const nameKey = 'routine.name';
+  // A blank name on a draft nobody has typed into yet is an empty field, not a
+  // mistake. The placeholder is already saying what goes there.
+  const nameIssue = announceIssues ? issuesAt(issues, nameKey)[0] : undefined;
 
   return (
     <>
-      {/* Two lines, not one: a long routine name plus a count wraps mid-phrase
-          at 390px. The name is prose and takes the UI face; the count is data
-          and takes the mono provenance line. The step's own title is in the bar
-          above, so neither is repeated here. */}
+      {/* The name is editable for every draft, not only an authored one: a file
+          that named a routine badly was previously uncorrectable without editing
+          the file and choosing it again. The count stays the mono provenance
+          line beneath it. */}
       <div className="flex flex-col gap-1">
-        <p className="type-lede text-ink-2">{file.routine.name}</p>
+        <TextField
+          error={nameIssue === undefined ? null : describeIssue(nameIssue, undefined)}
+          id={fieldId(nameKey)}
+          label="routine name"
+          onCommit={onRoutineName}
+          placeholder="Winter block"
+          value={file.routine.name}
+        />
         <p className="type-lot text-ink-3">{plural(workouts.length, 'workout')}</p>
       </div>
 
@@ -108,36 +140,60 @@ export function ExercisesStep({
           <div className={WELL}>
             <p className="type-title">This routine declares no Workouts</p>
             <p className="type-body-sm text-ink-2">
-              Add at least one Workout to the file and choose it again.
+              A routine needs at least one. Add it below.
             </p>
           </div>
         ) : (
           <TabsContent value={String(activeWorkout)}>
-            {workouts.length === 1 && <h2 className="type-headline">{current.name}</h2>}
+            <TextField
+              className="mb-3"
+              id={`w-name-${activeWorkout}`}
+              label="workout name"
+              onCommit={(name) => onWorkoutName(activeWorkout, name)}
+              placeholder="Push"
+              value={current.name}
+            />
 
             {current.exercises.length === 0 ? (
               <div className={WELL}>
-                <p className="type-title">{current.name} has no exercises left</p>
+                {/* Not "no exercises left": a Workout added here never had any,
+                    and only the delete path arrives with something removed.
+                    The well carries the way back in (REQ-309) — emptying a
+                    Workout used to be a one-way door out of the wizard. */}
+                <p className="type-title">{current.name} has no exercises</p>
                 <p className="type-body-sm text-ink-2">
-                  You removed all of them. That is allowed — the Workout will simply record
-                  nothing. To put one back, choose the file again.
+                  That is allowed — the Workout will simply record nothing when you train it.
                 </p>
+                <AddExercise
+                  offers={offers}
+                  onAdd={(offer) => onAddExercise(activeWorkout, offer)}
+                  workoutIndex={activeWorkout}
+                  workoutName={current.name}
+                />
               </div>
             ) : (
-              current.exercises.map((exercise, index) => (
-                <ExerciseRow
-                  defaultUnit={defaultUnit}
-                  exercise={exercise}
-                  exerciseRef={{ workout: activeWorkout, exercise: index }}
-                  issues={issues}
-                  key={`${exercise.name}-${index}`}
-                  onDelete={onDelete}
-                  onEdit={onEdit}
-                  onToggle={onToggle}
-                  open={openRef?.workout === activeWorkout && openRef.exercise === index}
-                  position={index + 1}
+              <>
+                {current.exercises.map((exercise, index) => (
+                  <ExerciseRow
+                    defaultUnit={defaultUnit}
+                    exercise={exercise}
+                    exerciseRef={{ workout: activeWorkout, exercise: index }}
+                    issues={issues}
+                    key={`${exercise.name}-${index}`}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                    onToggle={onToggle}
+                    open={openRef?.workout === activeWorkout && openRef.exercise === index}
+                    position={index + 1}
+                  />
+                ))}
+                <AddExercise
+                  offers={offers}
+                  onAdd={(offer) => onAddExercise(activeWorkout, offer)}
+                  workoutIndex={activeWorkout}
+                  workoutName={current.name}
                 />
-              ))
+              </>
             )}
 
             {workouts.length > 1 && (
@@ -151,7 +207,70 @@ export function ExercisesStep({
           </TabsContent>
         )}
       </Tabs>
+
+      <AddWorkout onAdd={onAddWorkout} />
     </>
+  );
+}
+
+/**
+ * Naming a new Workout (REQ-206, REQ-207).
+ *
+ * The blank name is refused in the form rather than admitted and flagged
+ * afterwards: this control is a submit, so a refusal has somewhere to live —
+ * unlike the routine name, which is an inline field with nothing to press and
+ * therefore has to be a semantic issue instead.
+ *
+ * Collapsed until asked for. A draft that already reads well should not carry
+ * an open form under it for the whole of step 1.
+ */
+function AddWorkout({ onAdd }: { readonly onAdd: (name: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+
+  if (!open) {
+    return (
+      <Button onClick={() => setOpen(true)} size="block" type="button" variant="secondary">
+        <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+        Add a Workout
+      </Button>
+    );
+  }
+
+  function submit() {
+    const trimmed = name.trim();
+    if (trimmed === '') return;
+    onAdd(trimmed);
+    setName('');
+    setOpen(false);
+  }
+
+  return (
+    <div className={WELL}>
+      <TextField
+        autoFocus
+        id="new-workout-name"
+        label="new workout name"
+        onCommit={setName}
+        placeholder="Pull"
+        value={name}
+      />
+      <div className="flex items-center gap-2">
+        <Button disabled={name.trim() === ''} onClick={submit} type="button">
+          Add
+        </Button>
+        <Button
+          onClick={() => {
+            setName('');
+            setOpen(false);
+          }}
+          type="button"
+          variant="ghost"
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 

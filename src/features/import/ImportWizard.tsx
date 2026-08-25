@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { CalendarDays, Check, Dumbbell, FileUp, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -24,17 +24,26 @@ import { getDefaultUnit, importRoutine, listUserExercises } from '@/db';
 import { ensurePersistentStorage } from '@/pwa/persistence';
 import { formatLocalDate } from '@/domain/dates';
 import {
+  addExercise,
+  addWorkout,
+  blankRoutineFile,
   deleteExercise,
+  draftExercise,
   editExercise,
+  offeredExercises,
   routineFileToDomain,
   parseRoutineFile,
+  setRoutineName,
+  setWorkoutName,
   validateRoutineFile,
   type ExerciseRef,
+  type Offer,
   type RoutineFileExercise,
   type SemanticIssue,
 } from '@/domain/routine-file';
 import { generatePlacements } from '@/domain/scheduling';
 import type { Weekday } from '@/domain/types';
+import { useUserExercises } from '@/features/data/queries';
 import { ActionBar } from '@/features/import/ActionBar';
 import { takeHandedOffFile } from '@/features/import/ImportRoutineButton';
 import { ExercisesStep } from '@/features/import/ExercisesStep';
@@ -50,6 +59,7 @@ import {
   workoutPath,
 } from '@/features/import/issues';
 import {
+  DEFAULT_WEEKS,
   INITIAL_STATE,
   reduceWizard,
   type AcceptedSummary,
@@ -69,6 +79,8 @@ import { cn } from '@/lib/utils';
 
 export function ImportWizard() {
   const [state, dispatch] = useReducer(reduceWizard, INITIAL_STATE);
+  const [params] = useSearchParams();
+  const blankRequested = params.get('new') === '1';
   const [activeWorkout, setActiveWorkout] = useState(0);
   /** Raised by the Leave link, answered in the action bar (DEC: see ActionBar). */
   const [leaving, setLeaving] = useState(false);
@@ -87,6 +99,16 @@ export function ImportWizard() {
   );
   const issueIndex = useMemo(() => indexIssues(issues), [issues]);
 
+  // The picker's three sources (REQ-301). The persisted Exercises are a live
+  // read, so an Exercise created on the catalog screen in another tab appears
+  // here without the wizard being restarted; `undefined` is that read still in
+  // flight, and an empty list is the honest answer while it is.
+  const userExercises = useUserExercises();
+  const offers = useMemo<readonly Offer[]>(
+    () => (file === null ? [] : offeredExercises(file, userExercises ?? [])),
+    [file, userExercises],
+  );
+
   // A jump from the action bar lands on the control that carries the issue —
   // which only exists after the step and Workout it lives on have rendered.
   useEffect(() => {
@@ -104,10 +126,86 @@ export function ImportWizard() {
   // renders and asks, which is what it is there for.
   useEffect(() => {
     const handed = takeHandedOffFile();
-    if (handed !== null) void runRead(() => chooseFile(handed));
-    // Once, on mount: the handover is consumed by the first read. `runRead` is
-    // stable, so naming it does not turn this into an every-render effect.
+    if (handed !== null) {
+      void runRead(() => chooseFile(handed));
+      return;
+    }
+    // A file beats `?new=1`: the parameter is an intent, a handed-over file is
+    // a thing the lifter already chose, and the two never both apply.
+    if (blankRequested) void runRead(startBlank);
+    // Once, on mount: the handover is consumed by the first read, and the
+    // parameter is read once here rather than watched. `runRead` is stable, so
+    // naming it does not turn this into an every-render effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runRead]);
+
+  /** The from-scratch entry: the same pipeline, entered without a file. */
+  async function startBlank() {
+    setActiveWorkout(0);
+    setOpenRef(null);
+    dispatch({
+      type: 'loaded',
+      file: blankRoutineFile(DEFAULT_WEEKS),
+      defaultUnit: await getDefaultUnit(),
+      // Nothing has been submitted or typed: see `announceIssues` in `state.ts`.
+      announceIssues: false,
+    });
+  }
+
+  /**
+   * Leaving mid-draft, without answering the Leave link (REQ-903).
+   *
+   * Two mechanisms, because one does not cover the exits. `beforeunload`
+   * catches a reload and a closed tab. It does NOT catch the browser or
+   * hardware back button: `/import` is a client route under `BrowserRouter`, so
+   * back is a same-document `popstate` and the document is never unloaded — and
+   * on the one-handed phone this app is built for, back is the likeliest way
+   * out. React Router's `useBlocker` is not available to us; it needs a data
+   * router, and this app mounts `BrowserRouter`.
+   *
+   * So the draft pushes a sentinel history entry while it is being edited, and
+   * answers `popstate` by raising the same Leave question the top bar raises.
+   * Nothing is stored either way — this only stops the loss being silent.
+   *
+   * A file-origin draft loses less (the file still exists) but the phase is the
+   * only condition available now that `editing` no longer records an origin,
+   * and warning on both is the safer half of that trade.
+   */
+  const editing = state.phase === 'editing';
+  useEffect(() => {
+    if (!editing) return;
+
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+
+    // Spread the existing state rather than replacing it: React Router keeps
+    // its own `{ usr, key, idx }` there, and `BrowserRouter` happens to ignore
+    // the loss today — a data router or `ScrollRestoration` would not.
+    const sentinel = () =>
+      window.history.pushState({ ...window.history.state, trainlogDraft: true }, '');
+    const onTop = () =>
+      (window.history.state as { trainlogDraft?: boolean } | null)?.trainlogDraft === true;
+
+    sentinel();
+    const onPop = () => {
+      // Put the sentinel back, so the question can be asked again if they
+      // dismiss it and press back a second time.
+      sentinel();
+      setLeaving(true);
+    };
+    window.addEventListener('popstate', onPop);
+
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      window.removeEventListener('popstate', onPop);
+      // Retire the sentinel, or it outlives the draft: after Accept the first
+      // back press lands on it, the URL does not change and the screen appears
+      // frozen. Only while it is still the entry on top — once the lifter has
+      // navigated on, the top belongs to the new screen and going back would
+      // undo their navigation instead.
+      if (onTop()) window.history.back();
+    };
+  }, [editing]);
 
   async function chooseFile(chosen: File) {
     let text: string;
@@ -128,9 +226,10 @@ export function ImportWizard() {
     setOpenRef(null);
     dispatch({
       type: 'loaded',
-      fileName: chosen.name,
       file: parsed.file,
       defaultUnit: await getDefaultUnit(),
+      // Choosing the file is the submission; its problems are findings about it.
+      announceIssues: true,
     });
   }
 
@@ -213,6 +312,34 @@ export function ImportWizard() {
     toggleDay: (workout: number, day: Weekday) =>
       dispatch({ type: 'toggleDay', workout, day }),
     weeksBy: (delta: number) => dispatch({ type: 'weeksBy', delta }),
+    routineName: (name: string) =>
+      file && dispatch({ type: 'edited', file: setRoutineName(file, name) }),
+    workoutName: (workout: number, name: string) =>
+      file && dispatch({ type: 'edited', file: setWorkoutName(file, workout, name) }),
+    /**
+     * REQ-300 — appended last, and the new row opens for editing.
+     *
+     * The index is the length *before* the append, which is where the verb puts
+     * it. Opening it is the point: the seeded row is 3×8–12 on manual
+     * progression (REQ-900), which is a guess, and a guess the lifter cannot
+     * see is worse than one they are handed with the fields already open.
+     */
+    addExercise: (workout: number, offer: Offer) => {
+      if (!file) return;
+      const at = file.routine.workouts[workout]?.exercises.length ?? 0;
+      setOpenRef({ workout, exercise: at });
+      dispatch({ type: 'edited', file: addExercise(file, workout, draftExercise(offer)) });
+    },
+    addWorkout: (name: string) => {
+      if (!file) return;
+      // The new Workout becomes the one on screen. Without this, adding the
+      // second Workout to a one-Workout draft changes nothing visible — the tab
+      // strip only appears above one, so the lifter would be looking at the old
+      // Workout with no sign the new one exists.
+      setActiveWorkout(file.routine.workouts.length);
+      setOpenRef(null);
+      dispatch({ type: 'edited', file: addWorkout(file, name) });
+    },
   };
 
   return (
@@ -223,7 +350,7 @@ export function ImportWizard() {
         back={
           state.phase === 'editing' ? { onBack: () => setLeaving(true) } : { to: '/today' }
         }
-        backLabel={state.phase === 'editing' ? 'Leave this import' : 'Back to today'}
+        backLabel={state.phase === 'editing' ? 'Leave this draft' : 'Back to today'}
         icon={iconOf(state)}
         title={titleOf(state)}
       />
@@ -234,6 +361,7 @@ export function ImportWizard() {
             errors={state.errors}
             fileName={state.fileName}
             onFile={(chosen) => void runRead(() => chooseFile(chosen))}
+            onStartBlank={() => void runRead(startBlank)}
             reading={reading}
             unreadable={state.unreadable ?? readFailure}
           />
@@ -242,13 +370,19 @@ export function ImportWizard() {
         {state.phase === 'editing' && state.step === 1 && (
           <ExercisesStep
             activeWorkout={activeWorkout}
+            announceIssues={state.announceIssues}
             defaultUnit={state.defaultUnit}
             file={state.file}
             issues={issueIndex}
+            offers={offers}
             onActiveWorkout={setActiveWorkout}
+            onAddExercise={edit.addExercise}
+            onAddWorkout={edit.addWorkout}
             onDelete={edit.remove}
             onEdit={edit.exercise}
+            onRoutineName={edit.routineName}
             onToggle={setOpenRef}
+            onWorkoutName={edit.workoutName}
             openRef={openRef}
           />
         )}
@@ -273,6 +407,7 @@ export function ImportWizard() {
       {state.phase === 'editing' && (
         <ActionBar
           accepting={state.accepting}
+          announceIssues={state.announceIssues}
           confirmingCancel={leaving}
           failure={state.failure}
           issues={issues}
@@ -293,10 +428,16 @@ export function ImportWizard() {
   );
 }
 
-/** The step names the bar carries. The wizard is one screen with four titles. */
+/**
+ * The step names the bar carries. The wizard is one screen with four titles.
+ *
+ * None of them claims a file any more: the same steps carry a routine that was
+ * imported and one that was authored here, and the bar cannot tell which — the
+ * editing phase deliberately stopped recording it.
+ */
 function titleOf(state: WizardState): string {
-  if (state.phase === 'choosing') return 'Import a routine';
-  if (state.phase === 'accepted') return 'Imported';
+  if (state.phase === 'choosing') return 'Add a routine';
+  if (state.phase === 'accepted') return 'Ready';
   return state.step === 1 ? 'Review the exercises' : 'Days and weeks';
 }
 
@@ -318,7 +459,7 @@ function Accepted({ summary, onAnother }: AcceptedProps) {
       <header className="flex flex-col gap-3">
         <span className={chip('actual', 'self-start')}>
           <Check aria-hidden="true" size={12} strokeWidth={ICON_STROKE} />
-          imported
+          saved
         </span>
         <h2 className="type-display">{summary.routineName}</h2>
         <p className="type-lede text-ink-2">
@@ -345,7 +486,7 @@ function Accepted({ summary, onAnother }: AcceptedProps) {
         <div className={RULED}>
           <Button onClick={onAnother} size="block" type="button" variant="primary">
             <FileUp aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
-            Import another routine
+            Add another routine
           </Button>
           <Button asChild size="block" variant="ghost">
             <Link to="/today">

@@ -105,6 +105,50 @@ describe('summarizeSession', () => {
     expect(summarizeSession(detail, new Map()).minutes).toBeNull();
   });
 
+  it('reads effort as the mean RPE of the sets times the minutes', () => {
+    // Three sets at RIR 2 are three sets at RPE 8, over 61 minutes.
+    const detail = session(2_000, [
+      [squat, [set(100, 5), set(100, 5)]],
+      [press, [set(50, 10)]],
+    ]);
+
+    expect(summarizeSession(detail, new Map()).effort).toBe(8 * 61);
+  });
+
+  it('means the RPE across sets rather than taking the hardest one', () => {
+    // RIR 0 and RIR 4 — RPE 10 and 6 — average to the 8 above, so the same
+    // session length yields the same effort. The hardest set would read 610.
+    const detail = session(2_000, [[squat, [set(100, 5, 'kg', 0), set(100, 5, 'kg', 4)]]]);
+
+    expect(summarizeSession(detail, new Map()).effort).toBe(8 * 61);
+  });
+
+  it('floors a set logged above RIR 10 at zero rather than crediting it negatively', () => {
+    // A logged RIR is not bounded above (backup/schema.ts accepts one past
+    // MAX_RIR). Without the floor this reads 8 + -2, and an easy set would
+    // subtract effort from the session it was part of.
+    const detail = session(2_000, [[squat, [set(100, 5, 'kg', 2), set(100, 5, 'kg', 12)]]]);
+
+    expect(summarizeSession(detail, new Map()).effort).toBe(4 * 61);
+  });
+
+  it('rounds, because an index has no decimal of precision to report', () => {
+    // RIR 2 and RIR 3 mean to RPE 7.5 — the only fixture here whose mean is not
+    // a whole number, and so the only one that can tell rounding from its
+    // absence. 7.5 × 61 is 457.5.
+    const detail = session(2_000, [[squat, [set(100, 5, 'kg', 2), set(100, 5, 'kg', 3)]]]);
+
+    expect(summarizeSession(detail, new Map()).effort).toBe(458);
+  });
+
+  it('reports no effort while the session is open, or when it holds no set', () => {
+    const open = session(2_000, [[squat, [set(100, 5)]]], 'in_progress');
+    const setless = session(2_000, [[squat, []]]);
+
+    expect(summarizeSession(open, new Map()).effort).toBeNull();
+    expect(summarizeSession(setless, new Map()).effort).toBeNull();
+  });
+
   it('counts each exercise status separately', () => {
     const detail = session(
       2_000,

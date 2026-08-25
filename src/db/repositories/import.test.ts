@@ -9,7 +9,15 @@ import { db, resetDatabase } from '@/db/database';
 import { importRoutine } from '@/db/repositories/import';
 import { listUserExercises } from '@/db/repositories/exercises';
 import { anExercise, aFile, aWorkout } from '@/domain/routine-file/fixtures';
-import { routineFileToDomain, type RoutineDraft } from '@/domain/routine-file';
+import {
+  addExercise,
+  addWorkout,
+  blankRoutineFile,
+  routineFileToDomain,
+  setRoutineName,
+  validateRoutineFile,
+  type RoutineDraft,
+} from '@/domain/routine-file';
 import { generatePlacements } from '@/domain/scheduling';
 import { toLocalDate } from '@/domain/dates';
 import type { RoutineFile } from '@/domain/routine-file';
@@ -199,5 +207,63 @@ describe('TST-018 import atomicity', () => {
     expect(await db.workouts.count()).toBe(0);
     expect(await db.plannedExercises.count()).toBe(0);
     expect(await db.placements.count()).toBe(0);
+  });
+});
+
+/**
+ * TST-207 (REQ-210) — a Routine authored from scratch is accepted, stored and
+ * made active by exactly the path an imported one is.
+ *
+ * The point is that there is no second write path. The draft reaching
+ * `importRoutine` was never a file, and nothing downstream can tell.
+ */
+describe('accepting a from-scratch routine', () => {
+  it('writes it, activates it, and archives the routine that was active', async () => {
+    // One already active, as if imported earlier.
+    const first = routineFileToDomain(catalogOnlyFile(), {
+      defaultUnit: 'kg',
+      existingExercises: [],
+      createdAt: CREATED_AT,
+    });
+    await importRoutine(first, []);
+
+    // Authored here: blank, named, one Workout, one exercise nobody has named
+    // before. No suggested day, so no Placement is generated at all.
+    const authored = addExercise(
+      addWorkout(setRoutineName(blankRoutineFile(4), 'Winter Block'), 'Push'),
+      0,
+      anExercise({ name: 'Zercher Good Morning' }),
+    );
+    expect(validateRoutineFile(authored)).toEqual([]);
+
+    const draft = routineFileToDomain(authored, {
+      defaultUnit: 'kg',
+      existingExercises: await listUserExercises(),
+      createdAt: CREATED_AT + 1,
+    });
+    const placements = generatePlacements({
+      workouts: draft.workouts,
+      weeks: draft.routine.weeks,
+      anchorDate: ANCHOR,
+    });
+    expect(placements).toEqual([]);
+
+    await importRoutine(draft, placements);
+
+    const stored = await db.routines.get(draft.routine.id);
+    expect(stored?.name).toBe('Winter Block');
+    expect(stored?.status).toBe('active');
+    expect((await db.routines.get(first.routine.id))?.status).toBe('archived');
+
+    expect(await db.workouts.where('routineId').equals(draft.routine.id).count()).toBe(1);
+    expect(await db.plannedExercises.count()).toBe(
+      first.plannedExercises.length + 1,
+    );
+    expect(await db.placements.where('routineId').equals(draft.routine.id).count()).toBe(0);
+
+    // The one movement the authored routine named did not exist before, so it
+    // was minted here — through the same §26 resolution an import uses.
+    const names = (await listUserExercises()).map((e) => e.name);
+    expect(names).toContain('Zercher Good Morning');
   });
 });

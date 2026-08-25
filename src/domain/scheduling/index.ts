@@ -2,15 +2,18 @@
  * Scheduling (REQ-040…044, §11.3, §11.4, §14.9, ADR 0001).
  *
  * A Workout carries no date; the calendar is a set of user-owned Placements
- * generated once, at import, from the advisory `suggestedDays`. Nothing here
- * reads the clock: `anchorDate` and `today` are always parameters (DEC-008),
- * and nothing here writes — `missed` is derived at query time (§11.3).
+ * generated from the advisory `suggestedDays` — for a whole file when a draft
+ * is accepted, and for the remaining weeks of the block when a Workout is added
+ * to a Routine already running (REQ-402). Nothing here reads the clock:
+ * `anchorDate` and `today` are always parameters (DEC-008), and nothing here
+ * writes — `missed` is derived at query time (§11.3).
  */
 
 import {
   addDays,
   formatLocalDate,
   mondayOfWeek,
+  parseLocalDate,
   type LocalDate,
 } from '@/domain/dates';
 import { newId, type PlacementId, type WorkoutId } from '@/domain/ids';
@@ -75,6 +78,67 @@ export function generatePlacements({
   }
 
   return placements;
+}
+
+/**
+ * How many weeks of a Routine are still ahead (REQ-402).
+ *
+ * A Workout added to a Routine already running is placed from today forward,
+ * for what is left of the block — not for the block's whole length, which would
+ * generate Placements into weeks that have already gone by.
+ *
+ * **Monday-aligned**, and that is the whole subtlety. `generatePlacements`
+ * begins week 1 at `mondayOfWeek(anchorDate)`, so a Routine created on a
+ * Thursday has its week 1 running from the Monday three days earlier. Counting
+ * elapsed time as rolling 7-day periods from the anchor would disagree with
+ * that by a whole week for any Routine not created on a Monday, and the added
+ * Workout would be placed one week short or one week long.
+ *
+ * `Math.round` rather than a floor: both operands are midnight-local Mondays,
+ * and a daylight-saving change between them makes the difference 6.958 or
+ * 7.042 days instead of exactly 7.
+ *
+ * Clamped into `[0, weeks]`, and `weeks` itself is floored at zero first.
+ * Nothing bounds `Routine.weeks` — not the schema, not the stored type — so a
+ * restored backup can carry a negative one, and clamping only the subtraction
+ * would hand that negative straight back to `generatePlacements`. Zero is a
+ * real answer either way: the block is over, and REQ-403 says the Workout is
+ * still added, with no Placements.
+ */
+export function remainingWeeks(weeks: number, anchorDate: LocalDate, today: LocalDate): number {
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const elapsed = Math.round(
+    (parseLocalDate(mondayOfWeek(today)).getTime() -
+      parseLocalDate(mondayOfWeek(anchorDate)).getTime()) /
+      week,
+  );
+
+  const total = Math.max(0, weeks);
+  return Math.min(total, Math.max(0, total - elapsed));
+}
+
+/**
+ * The Workouts of one Routine that already claim a given weekday (REQ-405).
+ *
+ * The form behind DEC-B warns with this rather than refusing: two Workouts on
+ * one day is a real programme shape, and the wizard's `suggested_day_shared`
+ * issue is knowingly not enforced on this path (DEC-Q1). What the warning owes
+ * the lifter is the *consequence* — on every colliding date only one of the two
+ * gets trained, and the other's Placement derives as missed, every remaining
+ * week, until it is moved or deleted (REQ-406).
+ *
+ * Sorted by `order` here rather than trusted from the caller, because the
+ * warning names `[0]` as the one `suggestWorkout` will prefer on Today — and
+ * that is the whole point of the sentence. Reading it off an unsorted list
+ * names the wrong Workout confidently, which is worse than not naming one.
+ */
+export function claimantsOfDay(
+  workouts: readonly Workout[],
+  day: Weekday,
+): readonly Workout[] {
+  return workouts
+    .filter((workout) => workout.suggestedDays.includes(day))
+    .sort((a, b) => a.order - b.order);
 }
 
 /**

@@ -514,10 +514,20 @@ El usuario puede:
 
 - editar valores (`sets`, `reps`, `rir`, `rest_seconds`, `notes`, `unit`);
 - eliminar ejercicios;
-- reordenar ejercicios.
+- reordenar ejercicios;
+- agregar ejercicios;
+- agregar Workouts;
+- corregir el nombre de la rutina y el de cada Workout.
 
-No puede agregar ejercicios en el MVP: requiere un selector sobre el catálogo y
-la creación de ejercicios nuevos, que quedan fuera de alcance.
+El selector de agregar ofrece tres fuentes en una lista: el catálogo incluido, los
+Exercises que el usuario ha creado, y todo ejercicio ya escrito en cualquier parte
+del borrador. También acepta un nombre nuevo — el Exercise se acuña al aceptar,
+dentro de la misma transacción, nunca antes.
+
+**El asistente se puede abrir sin archivo.** «Empezar desde cero» siembra un
+borrador en blanco en el mismo asistente: una rutina sin nombre y sin Workouts,
+que abre bloqueada declarando exactamente esos dos problemas. Es el mismo
+recorrido de edición, validación y `Accept`, y produce la misma transacción.
 
 ## Step 2 - Days and Weeks
 
@@ -554,12 +564,16 @@ The file could not be read.
 Se carga el archivo y el campo se marca en rojo. `Accept` permanece bloqueado
 hasta que se corrija.
 
+Son ocho:
+
 - `min_reps` mayor que `max_reps`;
 - RIR fuera del rango permitido;
 - descansos negativos;
 - sets menores o iguales a cero;
 - progresiones no reconocidas;
-- dos Workouts que comparten un `suggested_day`.
+- dos Workouts que comparten un `suggested_day`;
+- una rutina que no declara ningún Workout;
+- un nombre de rutina en blanco.
 
 Ejemplo:
 
@@ -600,8 +614,11 @@ Funciones:
 - eliminar;
 - duplicar posteriormente.
 
-Cada importación crea una rutina nueva e inmutable. La edición ocurre únicamente
-dentro del asistente de importación.
+Cada importación crea una rutina nueva. Una rutina ya aceptada admite
+**agregados** y nada más: mientras esté activa se le puede añadir un Workout, y a
+cualquiera de sus Workouts un Planned Exercise. Nada de lo ya guardado se
+renombra, reordena, reprograma ni se borra. Corregir sigue ocurriendo dentro del
+asistente, sobre el borrador, antes de aceptar.
 
 `Delete Routine` se rechaza cuando existen `Sessions` asociadas. En ese caso solo
 se ofrece archivar. Eliminar rutinas con historial contradiría la sección 25.
@@ -1904,11 +1921,12 @@ new programming
 La información histórica de agosto debe permanecer exactamente como fue
 realizada.
 
-Cada importación crea una rutina nueva. Las rutinas no se versionan ni se editan
-después de aceptarlas.
+Cada importación crea una rutina nueva. Las rutinas no se versionan, y después de
+aceptarlas sólo admiten agregados: nada de lo guardado se reescribe ni se borra.
 
 Esto es posible porque el historial no depende de la plantilla: los objetivos se
-copian dentro de la sesión al iniciarla (ver 14.7 y 16).
+copian dentro de la sesión al iniciarla (ver 14.7 y 16). Es el snapshot, y no la
+inmutabilidad, lo que mantiene el pasado intacto — por eso agregar es seguro.
 
 ---
 
@@ -2422,12 +2440,13 @@ sin schema, sin migración. Cada una es un cambio pequeño e independiente.
 | 4 | workout adherence | ⬜ | Un `Placement` pasado sin `Session` ya se deriva (ADR 0001). |
 | 5 | calendar statistics | ⬜ | Mismo insumo que adherence, otra pantalla. |
 | 6 | advanced charts | ⬜ | Última del grupo: es el contenedor de 1–5, no un requisito propio. Sigue rigiendo §11.11 — un gráfico con conmutador de métrica, nunca un segundo eje Y. |
+| 15 | session effort | ✅ | `SessionSummary.effort` — RPE medio (`10 − RIR`) × minutos, la carga de sesión de Foster. Es del grupo A por naturaleza (función pura, sin schema); numerado al final para no renumerar 7–14. Existe porque el volumen en kg·reps no ve una carrera ni un hold, y un programa híbrido necesita una cifra que sí. |
 
 ## B — Identidad del ejercicio
 
 | # | Ítem | Estado | Nota |
 | --- | --- | --- | --- |
-| 7 | exercise management | ⬜ | Crear, renombrar, borrar. Arrastra §26: un emparejamiento por nombre mal resuelto parte un historial en dos. La pantalla de §11.12 ya existe; le faltan las acciones. |
+| 7 | exercise management | 🟡 | **Crear** está hecho: la pantalla de §11.12 acuña Exercises, y el asistente los ofrece junto al catálogo. Faltan **renombrar** y **borrar**, que son los que arrastran §26 de verdad — un emparejamiento por nombre mal resuelto parte un historial en dos. Ver `docs/changes/2026-08-24-routine-authoring/`. |
 | 8 | muscle volume | ⬜ | **Depende del 7.** Agrupa por `category`, y hoy un archivo de rutina escribe ahí lo que quiera — el schema no lo valida. Medir sobre vocabulario sucio da cifras falsas. |
 
 ## C — Modelo de ejecución
@@ -2449,7 +2468,7 @@ No se empiezan sin una decisión de producto escrita antes.
 | # | Ítem | Estado | Decisión previa |
 | --- | --- | --- | --- |
 | 13 | custom progression strategies | ⬜ | §27–29 sólo definen `manual` y `double_progression`. Abrirlo es definir un contrato de estrategias. |
-| 14 | routine editor | ⬜ | No es una funcionalidad, es revocar **«Routines are immutable once accepted»**, que sostiene el snapshot de ADR 0002. Hay que decidir primero qué ocurre con las sesiones ya registradas contra la versión anterior. |
+| 14 | routine editor | 🟡 | **Agregar** está hecho: una rutina activa admite un Workout nuevo, y cualquiera de sus Workouts un Planned Exercise. Faltan los verbos destructivos — renombrar, reordenar, borrar, reprogramar objetivos. **Corrección:** la inmutabilidad *no* sostiene el snapshot de ADR 0002; es al revés. El propio ADR lo dice en sus Consequences («Templates become safely editable»), y el código lo confirma: ningún camino de lectura reconstruye una sesión pasada uniendo contra `plannedExercises`. Por eso agregar no necesitó versionado. Ver `docs/changes/2026-08-24-routine-authoring/`. |
 
 Exercise Catalog como pantalla (§11.12) salió de esta lista al construirse; fue
 el primer ítem de V1.0. Ver `docs/changes/2026-08-21-exercise-catalog/`.

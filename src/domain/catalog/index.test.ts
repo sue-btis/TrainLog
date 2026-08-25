@@ -3,7 +3,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   CATALOG,
-  findCatalogExerciseByNormalizedName,
+  CATALOG_CATEGORIES,
+  CATALOG_EQUIPMENT,
+  findExerciseByName,
   getCatalogExercise,
   UNCATEGORIZED,
   groupExercises,
@@ -64,19 +66,50 @@ describe('normalizeExerciseName', () => {
   });
 });
 
-describe('findCatalogExerciseByNormalizedName', () => {
-  it('resolves "  front   squat " to front-squat (AC-024)', () => {
-    expect(findCatalogExerciseByNormalizedName('  front   squat ')?.id).toBe('front-squat');
-  });
+/**
+ * TST-105 (REQ-105) — the clause the rest of the suite never asserted: the
+ * offered vocabularies come from `CATALOG` alone.
+ *
+ * The failure it guards is a rewrite to `[...user, ...CATALOG]`, which reads
+ * like an improvement and is not: a routine file may write anything into
+ * `category`, so one dirty import would teach the create form a word the
+ * catalog never used, and PRD §39 item 8 groups muscle volume over exactly
+ * these values.
+ */
+describe('CATALOG_CATEGORIES and CATALOG_EQUIPMENT', () => {
+  const dirty: Exercise = {
+    id: toId<ExerciseId>('cable-moon-walk'),
+    name: 'Cable Moon Walk',
+    category: 'lunar',
+    equipment: 'moon-rope',
+  };
 
-  it('resolves every catalog entry by its own name', () => {
-    for (const entry of CATALOG) {
-      expect(findCatalogExerciseByNormalizedName(entry.name)?.id).toBe(entry.id);
+  it('offers nothing that is not in the catalog', () => {
+    for (const category of CATALOG_CATEGORIES) {
+      expect(CATALOG.some((entry) => entry.category === category)).toBe(true);
+    }
+    for (const equipment of CATALOG_EQUIPMENT) {
+      expect(CATALOG.some((entry) => entry.equipment === equipment)).toBe(true);
     }
   });
 
-  it('returns undefined for an unknown name', () => {
-    expect(findCatalogExerciseByNormalizedName('cable moon walk')).toBeUndefined();
+  it('offers every category and equipment the catalog does use, sorted and deduped', () => {
+    const distinct = (values: readonly (string | null)[]) =>
+      [...new Set(values.filter((value): value is string => value !== null))].sort();
+
+    expect(CATALOG_CATEGORIES).toEqual(distinct(CATALOG.map((entry) => entry.category)));
+    expect(CATALOG_EQUIPMENT).toEqual(distinct(CATALOG.map((entry) => entry.equipment)));
+  });
+
+  it('stays closed when a stored Exercise carries a word the catalog never used', () => {
+    // `groupExercises` accepts the dirty row and groups it — this module does
+    // see such values elsewhere, which is what makes the exclusion below a
+    // property rather than an accident of the fixture.
+    const groups = groupExercises([...CATALOG, dirty], '', null);
+    expect(groups.some((group) => group.category === dirty.category)).toBe(true);
+
+    expect(CATALOG_CATEGORIES).not.toContain(dirty.category);
+    expect(CATALOG_EQUIPMENT).not.toContain(dirty.equipment);
   });
 });
 
@@ -187,5 +220,58 @@ describe('groupExercises', () => {
 
   it('returns no groups at all when nothing matches', () => {
     expect(groupExercises(CATALOG, 'cable moon walk', null)).toEqual([]);
+  });
+});
+
+/** TST-100, TST-108 — the shared §26 matcher (REQ-102, REQ-109). */
+describe('findExerciseByName', () => {
+  const mine: Exercise = {
+    id: toId<ExerciseId>('11111111-2222-3333-4444-555555555555'),
+    name: 'Zercher Good Morning',
+    category: null,
+    equipment: null,
+  };
+
+  it('finds a catalog entry by normalized name (AC-024)', () => {
+    expect(findExerciseByName('  front   SQUAT ', [])?.id).toBe('front-squat');
+  });
+
+  // Moved here when the second §26 decider was deleted: the whole catalog is
+  // reachable through the one matcher that survived, not just the sample above.
+  it('resolves every catalog entry by its own name', () => {
+    for (const entry of CATALOG) {
+      expect(findExerciseByName(entry.name, [])?.id).toBe(entry.id);
+    }
+  });
+
+  it('finds a user Exercise by normalized name', () => {
+    expect(findExerciseByName('zercher good morning', [mine])?.id).toBe(mine.id);
+  });
+
+  it('prefers the catalog over a user Exercise sharing a name', () => {
+    const shadow: Exercise = { ...mine, name: 'Front Squat' };
+    expect(findExerciseByName('front squat', [shadow])?.id).toBe('front-squat');
+  });
+
+  it('returns undefined when neither knows the name', () => {
+    expect(findExerciseByName('Cable Moon Walk', [mine])).toBeUndefined();
+  });
+
+  it('resolves the way resolveFileExercise resolves, so the two cannot drift', () => {
+    // The property that matters: whatever the create screen binds a name to is
+    // the Exercise an import of that same name would bind to.
+    for (const name of ['Front Squat', 'front squat', 'Zercher Good Morning']) {
+      expect(findExerciseByName(name, [mine])).toBeDefined();
+    }
+  });
+
+  it('treats two Unicode spellings of one name as two movements (accepted §26 gap)', () => {
+    // Precomposed vs combining-mark. normalizeExerciseName lowercases, trims and
+    // collapses whitespace — it does not fold Unicode composition. Closing this
+    // would change which Exercise every stored name resolves to, so it is left
+    // open deliberately and pinned here (REQ-109). Delete this test only as part
+    // of a change that decides that.
+    const precomposed: Exercise = { ...mine, name: 'Curl Bíceps' };
+    expect(findExerciseByName('Curl Bi\u0301ceps', [precomposed])).toBeUndefined();
   });
 });

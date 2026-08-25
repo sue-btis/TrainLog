@@ -76,9 +76,17 @@ and is never written down. See [ADR 0001](./docs/adr/0001-dateless-workouts-with
 `weightKg`. Every comparison, chart and progression step reads `weightKg`. Unit
 is fixed per Exercise (§11.7).
 
-**Routines are immutable once accepted.** Editing happens in the import wizard
-only (§11.1). Each import creates a new Routine. `Delete Routine` is refused
+**An accepted Routine takes additions only.** Nothing already stored is renamed,
+reordered, retargeted or removed — correcting happens in the import wizard, on a
+Routine Draft, before Accept (§11.1). An **active** Routine may gain a Workout,
+and any of its Workouts may gain a Planned Exercise. Both are purely additive.
+Each import still creates a new Routine, and `Delete Routine` is still refused
 while Sessions reference it; archive instead (§37).
+
+What makes an addition safe is the snapshot, not immutability: an Exercise
+Session copies its planned targets when the exercise starts (ADR 0002), so no
+read path reconstructs a past Session through a template row. Immutability was
+never what held history still.
 
 **Identity is a generated ID.** UUID or ULID. An exercise name is a label that
 can change (§24).
@@ -89,9 +97,20 @@ Two tiers, and they behave differently (§11.1):
 
 - **Structural** — Zod schema. Malformed YAML, unknown `version`, missing
   required fields. Rejects the import.
-- **Semantic** — hand-written checks. `min_reps > max_reps`, RIR out of range,
-  negative rest, two Workouts sharing a `suggested_day`. Loads into wizard step 1
-  flagged, and blocks `Accept` until fixed.
+- **Semantic** — hand-written checks, **eight** of them: `min_reps > max_reps`,
+  RIR out of range, negative rest, non-positive sets, an unrecognized
+  progression, two Workouts sharing a `suggested_day`, a Routine declaring no
+  Workouts, and a blank Routine name. Loads into wizard step 1 flagged, and
+  blocks `Accept` until fixed.
+
+**The semantic tier runs on a Routine Draft.** It is the wizard's validator, and
+what it validates is a `RoutineFile` being shaped before Accept. A Workout added
+to a Routine already accepted never passes through it: that form checks what it
+collects, by building a synthetic single-Workout file and handing it to the same
+`validateRoutineFile` — so there is one implementation, not two that must agree.
+`suggested_day_shared` is deliberately **not** enforced on that path: two
+Workouts on one day is a real programme shape, so the form warns and names the
+consequence rather than refusing (DEC-Q1).
 
 ## Tests
 

@@ -80,9 +80,10 @@ Confirmed and specified in [docs/PRD.md](./docs/PRD.md); the glossary in
   wearables, AI coaching.
 - **Offline is the normal case.** No runtime network requests, no backend, no telemetry.
   The exercise catalog ships inside the build.
-- **Routines are immutable once accepted.** Editing happens in the import wizard only;
-  each import creates a new Routine. Deleting a Routine referenced by Sessions is refused
-  — archive instead.
+- **An accepted Routine takes additions only.** Correcting happens in the wizard, before
+  Accept; each import creates a new Routine. An active Routine may gain a Workout, and a
+  Workout may gain a Planned Exercise — nothing stored is renamed, reordered, retargeted
+  or removed. Deleting a Routine referenced by Sessions is refused — archive instead.
 - **Weight carries its unit.** Store entered `weight` + `unit` plus derived `weightKg`;
   every comparison, chart and progression step reads `weightKg`. Unit is fixed per
   Exercise.

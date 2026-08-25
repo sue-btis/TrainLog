@@ -64,9 +64,11 @@ export interface Exercise {
 export type RoutineStatus = 'active' | 'archived';
 
 /**
- * §14.2 — a complete training programme imported from a single file, immutable
- * once accepted. It has no start or end date; `weeks` is the intended duration
- * and decides how many Placements the import generates.
+ * §14.2 — a complete training programme, imported from a single file or
+ * authored in the wizard without one. Once accepted it takes additions only: a
+ * Workout may be added while it is active, and nothing stored is renamed,
+ * reordered, retargeted or removed. It has no start or end date; `weeks` is the
+ * intended duration and decides how many Placements are generated.
  */
 export interface Routine {
   readonly id: RoutineId;
@@ -78,8 +80,9 @@ export interface Routine {
 
 /**
  * §14.3 — a named, reusable unit of programming inside a Routine. Carries no
- * date. `order` defines the rotation; `suggestedDays` is read once, during
- * import, to seed Placements, and never consulted afterwards.
+ * date. `order` defines the rotation; `suggestedDays` is read when the Workout
+ * enters the Routine — at import, or when one is added to a Routine already
+ * running — to seed Placements, and never consulted again afterwards.
  */
 export interface Workout {
   readonly id: WorkoutId;

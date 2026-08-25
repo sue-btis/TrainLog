@@ -30,9 +30,19 @@ export {
   listRoutinesByStatus,
 } from '@/db/repositories/routines';
 
-export { getWorkout, listWorkoutsByRoutine } from '@/db/repositories/workouts';
+export {
+  RoutineNotActiveError,
+  RoutineNotFoundError,
+  WorkoutNameRequiredError,
+  addWorkoutToRoutine,
+  getWorkout,
+  listWorkoutsByRoutine,
+  type AddedWorkout,
+} from '@/db/repositories/workouts';
 
 export {
+  WorkoutNotFoundError,
+  addPlannedExercise,
   getPlannedExercise,
   listPlannedExercisesByWorkout,
 } from '@/db/repositories/plannedExercises';
@@ -45,10 +55,13 @@ export {
 } from '@/db/repositories/placements';
 
 export {
+  ExerciseNameRequiredError,
+  createUserExercise,
   getExercise,
   getExerciseName,
   getExerciseNames,
   listUserExercises,
+  type CreatedExercise,
 } from '@/db/repositories/exercises';
 
 export {

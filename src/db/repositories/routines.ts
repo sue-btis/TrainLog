@@ -1,8 +1,9 @@
 /**
  * Routines (§11.2, §37, REQ-075, REQ-076).
  *
- * A Routine is immutable once accepted — importing again creates a new one —
- * so the only writes here are the lifecycle ones: activate, archive, delete.
+ * Importing again creates a new Routine, and an accepted one takes additions
+ * only — which are owned by the Workout and Planned Exercise repositories. The
+ * only writes here are the lifecycle ones: activate, archive, delete.
  */
 
 import { db } from '@/db/database';

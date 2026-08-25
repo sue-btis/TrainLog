@@ -87,6 +87,8 @@ const FIX: Record<SemanticIssueCode, string> = {
   progression_unrecognized:
     'Switch it to manual progression, or remove the exercise from this Workout.',
   suggested_day_shared: 'Give one of the two Workouts another day.',
+  routine_has_no_workouts: 'Add a Workout on step 1.',
+  routine_name_blank: 'Give the routine a name.',
 };
 
 /**
@@ -120,6 +122,8 @@ function problemOf(
     case 'progression_unrecognized':
       return `"${exercise.progression.type}" is not a progression this app runs.`;
     case 'suggested_day_shared':
+    case 'routine_has_no_workouts':
+    case 'routine_name_blank':
       return issue.message;
   }
 }

@@ -9,8 +9,12 @@
  *
  * Everything §11.1 calls semantic — inverted rep ranges, RIR out of range,
  * negative rest, non-positive sets, an unrecognized progression, two Workouts
- * on one suggested day — is deliberately accepted here and reported by
- * `validateRoutineFile` instead, because those must load into the wizard.
+ * on one suggested day, a Routine that declares no Workouts, and a blank
+ * Routine name — is deliberately accepted here and reported by
+ * `validateRoutineFile` instead, because those must load into the wizard. The
+ * last two are why there is no `.min(1)` on `routine.name` or on `workouts`:
+ * a blank draft is a legitimate starting point, and rejecting it structurally
+ * would leave nothing for the wizard to correct.
  *
  * The schema mirrors §12 exactly; unknown keys (such as the example's `goal`)
  * are dropped rather than rejected, so the format can gain optional fields

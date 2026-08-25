@@ -1,14 +1,18 @@
 /**
- * Choosing a file, and the structural refusal (§11.1 "Structural").
+ * Where a routine comes from, and the structural refusal (§11.1 "Structural").
+ *
+ * Two ways in, not one: a file the lifter already has, or nothing at all. Both
+ * land on the same step 1 holding the same draft — a routine authored here is a
+ * routine file that never sat on disk.
  *
  * A structural failure is terminal by design: there is no partial result to
  * show and nothing in the wizard could repair a file it could not read. So the
- * screen says what happened, says exactly where, and offers the only move that
- * helps — another file.
+ * screen says what happened, says exactly where, and offers the moves that
+ * help — another file, or building it here instead.
  */
 
 import { useRef } from 'react';
-import { FileUp, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { FileUp, LoaderCircle, PencilLine, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatPath, type StructuralError } from '@/domain/routine-file';
 import { EXAMPLE_ROUTINE_YAML, FIELD_NOTES } from '@/domain/routine-file/example';
@@ -21,9 +25,18 @@ interface FileStepProps {
   /** The chosen file is being read and parsed. The control it came from says so. */
   readonly reading: boolean;
   readonly onFile: (file: File) => void;
+  /** Start with no file: an empty draft, named and filled in here. */
+  readonly onStartBlank: () => void;
 }
 
-export function FileStep({ fileName, errors, unreadable, reading, onFile }: FileStepProps) {
+export function FileStep({
+  fileName,
+  errors,
+  unreadable,
+  reading,
+  onFile,
+  onStartBlank,
+}: FileStepProps) {
   const input = useRef<HTMLInputElement>(null);
   const rejected = errors !== null || unreadable !== null;
 
@@ -63,10 +76,11 @@ export function FileStep({ fileName, errors, unreadable, reading, onFile }: File
         </>
       ) : (
         <div className={WELL}>
-          <p className="type-title">No routine file chosen</p>
+          <p className="type-title">Where is your programme?</p>
           <p className="type-body-sm text-ink-2">
-            Pick the <code className="type-measure-sm">.yaml</code> file that declares your
-            programme — its Workouts, their exercises, and the days they are meant to fall on.
+            Pick the <code className="type-measure-sm">.yaml</code> file that declares it — its
+            Workouts, their exercises, and the days they are meant to fall on. Or start with
+            nothing and build it here.
           </p>
         </div>
       )}
@@ -104,6 +118,20 @@ export function FileStep({ fileName, errors, unreadable, reading, onFile }: File
           : rejected
             ? 'Choose another file'
             : 'Choose a routine file'}
+      </Button>
+
+      {/* The second way in. Secondary next to the file button when a file is
+          what the lifter came for, and the same size, because neither is a
+          lesser way to end up with a routine. */}
+      <Button
+        disabled={reading}
+        onClick={onStartBlank}
+        size="block"
+        type="button"
+        variant="secondary"
+      >
+        <PencilLine aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+        Start from scratch
       </Button>
 
       {/* What the file has to look like, shipped.
