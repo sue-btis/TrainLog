@@ -132,6 +132,15 @@ describe('summarizeSession', () => {
     expect(summarizeSession(detail, new Map()).effort).toBe(4 * 61);
   });
 
+  it('rounds, because an index has no decimal of precision to report', () => {
+    // RIR 2 and RIR 3 mean to RPE 7.5 — the only fixture here whose mean is not
+    // a whole number, and so the only one that can tell rounding from its
+    // absence. 7.5 × 61 is 457.5.
+    const detail = session(2_000, [[squat, [set(100, 5, 'kg', 2), set(100, 5, 'kg', 3)]]]);
+
+    expect(summarizeSession(detail, new Map()).effort).toBe(458);
+  });
+
   it('reports no effort while the session is open, or when it holds no set', () => {
     const open = session(2_000, [[squat, [set(100, 5)]]], 'in_progress');
     const setless = session(2_000, [[squat, []]]);
