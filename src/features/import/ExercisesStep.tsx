@@ -350,7 +350,30 @@ function ExerciseRow({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const base = exercisePath(exerciseRef.workout, exerciseRef.exercise);
   // A version-2 file may state a target range instead of a rep range (REQ-130).
-  const { reps } = exercise;
+  const { reps, target } = exercise;
+  // The range is on the wrong axis for the movement it binds to. The fields
+  // for the *right* axis are offered empty, and committing one drops the
+  // other: there is no honest conversion between a rep count and a number of
+  // seconds, so the lifter states the range rather than the app inventing it.
+  const mismatched = issuesAt(issues, `${base}.reps`).some(
+    (issue) => issue.code === 'target_axis_mismatch',
+  );
+  const wrongAxis = issuesAt(issues, `${base}.target`).some(
+    (issue) => issue.code === 'target_axis_mismatch',
+  );
+  const showReps = (reps !== undefined || wrongAxis) && !mismatched;
+  const showTarget = (target !== undefined || mismatched) && !wrongAxis;
+  const range = (
+    current: { readonly min: number; readonly max: number } | undefined,
+    end: 'min' | 'max',
+    value: number | null | undefined,
+  ) => {
+    const next = value ?? current?.[end] ?? 0;
+    // A pair created from nothing opens as a fixed target: `45` means 45, and
+    // a range is the second keystroke. Seeding the other end at zero would
+    // flag "runs backwards" in the gap between the two.
+    return current === undefined ? { min: next, max: next } : { ...current, [end]: next };
+  };
   const flagged = hasIssuesUnder(issues, base);
   const expanded = open || flagged;
 
@@ -430,27 +453,51 @@ function ExerciseRow({
                 optional
                 value={exercise.rest_seconds}
               />
-              {/* A version-2 file may state a target range instead of a rep
-                  range (REQ-130), in which case there is no rep field to edit
-                  and the wizard offers none. */}
-              {reps !== undefined && (
+              {/* Whichever axis this movement is actually measured on. Only
+                  one pair is ever on screen, because only one is ever stored
+                  (REQ-139). */}
+              {showReps && (
                 <>
                   <NumberField
-                    error={errorFor(`${base}.reps`)}
+                    // The mismatch issue hangs off whichever axis the file
+                    // wrote, and this is the field for the other one — so the
+                    // message has to follow the lifter to where the fix is.
+                    error={errorFor(`${base}.reps`) ?? errorFor(`${base}.target`)}
                     id={fieldId(`${base}.reps`)}
                     label="min reps"
                     onCommit={(value) =>
-                      patch({ reps: { ...reps, min: value ?? reps.min } })
+                      patch({ reps: range(reps, 'min', value), target: undefined })
                     }
-                    value={reps.min}
+                    value={reps?.min}
                   />
                   <NumberField
                     id={`${fieldId(`${base}.reps`)}-max`}
                     label="max reps"
                     onCommit={(value) =>
-                      patch({ reps: { ...reps, max: value ?? reps.max } })
+                      patch({ reps: range(reps, 'max', value), target: undefined })
                     }
-                    value={reps.max}
+                    value={reps?.max}
+                  />
+                </>
+              )}
+              {showTarget && (
+                <>
+                  <NumberField
+                    error={errorFor(`${base}.target`) ?? errorFor(`${base}.reps`)}
+                    id={fieldId(`${base}.target`)}
+                    label="min target"
+                    onCommit={(value) =>
+                      patch({ target: range(target, 'min', value), reps: undefined })
+                    }
+                    value={target?.min}
+                  />
+                  <NumberField
+                    id={`${fieldId(`${base}.target`)}-max`}
+                    label="max target"
+                    onCommit={(value) =>
+                      patch({ target: range(target, 'max', value), reps: undefined })
+                    }
+                    value={target?.max}
                   />
                 </>
               )}

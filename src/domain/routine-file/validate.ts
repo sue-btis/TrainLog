@@ -7,6 +7,9 @@
  * usually one, and one per Workout for a shared suggested day (AC-033).
  */
 
+import { targetUnitOf, targetsReps } from '@/domain/measurement';
+import { resolveFileExercise } from '@/domain/routine-file/to-domain';
+import type { Exercise } from '@/domain/types';
 import type { FieldPath, RoutineFile } from '@/domain/routine-file/schema';
 
 /** The checks of §11.1, as codes a UI can switch on. */
@@ -15,6 +18,7 @@ export type SemanticIssueCode =
   | 'target_range_inverted'
   | 'target_pair_ambiguous'
   | 'target_pair_missing'
+  | 'target_axis_mismatch'
   | 'rir_out_of_range'
   | 'rest_seconds_negative'
   | 'sets_not_positive'
@@ -40,9 +44,30 @@ export const MAX_RIR = 10;
 /** The progression types the engine implements (§27 MVP). */
 const KNOWN_PROGRESSION_TYPES = new Set(['manual', 'double_progression']);
 
+/** What the caller can tell the validator that the file itself does not say. */
+export interface ValidateOptions {
+  /**
+   * The lifter's own Exercises, for resolving each entry to the Exercise it
+   * will actually bind to. The catalog is not included and must not be: the
+   * resolution rule is `resolveFileExercise`'s, and it consults the catalog
+   * itself.
+   *
+   * **Presence is the opt-in.** Passing it, even empty, asks for the axis
+   * check below; omitting it says the caller cannot resolve exercises and the
+   * check is skipped rather than run against a guess. An empty array is a
+   * meaningful answer — a lifter who has created no Exercise of their own —
+   * which is why it cannot double as "do not check".
+   */
+  readonly knownExercises?: readonly Exercise[];
+}
+
 /** Returns every semantic issue in `file`. An empty array means it is clean. */
-export function validateRoutineFile(file: RoutineFile): readonly SemanticIssue[] {
+export function validateRoutineFile(
+  file: RoutineFile,
+  options?: ValidateOptions,
+): readonly SemanticIssue[] {
   const issues: SemanticIssue[] = [];
+  const { knownExercises } = options ?? {};
 
   // A Routine authored in the wizard starts with no name at all, and a name is
   // what every list, Today and the wizard header render it by. Semantic rather
@@ -135,6 +160,37 @@ export function validateRoutineFile(file: RoutineFile): readonly SemanticIssue[]
           paths: [at('reps')],
           message: `${where}: an exercise needs a rep range or a target range.`,
         });
+      }
+
+      // The range is on one axis; the Exercise it will bind to reads another.
+      //
+      // This is the only check here that cannot be made from the file alone,
+      // and it is the one that matters most. A rep range meeting a movement
+      // measured in seconds maps to a planned exercise with *no* range —
+      // neither pair populated — which imports without complaint and is
+      // refused later by the backup validator. Caught here it is a field the
+      // lifter corrects before Accept; missed here it is a database whose own
+      // export it cannot restore.
+      if (knownExercises !== undefined && (reps === undefined) !== (target === undefined)) {
+        // Resolution is `resolveFileExercise`'s rule and not a second copy of
+        // it: catalog by id, then by name, then the type the import would
+        // mint. Whatever it answers is what the import will actually use.
+        const { measurement } = resolveFileExercise(exercise, knownExercises).exercise;
+        const onReps = targetsReps(measurement);
+
+        if (onReps && reps === undefined) {
+          issues.push({
+            code: 'target_axis_mismatch',
+            paths: [at('target')],
+            message: `${where}: ${exercise.name} is counted in repetitions, so its range belongs in reps, not in target.`,
+          });
+        } else if (!onReps && target === undefined) {
+          issues.push({
+            code: 'target_axis_mismatch',
+            paths: [at('reps')],
+            message: `${where}: ${exercise.name} is measured in ${targetUnitOf(measurement)}, not in repetitions. State its range in target.`,
+          });
+        }
       }
 
       const rir = exercise.rir;
