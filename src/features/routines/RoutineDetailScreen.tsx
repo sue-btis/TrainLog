@@ -1,24 +1,31 @@
 /**
- * One Routine, read-only (§11.2, §31 Screen 5).
+ * One Routine (§11.2, §31 Screen 5).
  *
  * It shows the programme as it was accepted: Workouts in rotation order, their
- * suggested days, and every Planned Exercise with its targets. Nothing here is
- * editable — a Routine is immutable once accepted (AGENTS.MD), and the
- * suggested days shown are the advisory ones read at import, not the calendar,
- * which is the user's and lives on its own screen.
+ * suggested days, and every Planned Exercise with its targets. The suggested
+ * days shown are the advisory ones read at import, not the calendar, which is
+ * the user's and lives on its own screen.
+ *
+ * Nothing here rewrites what is stored. An **active** Routine gains exactly two
+ * additive controls (DEC-B) — add a Workout, add an exercise to one — and no
+ * rename, delete, reorder or target edit. An archived Routine gains neither:
+ * its Placements would land on a calendar that reads across every Routine.
  */
 
 import { Link, useParams } from 'react-router';
 import { Card } from '@/components/ui/card';
+import { formatLocalDate } from '@/domain/dates';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
-import type { PlannedExercise, Weekday } from '@/domain/types';
+import type { PlannedExercise, Unit, Weekday } from '@/domain/types';
 import {
   useExerciseNames,
   usePlacements,
   usePlannedExercises,
   useRoutine,
+  useSettings,
   useWorkouts,
 } from '@/features/data/queries';
+import { AddPlannedExerciseForm, AddWorkoutForm } from '@/features/routines/AddToRoutine';
 import { plural, programmingLine, weekdayName } from '@/features/ui/format';
 import {
   LABEL,
@@ -39,6 +46,9 @@ export function RoutineDetailScreen() {
   const routineWorkouts = useWorkouts(routineId);
   const routinePlacements = usePlacements(routineId);
   const counted = routineWorkouts !== undefined && routinePlacements !== undefined;
+  // The unit an added exercise opens on. A *default*, exactly as §32 means it:
+  // the value used when nothing more specific is known.
+  const defaultUnit: Unit = useSettings()?.defaultUnit ?? 'kg';
 
   const workouts = routineWorkouts ?? [];
   const placements = routinePlacements ?? [];
@@ -52,8 +62,8 @@ export function RoutineDetailScreen() {
       <section className={WELL}>
         <p className="type-title">No such routine</p>
         <p className="type-body-sm text-ink-2">
-          It may have been deleted. Everything you have imported is on the routines
-          screen.
+          It may have been deleted. Every routine you have, imported or built, is on the
+          routines screen.
         </p>
       </section>
     );
@@ -74,8 +84,25 @@ export function RoutineDetailScreen() {
       </header>
 
       {workouts.map((workout) => (
-        <WorkoutCard key={workout.id} name={workout.name} suggestedDays={workout.suggestedDays} workoutId={workout.id} />
+        <WorkoutCard
+          active={routine.status === 'active'}
+          defaultUnit={defaultUnit}
+          key={workout.id}
+          name={workout.name}
+          suggestedDays={workout.suggestedDays}
+          workoutId={workout.id}
+        />
       ))}
+
+      {routine.status === 'active' && (
+        <AddWorkoutForm
+          routineCreatedAt={routine.createdAt}
+          routineId={routine.id}
+          routineWeeks={routine.weeks}
+          siblings={workouts}
+          today={formatLocalDate(new Date())}
+        />
+      )}
     </>
   );
 }
@@ -84,9 +111,11 @@ interface WorkoutCardProps {
   readonly workoutId: WorkoutId;
   readonly name: string;
   readonly suggestedDays: readonly Weekday[];
+  readonly active: boolean;
+  readonly defaultUnit: Unit;
 }
 
-function WorkoutCard({ workoutId, name, suggestedDays }: WorkoutCardProps) {
+function WorkoutCard({ workoutId, name, suggestedDays, active, defaultUnit }: WorkoutCardProps) {
   const planned = usePlannedExercises(workoutId);
   const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
@@ -119,6 +148,14 @@ function WorkoutCard({ workoutId, name, suggestedDays }: WorkoutCardProps) {
             />
           ))}
         </div>
+      )}
+
+      {active && (
+        <AddPlannedExerciseForm
+          defaultUnit={defaultUnit}
+          workoutId={workoutId}
+          workoutName={name}
+        />
       )}
     </Card>
   );

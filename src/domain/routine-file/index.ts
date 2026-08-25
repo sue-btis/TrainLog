@@ -80,3 +80,13 @@ export {
   resolveTypedName,
   type Offer,
 } from '@/domain/routine-file/offer';
+
+/**
+ * Targets entered outside the wizard, dressed as a file so `validateRoutineFile`
+ * can check them — one semantic tier, not two that must agree (REQ-913).
+ */
+export {
+  plannedExerciseDraftFile,
+  plannedExerciseDraftRefusals,
+  type PlannedExerciseDraft,
+} from '@/domain/routine-file/planned-exercise-draft';

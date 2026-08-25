@@ -12,12 +12,14 @@ import {
   DEFAULT_REST_SECONDS,
   ROUNDING_MINUTES,
   WORK_SECONDS_PER_SET,
+  claimantsOfDay,
   dayState,
   estimateDuration,
   generatePlacements,
   isMissed,
   nextWorkoutInRotation,
   placementState,
+  remainingWeeks,
   tallyMonth,
 } from '@/domain/scheduling';
 
@@ -317,5 +319,123 @@ describe('tallyMonth (§11.3)', () => {
     expect(tallyMonth(placements, sessions, today)).toMatchObject({
       kept: 1, missed: 0, unplanned: 2,
     });
+  });
+});
+
+/**
+ * TST-400…406 (REQ-402, REQ-403) — how much of a block is still ahead, which is
+ * what decides how far a Workout added mid-Routine is placed.
+ */
+describe('remainingWeeks', () => {
+  const monday = toLocalDate('2026-09-07');
+
+  // TST-400
+  it('counts whole Monday-aligned weeks elapsed', () => {
+    expect(remainingWeeks(8, monday, toLocalDate('2026-09-30'))).toBe(5);
+  });
+
+  // TST-401
+  it('is zero once the block has run out, never negative', () => {
+    expect(remainingWeeks(4, monday, toLocalDate('2026-10-20'))).toBe(0);
+    expect(remainingWeeks(4, monday, toLocalDate('2027-01-01'))).toBe(0);
+  });
+
+  // TST-402 — the divergence a rolling 7-day rule would get wrong.
+  it('aligns weeks to Monday, not to the anchor day', () => {
+    const wednesday = toLocalDate('2026-08-05');
+
+    // One Monday boundary has been crossed, so one week is gone — even though
+    // only five days separate the two dates.
+    expect(remainingWeeks(4, wednesday, toLocalDate('2026-08-10'))).toBe(3);
+    // Still inside the anchor's own week: nothing elapsed.
+    expect(remainingWeeks(4, wednesday, toLocalDate('2026-08-08'))).toBe(4);
+    // Before the anchor cannot yield more than the block declares.
+    expect(remainingWeeks(4, wednesday, toLocalDate('2026-07-20'))).toBe(4);
+  });
+
+  // TST-403 — `Routine.weeks` carries no bound anywhere in the schema.
+  it('is zero for a zero or negative block', () => {
+    expect(remainingWeeks(0, monday, toLocalDate('2026-09-07'))).toBe(0);
+    expect(remainingWeeks(-4, monday, toLocalDate('2026-09-07'))).toBe(0);
+  });
+
+  // TST-404 — the composition the add-Workout form previews and the writer runs.
+  it('composes with generatePlacements to an exact span, none before today', () => {
+    const today = toLocalDate('2026-09-30');
+    const placements = generatePlacements({
+      workouts: [workout('push', 0, ['monday', 'thursday'])],
+      weeks: remainingWeeks(8, monday, today),
+      anchorDate: today,
+    });
+
+    expect(placements).toHaveLength(9);
+    expect(placements[0]!.date).toBe('2026-10-01');
+    expect(placements[placements.length - 1]!.date).toBe('2026-10-29');
+    expect(placements.every((placement) => placement.date >= today)).toBe(true);
+  });
+
+  // TST-405 / TST-406 — the two ways an add legitimately places nothing.
+  it('places nothing for a spent block or a Workout claiming no day', () => {
+    const anchor = toLocalDate('2026-09-07');
+    expect(
+      generatePlacements({ workouts: [workout('push', 0, ['monday'])], weeks: 0, anchorDate: anchor }),
+    ).toHaveLength(0);
+    expect(
+      generatePlacements({ workouts: [workout('push', 0, [])], weeks: 8, anchorDate: anchor }),
+    ).toHaveLength(0);
+  });
+});
+
+/**
+ * TST-407, TST-408, TST-420, TST-421 (REQ-401, REQ-405, REQ-406) — what a
+ * shared suggested day actually costs, which is what the add-Workout form's
+ * warning has to state.
+ */
+describe('a Workout added to a Routine already running', () => {
+  const push = workout('push', 0, ['monday']);
+  const pull = workout('pull', 1, ['monday']);
+
+  // TST-408
+  it('is reached by the rotation once it holds the highest order', () => {
+    expect(nextWorkoutInRotation([push, pull], toId<WorkoutId>('push'))!.id).toBe('pull');
+    expect(nextWorkoutInRotation([push, pull], toId<WorkoutId>('pull'))!.id).toBe('push');
+  });
+
+  // TST-420 — DEC-Q1's only automated coverage.
+  it('names the Workouts already claiming a day, in order', () => {
+    expect(claimantsOfDay([push, pull], 'monday').map((w) => w.id)).toEqual(['push', 'pull']);
+    expect(claimantsOfDay([push, pull], 'friday')).toEqual([]);
+    // Given out of order, because the caller's sorting is not the guarantee
+    // being made — the warning reads `[0]` as the one Today will prefer.
+    expect(claimantsOfDay([pull, push], 'monday').map((w) => w.id)).toEqual(['push', 'pull']);
+  });
+
+  // TST-407
+  it('places both Workouts on the shared day, one each', () => {
+    const placements = generatePlacements({
+      workouts: [push, pull],
+      weeks: 1,
+      anchorDate: toLocalDate('2026-09-07'),
+    });
+
+    expect(dates(placements)).toEqual(['2026-09-07', '2026-09-07']);
+    expect(placements.map((p) => p.workoutId)).toEqual(['push', 'pull']);
+  });
+
+  // TST-421 — the consequence the warning must name: training one of the two
+  // leaves the other deriving as missed, every remaining week.
+  it('derives the untrained one as missed on every colliding date', () => {
+    const placements = generatePlacements({
+      workouts: [push, pull],
+      weeks: 1,
+      anchorDate: toLocalDate('2026-09-07'),
+    });
+    const sessions = [session('push', noonOn('2026-09-07'))];
+    const today = toLocalDate('2026-09-08');
+
+    const missed = placements.filter((placement) => isMissed(placement, sessions, today));
+
+    expect(missed).toHaveLength(1);
+    expect(missed[0]!.workoutId).toBe('pull');
   });
 });
