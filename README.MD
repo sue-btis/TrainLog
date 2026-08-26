@@ -8,9 +8,6 @@ Built for one situation: a phone, in a gym, with unreliable signal. No account,
 no server, no subscription — your data lives in your browser and leaves only when
 you export it.
 
-> **Status: design.** The specification, glossary and architectural decisions are
-> written. No application code exists yet.
-
 ## The idea
 
 Two things are kept strictly apart:
@@ -31,7 +28,7 @@ Tuesday is not an exception the app has to handle, it is just how it works.
 ## Your routine, as a file
 
 ```yaml
-version: 1
+version: 2
 
 routine:
   name: "Hybrid Strength - September"
@@ -52,30 +49,68 @@ routine:
           progression:
             type: "double_progression"
             increment: 2.5
+
+        - name: "Plank"
+          measurement: "duration"
+          sets: 3
+          target: { min: 45, max: 60 }   # seconds, no rep range
+          rest_seconds: 60
+          progression:
+            type: "manual"
 ```
 
-Import it, review it, confirm the days, train.
+Import it, review it, confirm the days, train. Version `1` files still load —
+they mean weight × reps throughout. Version `2` adds `measurement`, so an
+exercise can be measured in reps, time, distance, added or assisted bodyweight,
+or a pair of those, and states its target on whichever axis it is scored on.
 
-## Planned for the first version
+You do not have to write the file by hand: routines can also be created and
+edited inside the app.
 
-Routine import with a review step · calendar you control · workout execution with
-weight, reps and RIR · rest timer that survives a locked phone · previous
-performance shown when you need it · per-exercise history · double progression ·
-full backup, restore and CSV export · installable, and fully usable offline.
+## What it does
+
+Routine import with a review step · routine authoring and editing in-app ·
+calendar you control, with placements you can move to any day · workout execution
+with weight, reps, RIR, duration and distance · rest timer that survives a locked
+phone · previous performance shown when you need it · nine measurement types ·
+bodyweight as a setting, recorded onto the sessions that need it · exercise
+catalog shipped in the build · per-exercise history and session detail ·
+estimated 1RM and personal records · progress dashboard · double progression ·
+session effort · full backup, restore and CSV export · installable, and fully
+usable offline.
 
 Deliberately out of scope: accounts, cloud sync, social features, nutrition,
 wearables, and AI coaching.
+
+## Running it
+
+```bash
+pnpm install
+pnpm dev
+```
+
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Dev server (`pnpm dev:phone` serves over HTTPS for a phone on the LAN) |
+| `pnpm test` | Vitest, with `fake-indexeddb` |
+| `pnpm typecheck` | `tsc --noEmit` over the app and node configs |
+| `pnpm lint` | ESLint |
+| `pnpm build` | Static build into `dist/` |
 
 ## Documentation
 
 | Document | What it holds |
 | --- | --- |
 | [docs/PRD.md](./docs/PRD.md) | The full product specification |
+| [PRODUCT.md](./PRODUCT.md) | Product purpose, users, and the committed stack |
+| [DESIGN.md](./DESIGN.md) | The visual system |
 | [CONTEXT.md](./CONTEXT.md) | Glossary — the words this project uses, and the ones it avoids |
 | [docs/adr/](./docs/adr/) | Architectural decisions and why they were made |
+| [docs/changes/](./docs/changes/) | One folder per change: spec, plan, execution, verification |
 | [AGENTS.MD](./AGENTS.MD) | Rules for working in this repository |
 
 ## Stack
 
-React · TypeScript · Vite · React Router · Dexie over IndexedDB · Zod ·
-vite-plugin-pwa. Deploys as static files to any host.
+React · TypeScript · Vite · React Router · Tailwind CSS · Radix · Dexie over
+IndexedDB · Zod · Recharts · vite-plugin-pwa · Vitest. Layering is one-way:
+`features → db → domain`. Deploys as static files to any host.
