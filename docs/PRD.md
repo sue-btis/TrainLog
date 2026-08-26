@@ -1649,7 +1649,7 @@ date,exercise,set,weight,unit,reps,rir,measurement,duration_s,distance,distance_
 2026-08-18,Front Squat,1,75,kg,6,2,weight_reps,,,
 2026-08-18,Front Squat,2,75,kg,6,2,weight_reps,,,
 2026-08-18,Plank,1,0,kg,,0,duration,45,,
-2026-08-18,Broad Jump,1,0,kg,,0,distance,,2.4,m
+2026-08-18,Medicine Ball Throw,1,0,kg,,0,distance,,9.4,m
 ```
 
 Esto facilitará análisis externos.

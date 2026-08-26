@@ -37,17 +37,22 @@ routine:
       suggested_days: [monday]
       exercises:
         # distance — una distancia y nada más. El objetivo va en metros, y el
-        # récord es el salto más largo. Manual: no hay carga que incrementar,
-        # y la regla de parada la juzga el levantador.
-        - name: "Broad Jump"
-          exercise_id: "broad-jump"
+        # récord es el lanzamiento más largo. Manual: no hay carga que
+        # incrementar, y la regla de parada la juzga el levantador.
+        #
+        # Un lanzamiento, no un salto: lo que se mide de verdad en metros es lo
+        # que recorre el balón. Un salto se cuenta en saltos y va en `reps` —
+        # por eso Broad Jump es `bodyweight_reps` en el catálogo.
+        - name: "Medicine Ball Throw"
+          category: "full-body"
+          measurement: "distance"
           sets: 4
-          target: { min: 2.2, max: 2.6 }
+          target: { min: 8, max: 12 }
           rest_seconds: 120
           focus: "Potencia horizontal"
           notes:
-            - "Máxima distancia, aterrizaje absorbido y estable"
-            - "Si la distancia cae respecto a la primera serie, para"
+            - "Balón fijo; lo que progresa es la distancia"
+            - "Si la distancia cae respecto al primer lanzamiento, para"
           progression: { type: "manual" }
 
         # weight_reps — el caso de siempre. Objetivo en repeticiones, avance en

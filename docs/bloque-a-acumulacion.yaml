@@ -7,22 +7,36 @@
 # Cardio (fuera del archivo): HIIT 30 s fuerte / 90 s descanso x 4-6, martes y
 # sábado. Miércoles caminata o bici suave 30 min. Domingo descanso.
 #
-# Formato v2. Los tres holds — Planche Lean, Handstand Hold, Tuck Planche Hold —
-# ya no fingen ser series de una repetición: se miden en tiempo y declaran su
-# objetivo en `target`, en segundos. Los segundos que antes vivían en `notes`
-# son ahora el objetivo real, así que la app puede marcarlos y graficarlos.
+# Formato v2, con los nueve tipos de medición (ver `examples/hibrido-v2.yaml`).
 #
-# Van por `exercise_id` contra el catálogo, así que Bloque A y Bloque B
+# El rango de objetivo va sobre el eje del tipo: `reps` para repeticiones,
+# `target` en segundos para los tiempos, `target` en metros para las distancias.
+# Nunca los dos, nunca ninguno.
+#
+# Los tres holds — Planche Lean, Handstand Hold, Tuck Planche Hold — se miden en
+# tiempo y van por `exercise_id` contra el catálogo, así que Bloque A y Bloque B
 # comparten el mismo historial en cada uno de los tres.
 #
-# Broad Jump se mide en distancia, con un rango a propósito ancho: el programa
-# no fija un objetivo, se salta al máximo, y un rango estrecho marcaría como
-# «fuera de plan» un salto que no lo está. La regla real — parar cuando la
-# distancia cae respecto a la primera serie — sigue en `notes`, porque es una
-# comparación contra el propio día y el formato no la puede enunciar.
+# `measurement` sólo se declara donde el import **crea** el ejercicio: Pogo
+# Jumps, Lean Push-Up, Handstand Press / Negative y Pseudo Planche Push-Up son
+# `bodyweight_reps`. Weighted Hanging Leg Raise no se declara: va por
+# `exercise_id` contra el catálogo, que lo mide como `weighted_bodyweight` — el
+# lastre entre los pies es peso añadido al del levantador, no carga externa.
 #
-# Las habilidades siguen en el eje de repeticiones. Todos ellos son `manual`:
-# no hay carga que incrementar.
+# Lo que resuelve contra el catálogo conserva el tipo del catálogo y no se
+# reescribe aquí — por eso Back Extension ya no declara `unit`: el catálogo lo
+# mide sin carga.
+#
+# La progresión doble avanza por eje. Donde hay carga, avanza la carga; donde no
+# la hay, avanza el objetivo mismo: +5 s en los holds, +2 repeticiones en las
+# habilidades sin lastre. Weighted Hanging Leg Raise sí lleva lastre, así que
+# ahí el +2 son kilos.
+#
+# Siguen `manual` los que dependen de un juicio que el formato no puede enunciar:
+# Broad Jump (se cuentan saltos, se salta al máximo, y la regla — parar cuando
+# la distancia cae respecto al primero — vive en `notes`), Barbell Jump Squat
+# (se progresa por velocidad), Handstand Press / Negative (técnica, nunca al
+# fallo) y los calentamientos.
 
 version: 2
 
@@ -37,6 +51,7 @@ routine:
       exercises:
         - name: "Pogo Jumps"
           category: "calves"
+          measurement: "bodyweight_reps"
           sets: 3
           reps: { min: 10, max: 10 }
           rest_seconds: 60
@@ -50,13 +65,13 @@ routine:
           exercise_id: "broad-jump"
           category: "quadriceps"
           sets: 4
-          target: { min: 1.5, max: 3.5 }
+          reps: { min: 3, max: 3 }
           rest_seconds: 120
           focus: "Potencia horizontal"
           notes:
             - "Máxima distancia, aterrizaje absorbido y estable"
-            - "El rango es deliberadamente ancho: no hay objetivo, se salta al máximo"
-            - "Si la distancia cae respecto a la primera serie, para"
+            - "Se cuentan saltos, no metros: tres por serie"
+            - "Si la distancia cae respecto al primer salto, para"
           progression: { type: "manual" }
 
         - name: "Barbell Jump Squat"
@@ -100,7 +115,6 @@ routine:
         - name: "Back Extension"
           exercise_id: "back-extension"
           category: "back"
-          unit: "kg"
           sets: 3
           reps: { min: 8, max: 12 }
           rir: { min: 1, max: 2 }
@@ -130,7 +144,7 @@ routine:
           rest_seconds: 60
           notes:
             - "Progresar hasta 25 reps antes de añadir carga"
-          progression: { type: "manual" }
+          progression: { type: "double_progression", increment: 2 }
 
         - name: "Cable Lateral Raise"
           exercise_id: "cable-lateral-raise"
@@ -154,16 +168,18 @@ routine:
             - "Estiramiento de la cabeza larga"
           progression: { type: "double_progression", increment: 2 }
 
-        - name: "Hanging Leg Raise"
-          exercise_id: "hanging-leg-raise"
+        - name: "Weighted Hanging Leg Raise"
+          exercise_id: "weighted-hanging-leg-raise"
           category: "core"
+          unit: "kg"
           sets: 3
           reps: { min: 6, max: 10 }
           rir: { min: 1, max: 2 }
           rest_seconds: 90
           notes:
             - "Control antes que rango; sin balanceo"
-          progression: { type: "manual" }
+            - "El peso es el lastre entre los pies; sin lastre son 0 kg"
+          progression: { type: "double_progression", increment: 2 }
 
     # ----------------------------------------------------------------- martes
     - name: "Upper Push + Habilidades"
@@ -171,6 +187,7 @@ routine:
       exercises:
         - name: "Lean Push-Up"
           category: "chest"
+          measurement: "bodyweight_reps"
           sets: 2
           reps: { min: 10, max: 12 }
           rir: { min: 3, max: 3 }
@@ -187,7 +204,7 @@ routine:
           focus: "Progresión de planche"
           notes:
             - "Escápulas protraídas, cadera abierta, adelantar hasta el límite controlable"
-          progression: { type: "manual" }
+          progression: { type: "double_progression", increment: 5 }
 
         - name: "Handstand Hold"
           exercise_id: "handstand-hold"
@@ -198,10 +215,11 @@ routine:
           focus: "Línea corporal"
           notes:
             - "Hombros elevados, core firme"
-          progression: { type: "manual" }
+          progression: { type: "double_progression", increment: 5 }
 
         - name: "Handstand Press / Negative"
           category: "shoulders"
+          measurement: "bodyweight_reps"
           sets: 3
           reps: { min: 1, max: 3 }
           rir: { min: 2, max: 3 }
@@ -300,7 +318,7 @@ routine:
           focus: "Anti-extensión"
           notes:
             - "Lumbar sin arquear; extiende sólo hasta donde lo controles"
-          progression: { type: "manual" }
+          progression: { type: "double_progression", increment: 2 }
 
     # ----------------------------------------------------------------- jueves
     - name: "Lower Fuerza"
@@ -364,17 +382,18 @@ routine:
           focus: "Progresión de planche"
           notes:
             - "Avanza a advanced tuck sólo cuando sostengas 3 x 20 s limpios"
-          progression: { type: "manual" }
+          progression: { type: "double_progression", increment: 5 }
 
         - name: "Pseudo Planche Push-Up"
           category: "chest"
+          measurement: "bodyweight_reps"
           sets: 3
           reps: { min: 8, max: 12 }
           rir: { min: 1, max: 2 }
           rest_seconds: 90
           notes:
             - "Manos a la cadera, hombros por delante de las muñecas"
-          progression: { type: "manual" }
+          progression: { type: "double_progression", increment: 2 }
 
         - name: "Cable Lateral Raise"
           exercise_id: "cable-lateral-raise"
@@ -414,7 +433,7 @@ routine:
           reps: { min: 15, max: 25 }
           rir: { min: 1, max: 2 }
           rest_seconds: 60
-          progression: { type: "manual" }
+          progression: { type: "double_progression", increment: 2 }
 
         - name: "Cable Crunch"
           exercise_id: "cable-crunch"

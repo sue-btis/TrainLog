@@ -19,9 +19,13 @@ import { MEASUREMENTS } from '@/domain/measurement';
 import { parseRoutineFile } from '@/domain/routine-file/schema';
 
 describe('catalog', () => {
-  it('has 60–100 entries (REQ-020)', () => {
+  it('has 60–110 entries (REQ-020)', () => {
+    // The upper bound moved with the weighted twins: a loaded movement is its
+    // own row, never a mutation of the unloaded one, so seven of them cost
+    // seven rows. The bound guards against a catalog that grows into a search
+    // problem, not against a specific number.
     expect(CATALOG.length).toBeGreaterThanOrEqual(60);
-    expect(CATALOG.length).toBeLessThanOrEqual(100);
+    expect(CATALOG.length).toBeLessThanOrEqual(110);
   });
 
   it('every id is a kebab-case slug (REQ-023)', () => {
@@ -333,12 +337,25 @@ describe('catalog measurement', () => {
     expect(undeclared.map((entry) => entry.id)).toEqual([]);
   });
 
-  it.each(['weighted-dip', 'weighted-pull-up'])(
-    'types %s as weighted_bodyweight (REQ-123, AC-134)',
-    (slug) => {
-      expect(getCatalogExercise(toId<ExerciseId>(slug))?.measurement).toBe('weighted_bodyweight');
-    },
-  );
+  /** Every loaded twin: the two that always shipped, and the seven added since. */
+  const WEIGHTED_TWINS = [
+    'weighted-dip', 'weighted-pull-up', 'weighted-chin-up', 'weighted-push-up',
+    'weighted-inverted-row', 'weighted-back-extension', 'weighted-glute-ham-raise',
+    'weighted-hanging-leg-raise', 'weighted-russian-twist',
+  ] as const;
+
+  it.each(WEIGHTED_TWINS)('types %s as weighted_bodyweight (REQ-123, AC-134)', (slug) => {
+    expect(getCatalogExercise(toId<ExerciseId>(slug))?.measurement).toBe('weighted_bodyweight');
+  });
+
+  // The naming rule is the whole navigation story: a lifter who has outgrown a
+  // movement finds its loaded version by prefixing the name they already know.
+  // A twin whose unloaded half is missing would be a row nobody arrives at.
+  it.each(WEIGHTED_TWINS)('%s is the loaded twin of a bodyweight_reps row', (slug) => {
+    const unloaded = getCatalogExercise(toId<ExerciseId>(slug.replace(/^weighted-/, '')));
+    expect(unloaded, `${slug} names no unloaded twin`).toBeDefined();
+    expect(unloaded?.measurement).toBe('bodyweight_reps');
+  });
 
   it('adds new slugs only, renaming and removing none (AC-135)', () => {
     // Both directions: nothing added collides with a frozen slug, and the two
@@ -350,18 +367,20 @@ describe('catalog measurement', () => {
     expect(CATALOG.length).toBe(frozen.length + added.length);
   });
 
-  it('adds isometric holds and jumps only — no cardio, no rep-based row (AC-169)', () => {
+  it('adds no cardio row (AC-169)', () => {
     // `distance_duration` is the cardio type. The change owner's programme
     // contains no running, cycling, rowing or swimming, and such a movement
     // names no muscle group, which would dirty the `category` vocabulary that
     // PRD §39 item 8 groups volume over.
     expect(CATALOG.filter((entry) => entry.measurement === 'distance_duration')).toEqual([]);
 
-    // A missing rep-based movement is a catalog gap, not a measurement gap:
-    // `createUserExercise` already covers it, so nothing added here is one.
+    // Re-scoped to this change's boundary rather than the previous one's:
+    // DEC-S forbade a new rep-based row, and the weighted twins revoke it. What
+    // survives is the cardio exclusion above and the shape of what may be
+    // added — a hold, a rep-counted movement, or a loaded twin of one.
     expect(added.length).toBeGreaterThan(0);
     for (const entry of added) {
-      expect(['duration', 'distance']).toContain(entry.measurement);
+      expect(['duration', 'bodyweight_reps', 'weighted_bodyweight']).toContain(entry.measurement);
     }
   });
 
@@ -416,8 +435,10 @@ describe('the movements bloque-a-acumulacion.yaml programmes', () => {
     },
   );
 
-  it('resolves Broad Jump to a distance row', () => {
-    expect(programmedAs('Broad Jump')?.measurement).toBe('distance');
+  // Counted in jumps, not measured in metres: a set is three of them, and what
+  // the programme tracks is the reps performed (DEC-R, revised).
+  it('resolves Broad Jump to a bodyweight_reps row', () => {
+    expect(programmedAs('Broad Jump')?.measurement).toBe('bodyweight_reps');
   });
 
   it('still resolves every movement the file names by exercise_id', () => {
