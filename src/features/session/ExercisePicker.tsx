@@ -21,6 +21,7 @@ import { CATALOG, normalizeExerciseName } from '@/domain/catalog';
 import type { ExerciseId } from '@/domain/ids';
 import type { Exercise } from '@/domain/types';
 import { usePerformedExercises, useUserExercises } from '@/features/data/queries';
+import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { FOCUS_RING, ICON_STROKE, LABEL, PRESS, ROW, ROW_LIST, WELL } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -192,20 +193,30 @@ function Group({
               onClick={() => onPick(exercise)}
               type="button"
             >
-              <span className="flex items-center gap-2 type-title">
-                {exercise.name}
-                {adding && (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="ml-auto shrink-0 animate-spin text-ink-3"
-                    size={16}
-                    strokeWidth={ICON_STROKE}
-                  />
-                )}
+              {/* The same row the catalog screen draws, for the same reason:
+                  this is the other place a lifter scans ninety movements
+                  looking for one, and a figure is read faster than a name. The
+                  row turns horizontal to seat it, so the name and the category
+                  stack beside the drawing rather than under it. */}
+              <span className="flex items-center gap-3">
+                <ExerciseArt className="size-11 text-planned-ink" id={exercise.id} reserve />
+                <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <span className="flex items-center gap-2 type-title">
+                    {exercise.name}
+                    {adding && (
+                      <LoaderCircle
+                        aria-hidden="true"
+                        className="ml-auto shrink-0 animate-spin text-ink-3"
+                        size={16}
+                        strokeWidth={ICON_STROKE}
+                      />
+                    )}
+                  </span>
+                  {exercise.category !== null && (
+                    <span className="type-measure-sm text-ink-3">{exercise.category}</span>
+                  )}
+                </span>
               </span>
-              {exercise.category !== null && (
-                <span className="type-measure-sm text-ink-3">{exercise.category}</span>
-              )}
             </button>
           );
         })}

@@ -13,7 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
-    "pwa:assets": "pwa-assets-generator"
+    "pwa:assets": "pwa-assets-generator",
+    "art": "node scripts/exercise-art.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

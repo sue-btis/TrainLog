@@ -24,6 +24,7 @@ import { summarizeExercise, type ExerciseSummary } from '@/domain/history';
 import type { ExerciseId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
 import { useExerciseHistory, useExerciseNames } from '@/features/data/queries';
+import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { Figure } from '@/features/ui/Figure';
 import { load, longDate, plural, sessionStatusLabel, setLine, shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
@@ -52,15 +53,21 @@ export function ExerciseHistoryScreen() {
 
   return (
     <>
-      <header className="flex flex-col gap-1">
-        <h2 className="type-display">{name ?? 'Exercise'}</h2>
-        <p className="type-measure text-ink-3">
-          {summary.sessions === 0
-            ? 'not performed yet'
-            : `${plural(summary.sessions, 'session')} · last ${shortDate(
-                formatLocalDate(new Date(summary.lastPerformed!)),
-              )}`}
-        </p>
+      {/* The whole screen is about one movement, so the figure belongs in its
+          title rather than beside a row. Bigger than anywhere else in the app
+          for the same reason: nothing here competes with it. */}
+      <header className="flex items-center gap-4">
+        <ExerciseArt className="size-20 text-planned-ink" id={id} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h2 className="type-display">{name ?? 'Exercise'}</h2>
+          <p className="type-measure text-ink-3">
+            {summary.sessions === 0
+              ? 'not performed yet'
+              : `${plural(summary.sessions, 'session')} · last ${shortDate(
+                  formatLocalDate(new Date(summary.lastPerformed!)),
+                )}`}
+          </p>
+        </div>
       </header>
 
       {summary.sessions === 0 ? (

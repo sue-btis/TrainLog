@@ -19,13 +19,15 @@ import { MEASUREMENTS } from '@/domain/measurement';
 import { parseRoutineFile } from '@/domain/routine-file/schema';
 
 describe('catalog', () => {
-  it('has 60–110 entries (REQ-020)', () => {
-    // The upper bound moved with the weighted twins: a loaded movement is its
-    // own row, never a mutation of the unloaded one, so seven of them cost
-    // seven rows. The bound guards against a catalog that grows into a search
-    // problem, not against a specific number.
-    expect(CATALOG.length).toBeGreaterThanOrEqual(60);
-    expect(CATALOG.length).toBeLessThanOrEqual(110);
+  it('has 250–400 entries (REQ-020)', () => {
+    // The bound guards against a catalog that grows into a search problem, not
+    // against a specific number, and the Workout Guide import moved where that
+    // problem starts: 107 rows became 299. What keeps it navigable is the
+    // catalog screen's search and equipment filter, not the row count — a
+    // lifter looks a movement up, they do not scroll to it. Past ~400 that
+    // stops being true and the screen needs more than a filter.
+    expect(CATALOG.length).toBeGreaterThanOrEqual(250);
+    expect(CATALOG.length).toBeLessThanOrEqual(400);
   });
 
   it('every id is a kebab-case slug (REQ-023)', () => {
@@ -206,7 +208,7 @@ describe('groupExercises', () => {
     const withNone = [...CATALOG, own('Sled Push', 'full-body', null)];
     const barbell = groupExercises(withNone, '', 'barbell');
     const shown = barbell.flatMap((group) => group.exercises);
-    expect(shown).toHaveLength(34);
+    expect(shown).toHaveLength(42);
     expect(shown.every((exercise) => exercise.equipment === 'barbell')).toBe(true);
 
     const unfiltered = groupExercises(withNone, '', null).flatMap((group) => group.exercises);
@@ -374,14 +376,13 @@ describe('catalog measurement', () => {
     // PRD §39 item 8 groups volume over.
     expect(CATALOG.filter((entry) => entry.measurement === 'distance_duration')).toEqual([]);
 
-    // Re-scoped to this change's boundary rather than the previous one's:
-    // DEC-S forbade a new rep-based row, and the weighted twins revoke it. What
-    // survives is the cardio exclusion above and the shape of what may be
-    // added — a hold, a rep-counted movement, or a loaded twin of one.
+    // The list of *permitted* measurements is gone, not relaxed. Earlier
+    // changes added a handful of rows each and could name what they added; the
+    // Workout Guide import adds 192 across five measurement types, so an
+    // allow-list would just be `MEASUREMENTS` minus one member, restated. The
+    // exclusion above is the rule that survives, and it is asserted over the
+    // whole catalog rather than over the added half.
     expect(added.length).toBeGreaterThan(0);
-    for (const entry of added) {
-      expect(['duration', 'bodyweight_reps', 'weighted_bodyweight']).toContain(entry.measurement);
-    }
   });
 
   it('leaves the two vocabularies exactly as they were (REQ-140, AC-170)', () => {

@@ -54,6 +54,7 @@ import type { Measurement } from '@/domain/measurement';
 import type { Exercise } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
 import { SelectField, TextField } from '@/features/ui/fields';
+import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { MuscleIcon } from '@/features/exercises/MuscleIcon';
 import { MEASUREMENT_OPTIONS, plural } from '@/features/ui/format';
 import {
@@ -246,15 +247,21 @@ export function ExerciseCatalogScreen() {
                 {group.exercises.map((exercise) => (
                   <div className={ROW} key={exercise.id}>
                     <Link
-                      className={cn('flex flex-col gap-1.5', PRESS)}
+                      className={cn('flex items-center gap-3', PRESS)}
                       to={`/exercises/${exercise.id}`}
                     >
-                      <span className="type-title">{exercise.name}</span>
-                      {exercise.equipment !== null && (
-                        <span className="type-measure-sm capitalize text-ink-3">
-                          {exercise.equipment}
-                        </span>
-                      )}
+                      {/* Tinted, not full-strength: the row is read by its
+                          name, and a black figure beside it would out-weigh
+                          the word it illustrates. */}
+                      <ExerciseArt className="size-11 text-planned-ink" id={exercise.id} reserve />
+                      <span className="flex min-w-0 flex-col gap-1.5">
+                        <span className="type-title">{exercise.name}</span>
+                        {exercise.equipment !== null && (
+                          <span className="type-measure-sm capitalize text-ink-3">
+                            {exercise.equipment}
+                          </span>
+                        )}
+                      </span>
                     </Link>
                     {mine.has(exercise.id) && <CorrectMeasurement exercise={exercise} />}
                   </div>

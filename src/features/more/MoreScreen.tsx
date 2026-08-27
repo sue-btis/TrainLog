@@ -46,6 +46,18 @@ export function MoreScreen() {
         </span>
         <ChevronRight aria-hidden="true" className="text-ink-3" size={20} strokeWidth={ICON_STROKE} />
       </Link>
+
+      {/* Not a courtesy — a licence term. The exercise figures are CC BY-SA
+          4.0, and that licence requires the credit to travel with the work
+          wherever it is shown. This screen is the only surface a lifter reaches
+          that is not itself a task, so it is where the credit can sit without
+          interrupting anything. Kept as text rather than a link: the app makes
+          no network requests, and a tappable URL that does nothing offline
+          would be worse than a readable one. */}
+      <p className="type-body-sm text-ink-3 px-1">
+        Exercise figures by Bryl Lim and Everkinetic, from Workout Guide
+        (github.com/bryllim/workout-guide), used under CC BY-SA 4.0.
+      </p>
     </>
   );
 }

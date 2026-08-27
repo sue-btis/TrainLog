@@ -114,3 +114,20 @@ pnpm dev
 React · TypeScript · Vite · React Router · Tailwind CSS · Radix · Dexie over
 IndexedDB · Zod · Recharts · vite-plugin-pwa · Vitest. Layering is one-way:
 `features → db → domain`. Deploys as static files to any host.
+
+## Credits
+
+The exercise catalog in [`src/domain/catalog/data.ts`](./src/domain/catalog/data.ts)
+and the figures in [`public/exercise-art/`](./public/exercise-art) both come from
+[Workout Guide](https://github.com/bryllim/workout-guide) by Bryl Lim. The
+package is not a dependency: the movement rows were copied at build time and
+remapped to this project's vocabulary, and one frame of each drawing was
+optimized into the files this app ships.
+
+The two halves carry different licences, and the second one binds this project:
+
+- Movement metadata — **MIT**.
+- Exercise figures, and the Everkinetic artwork they derive from — **CC BY-SA
+  4.0**. The credit that licence requires is shown in the app on the More
+  screen, and the drawings stay under CC BY-SA 4.0 wherever they are
+  redistributed from here.

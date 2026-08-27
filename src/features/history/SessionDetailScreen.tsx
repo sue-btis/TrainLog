@@ -38,6 +38,7 @@ import {
   setLine,
   snapshotLine,
 } from '@/features/ui/format';
+import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -167,16 +168,25 @@ function FinishSummary({
             {summary.records.length === 1 ? 'a new best' : `${summary.records.length} new bests`}
           </span>
           {summary.records.map((record) => (
-            <div className="flex flex-col gap-1" key={record.exerciseId}>
-              <span className="type-title text-ink">
-                {names?.get(record.exerciseId) ?? 'Exercise'}
-              </span>
-              {/* The set in its own notation, and the axis it beat named in
-                  its own words: less assistance and a faster pace are records
-                  that a bigger number would report backwards (REQ-115). */}
-              <span className="type-measure text-ink-2">
-                {setLine(record.set, record.measurement, true)} · beats everything before it
-              </span>
+            // The one place a figure is not navigation. Everywhere else it
+            // helps a lifter find a movement in a list; here there is no list
+            // and nothing to find — three entries at most, arriving at the end
+            // of a session. It shows what was just beaten, which is the whole
+            // point of the panel, and it carries the progress hue rather than
+            // the planned one so the block stays one colour.
+            <div className="flex items-center gap-3" key={record.exerciseId}>
+              <ExerciseArt className="size-12 text-progress-ink" id={record.exerciseId} reserve />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="type-title text-ink">
+                  {names?.get(record.exerciseId) ?? 'Exercise'}
+                </span>
+                {/* The set in its own notation, and the axis it beat named in
+                    its own words: less assistance and a faster pace are records
+                    that a bigger number would report backwards (REQ-115). */}
+                <span className="type-measure text-ink-2">
+                  {setLine(record.set, record.measurement, true)} · beats everything before it
+                </span>
+              </div>
             </div>
           ))}
         </div>

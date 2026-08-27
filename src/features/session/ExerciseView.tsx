@@ -29,6 +29,7 @@ import {
   type SetValues,
 } from '@/features/session/SetLogger';
 import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
+import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { Figure } from '@/features/ui/Figure';
 import { snapshotFigures } from '@/features/ui/format';
 import { ICON_STROKE, RULED, chip, dome } from '@/features/ui/styles';
@@ -138,12 +139,19 @@ export function ExerciseView({
           and the history screen use, so a number a lifter reads here looks like
           the same kind of thing everywhere it appears. */}
       <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="type-display">{name}</h2>
-          {planned === null && <span className={chip('neutral')}>Unplanned</span>}
-          {sets.length > (planned?.plannedSets ?? Infinity) && (
-            <span className={chip('actual')}>{sets.length - planned!.plannedSets} extra</span>
-          )}
+        <div className="flex items-start gap-3">
+          {/* The figure sits beside the title rather than above it: between
+              sets the lifter is checking a position, not studying a diagram,
+              and a full-width illustration would push the targets below the
+              fold on a phone. */}
+          <ExerciseArt className="size-16 text-planned-ink" id={exerciseSession.exerciseId} />
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <h2 className="type-display">{name}</h2>
+            {planned === null && <span className={chip('neutral')}>Unplanned</span>}
+            {sets.length > (planned?.plannedSets ?? Infinity) && (
+              <span className={chip('actual')}>{sets.length - planned!.plannedSets} extra</span>
+            )}
+          </div>
         </div>
 
         {planned !== null && (

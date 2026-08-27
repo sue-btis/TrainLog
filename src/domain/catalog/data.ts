@@ -188,4 +188,251 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['handstand-hold', 'Handstand Hold', 'shoulders', 'bodyweight', 'duration'],
   ['tuck-planche-hold', 'Tuck Planche Hold', 'shoulders', 'bodyweight', 'duration'],
   ['broad-jump', 'Broad Jump', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+
+  // ===================================================================== import
+  // Everything below comes from the Workout Guide manifest
+  // (github.com/bryllim/workout-guide, metadata MIT), copied at build time —
+  // the package is NOT a dependency. Its value is 906 SVG illustrations this
+  // app never draws, and taking it would put asset paths and attribution
+  // objects in a bundle that must work with no network at all. Only the rows
+  // were worth having.
+  //
+  // Three things were changed on the way in, and each one is load-bearing:
+  //
+  // 1. Its 20 muscles and 17 equipment values fold into the two vocabularies
+  //    above (REQ-105). `Lats` and `Upper Back` are `back`; a `Wall`, a
+  //    `Chair`, a `Towel` is `bodyweight`; a `Plate` is a free weight. Widening
+  //    the vocabularies instead would report false figures for muscle volume
+  //    (PRD §39 item 8).
+  // 2. Names are rewritten to the house style — `Neutral-Grip Pull-up` becomes
+  //    `Neutral Grip Pull Up`. `normalizeExerciseName` collapses whitespace,
+  //    not hyphens, so an unrewritten name would slip past the §26 match and
+  //    split a history in two.
+  // 3. Stretches, mobility and cardio are dropped (REQ-140, AC-169), as are
+  //    fourteen rows that are a movement already here under another name —
+  //    `Deadlift` is `conventional-deadlift`, `Squat` is `back-squat`.
+  //
+  // The loaded twins at the end follow the `weighted-dip` pattern: a separate
+  // permanent slug, never a measurement change on the unloaded row. There is
+  // one only where a belt or a held weight is how the movement is actually
+  // progressed — a weighted twin for every bodyweight row would double the
+  // catalog with movements nobody loads.
+
+  // ---------------------------------------------------------------------- back
+  ['active-hang', 'Active Hang', 'back', 'bodyweight', 'duration'],
+  ['assisted-pull-up', 'Assisted Pull Up', 'back', 'machine', 'assisted_bodyweight'],
+  ['banded-face-pull', 'Banded Face Pull', 'back', 'band', 'bodyweight_reps'],
+  ['banded-lat-pulldown', 'Banded Lat Pulldown', 'back', 'band', 'bodyweight_reps'],
+  ['banded-row', 'Banded Row', 'back', 'band', 'bodyweight_reps'],
+  ['close-grip-lat-pulldown', 'Close Grip Lat Pulldown', 'back', 'cable', 'weight_reps'],
+  ['commando-pull-up', 'Commando Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['doorway-row', 'Doorway Row', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['l-sit-pull-up', 'L Sit Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['meadows-row', 'Meadows Row', 'back', 'barbell', 'weight_reps'],
+  ['negative-pull-up', 'Negative Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['neutral-grip-pull-up', 'Neutral Grip Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['one-arm-dumbbell-row', 'One Arm Dumbbell Row', 'back', 'dumbbell', 'weight_reps'],
+  ['prone-t-raise', 'Prone T Raise', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['prone-y-raise', 'Prone Y Raise', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['reverse-snow-angel', 'Reverse Snow Angel', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['scapular-pull-up', 'Scapular Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['scapular-push-up', 'Scapular Push Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['single-arm-cable-row', 'Single Arm Cable Row', 'back', 'cable', 'weight_reps'],
+  ['superman', 'Superman', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['superman-hold', 'Superman Hold', 'back', 'bodyweight', 'duration'],
+  ['towel-pull-up', 'Towel Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['towel-row', 'Towel Row', 'back', 'bodyweight', 'bodyweight_reps'],
+  ['wide-grip-lat-pulldown', 'Wide Grip Lat Pulldown', 'back', 'cable', 'weight_reps'],
+
+  // -------------------------------------------------------------------- biceps
+  ['assisted-chin-up', 'Assisted Chin Up', 'biceps', 'machine', 'assisted_bodyweight'],
+  ['concentration-curl', 'Concentration Curl', 'biceps', 'dumbbell', 'weight_reps'],
+  ['drag-curl', 'Drag Curl', 'biceps', 'barbell', 'weight_reps'],
+  ['rope-hammer-curl', 'Rope Hammer Curl', 'biceps', 'cable', 'weight_reps'],
+  ['spider-curl', 'Spider Curl', 'biceps', 'dumbbell', 'weight_reps'],
+
+  // -------------------------------------------------------------------- calves
+  ['donkey-calf-raise', 'Donkey Calf Raise', 'calves', 'machine', 'weight_reps'],
+  ['fast-feet', 'Fast Feet', 'calves', 'bodyweight', 'duration'],
+  ['leg-press-calf-raise', 'Leg Press Calf Raise', 'calves', 'machine', 'weight_reps'],
+  ['single-leg-calf-raise', 'Single Leg Calf Raise', 'calves', 'bodyweight', 'bodyweight_reps'],
+
+  // --------------------------------------------------------------------- chest
+  ['archer-push-up', 'Archer Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['decline-bench-press', 'Decline Bench Press', 'chest', 'barbell', 'weight_reps'],
+  ['decline-dumbbell-press', 'Decline Dumbbell Press', 'chest', 'dumbbell', 'weight_reps'],
+  ['decline-push-up', 'Decline Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['explosive-push-up', 'Explosive Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['hindu-push-up', 'Hindu Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['incline-cable-fly', 'Incline Cable Fly', 'chest', 'cable', 'weight_reps'],
+  ['incline-push-up', 'Incline Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['knee-push-up', 'Knee Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['seal-jack', 'Seal Jack', 'chest', 'bodyweight', 'duration'],
+  ['smith-machine-bench-press', 'Smith Machine Bench Press', 'chest', 'machine', 'weight_reps'],
+  ['typewriter-push-up', 'Typewriter Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['wall-push-up', 'Wall Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+  ['wide-push-up', 'Wide Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
+
+  // ---------------------------------------------------------------------- core
+  ['banded-dead-bug', 'Banded Dead Bug', 'core', 'band', 'bodyweight_reps'],
+  ['banded-pallof-press', 'Banded Pallof Press', 'core', 'band', 'bodyweight_reps'],
+  ['banded-woodchop', 'Banded Woodchop', 'core', 'band', 'bodyweight_reps'],
+  ['bear-crawl', 'Bear Crawl', 'core', 'bodyweight', 'duration'],
+  ['bear-plank', 'Bear Plank', 'core', 'bodyweight', 'duration'],
+  ['bicycle-crunch', 'Bicycle Crunch', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['bird-dog', 'Bird Dog', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['cable-pallof-hold', 'Cable Pallof Hold', 'core', 'cable', 'duration'],
+  ['cable-woodchop', 'Cable Woodchop', 'core', 'cable', 'weight_reps'],
+  ['captains-chair-knee-raise', 'Captains Chair Knee Raise', 'core', 'machine', 'bodyweight_reps'],
+  ['copenhagen-plank', 'Copenhagen Plank', 'core', 'bodyweight', 'duration'],
+  ['crunch', 'Crunch', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['dead-bug', 'Dead Bug', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['decline-sit-up', 'Decline Sit Up', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['dragon-flag', 'Dragon Flag', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['dumbbell-side-bend', 'Dumbbell Side Bend', 'core', 'dumbbell', 'weight_reps'],
+  ['flutter-kick', 'Flutter Kick', 'core', 'bodyweight', 'duration'],
+  ['half-burpee', 'Half Burpee', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['half-kneeling-pallof-press', 'Half Kneeling Pallof Press', 'core', 'cable', 'weight_reps'],
+  ['hanging-knee-raise', 'Hanging Knee Raise', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['heel-tap', 'Heel Tap', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['hollow-body-hold', 'Hollow Body Hold', 'core', 'bodyweight', 'duration'],
+  ['hollow-rock', 'Hollow Rock', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['inchworm', 'Inchworm', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['l-sit-hold', 'L Sit Hold', 'core', 'bodyweight', 'duration'],
+  ['lying-leg-raise', 'Lying Leg Raise', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['mountain-climber', 'Mountain Climber', 'core', 'bodyweight', 'duration'],
+  ['plank-jack', 'Plank Jack', 'core', 'bodyweight', 'duration'],
+  ['plank-shoulder-tap', 'Plank Shoulder Tap', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['push-up-shoulder-tap', 'Push Up Shoulder Tap', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['reverse-crunch', 'Reverse Crunch', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['seated-knee-tuck', 'Seated Knee Tuck', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['side-plank', 'Side Plank', 'core', 'bodyweight', 'duration'],
+  ['side-plank-hip-dip', 'Side Plank Hip Dip', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['squat-thrust', 'Squat Thrust', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['toe-touch', 'Toe Touch', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['v-up', 'V Up', 'core', 'bodyweight', 'bodyweight_reps'],
+  ['weighted-crunch', 'Weighted Crunch', 'core', 'dumbbell', 'weight_reps'],
+
+  // ------------------------------------------------------------------ forearms
+  ['dead-hang', 'Dead Hang', 'forearms', 'bodyweight', 'duration'],
+  ['wrist-extension', 'Wrist Extension', 'forearms', 'dumbbell', 'weight_reps'],
+
+  // ----------------------------------------------------------------- full-body
+  ['burpee', 'Burpee', 'full-body', 'bodyweight', 'bodyweight_reps'],
+  ['high-knees', 'High Knees', 'full-body', 'bodyweight', 'duration'],
+  ['jumping-jack', 'Jumping Jack', 'full-body', 'bodyweight', 'duration'],
+  ['lateral-shuffle', 'Lateral Shuffle', 'full-body', 'bodyweight', 'duration'],
+  ['skater-hop', 'Skater Hop', 'full-body', 'bodyweight', 'bodyweight_reps'],
+  ['sprawl', 'Sprawl', 'full-body', 'bodyweight', 'bodyweight_reps'],
+
+  // -------------------------------------------------------------------- glutes
+  ['banded-clamshell', 'Banded Clamshell', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-donkey-kick', 'Banded Donkey Kick', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-fire-hydrant', 'Banded Fire Hydrant', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-frog-pump', 'Banded Frog Pump', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-glute-bridge', 'Banded Glute Bridge', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-hip-thrust', 'Banded Hip Thrust', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-kickback', 'Banded Kickback', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-lateral-walk', 'Banded Lateral Walk', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-monster-walk', 'Banded Monster Walk', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-seated-hip-abduction', 'Banded Seated Hip Abduction', 'glutes', 'band', 'bodyweight_reps'],
+  ['banded-standing-hip-abduction', 'Banded Standing Hip Abduction', 'glutes', 'band', 'bodyweight_reps'],
+  ['barbell-glute-bridge', 'Barbell Glute Bridge', 'glutes', 'barbell', 'weight_reps'],
+  ['cable-kickback', 'Cable Kickback', 'glutes', 'cable', 'weight_reps'],
+  ['cable-standing-hip-abduction', 'Cable Standing Hip Abduction', 'glutes', 'cable', 'weight_reps'],
+  ['cable-standing-hip-adduction', 'Cable Standing Hip Adduction', 'glutes', 'cable', 'weight_reps'],
+  ['clamshell', 'Clamshell', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['curtsy-lunge', 'Curtsy Lunge', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['deficit-reverse-lunge', 'Deficit Reverse Lunge', 'glutes', 'dumbbell', 'weight_reps'],
+  ['donkey-kick', 'Donkey Kick', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['dumbbell-curtsy-lunge', 'Dumbbell Curtsy Lunge', 'glutes', 'dumbbell', 'weight_reps'],
+  ['dumbbell-glute-bridge', 'Dumbbell Glute Bridge', 'glutes', 'dumbbell', 'weight_reps'],
+  ['dumbbell-hip-thrust', 'Dumbbell Hip Thrust', 'glutes', 'dumbbell', 'weight_reps'],
+  ['dumbbell-sumo-squat', 'Dumbbell Sumo Squat', 'glutes', 'dumbbell', 'weight_reps'],
+  ['fire-hydrant', 'Fire Hydrant', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['frog-pump', 'Frog Pump', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['glute-bridge', 'Glute Bridge', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['glute-bridge-march', 'Glute Bridge March', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['glute-focused-back-extension', 'Glute Focused Back Extension', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['hip-adduction-machine', 'Hip Adduction Machine', 'glutes', 'machine', 'weight_reps'],
+  ['hip-airplane', 'Hip Airplane', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['machine-glute-kickback', 'Machine Glute Kickback', 'glutes', 'machine', 'weight_reps'],
+  ['reverse-hyperextension', 'Reverse Hyperextension', 'glutes', 'machine', 'bodyweight_reps'],
+  ['side-lying-hip-abduction', 'Side Lying Hip Abduction', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['side-lying-leg-raise', 'Side Lying Leg Raise', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['single-leg-glute-bridge', 'Single Leg Glute Bridge', 'glutes', 'bodyweight', 'bodyweight_reps'],
+  ['smith-machine-hip-thrust', 'Smith Machine Hip Thrust', 'glutes', 'machine', 'weight_reps'],
+
+  // ---------------------------------------------------------------- hamstrings
+  ['dumbbell-romanian-deadlift', 'Dumbbell Romanian Deadlift', 'hamstrings', 'dumbbell', 'weight_reps'],
+  ['dumbbell-sumo-deadlift', 'Dumbbell Sumo Deadlift', 'hamstrings', 'dumbbell', 'weight_reps'],
+  ['kettlebell-romanian-deadlift', 'Kettlebell Romanian Deadlift', 'hamstrings', 'kettlebell', 'weight_reps'],
+  ['landmine-romanian-deadlift', 'Landmine Romanian Deadlift', 'hamstrings', 'barbell', 'weight_reps'],
+  ['lying-hamstring-walkout', 'Lying Hamstring Walkout', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
+  ['single-leg-romanian-deadlift', 'Single Leg Romanian Deadlift', 'hamstrings', 'dumbbell', 'weight_reps'],
+  ['smith-machine-romanian-deadlift', 'Smith Machine Romanian Deadlift', 'hamstrings', 'machine', 'weight_reps'],
+  ['stability-ball-hamstring-curl', 'Stability Ball Hamstring Curl', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
+  ['towel-hamstring-curl', 'Towel Hamstring Curl', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
+  ['trap-bar-deadlift', 'Trap Bar Deadlift', 'hamstrings', 'barbell', 'weight_reps'],
+
+  // ---------------------------------------------------------------- quadriceps
+  ['assisted-pistol-squat', 'Assisted Pistol Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['banded-squat', 'Banded Squat', 'quadriceps', 'band', 'bodyweight_reps'],
+  ['belt-squat', 'Belt Squat', 'quadriceps', 'machine', 'weight_reps'],
+  ['bodyweight-squat', 'Bodyweight Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['cossack-squat', 'Cossack Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['dumbbell-lateral-lunge', 'Dumbbell Lateral Lunge', 'quadriceps', 'dumbbell', 'weight_reps'],
+  ['forward-lunge', 'Forward Lunge', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['front-foot-elevated-split-squat', 'Front Foot Elevated Split Squat', 'quadriceps', 'dumbbell', 'weight_reps'],
+  ['heel-elevated-goblet-squat', 'Heel Elevated Goblet Squat', 'quadriceps', 'dumbbell', 'weight_reps'],
+  ['jump-squat', 'Jump Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['landmine-squat', 'Landmine Squat', 'quadriceps', 'barbell', 'weight_reps'],
+  ['lateral-lunge', 'Lateral Lunge', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['pistol-squat', 'Pistol Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['reverse-lunge', 'Reverse Lunge', 'quadriceps', 'dumbbell', 'weight_reps'],
+  ['shrimp-squat', 'Shrimp Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['single-leg-box-squat', 'Single Leg Box Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['sissy-squat', 'Sissy Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['skater-squat', 'Skater Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['smith-machine-bulgarian-split-squat', 'Smith Machine Bulgarian Split Squat', 'quadriceps', 'machine', 'weight_reps'],
+  ['smith-machine-reverse-lunge', 'Smith Machine Reverse Lunge', 'quadriceps', 'machine', 'weight_reps'],
+  ['smith-machine-split-squat', 'Smith Machine Split Squat', 'quadriceps', 'machine', 'weight_reps'],
+  ['smith-machine-squat', 'Smith Machine Squat', 'quadriceps', 'machine', 'weight_reps'],
+  ['split-squat', 'Split Squat', 'quadriceps', 'dumbbell', 'weight_reps'],
+  ['step-down', 'Step Down', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
+  ['wall-sit', 'Wall Sit', 'quadriceps', 'bodyweight', 'duration'],
+
+  // ----------------------------------------------------------------- shoulders
+  ['bent-over-rear-delt-raise', 'Bent Over Rear Delt Raise', 'shoulders', 'dumbbell', 'weight_reps'],
+  ['cable-front-raise', 'Cable Front Raise', 'shoulders', 'cable', 'weight_reps'],
+  ['cable-rear-delt-fly', 'Cable Rear Delt Fly', 'shoulders', 'cable', 'weight_reps'],
+  ['feet-elevated-pike-push-up', 'Feet Elevated Pike Push Up', 'shoulders', 'bodyweight', 'bodyweight_reps'],
+  ['front-raise', 'Front Raise', 'shoulders', 'dumbbell', 'weight_reps'],
+  ['handstand-push-up', 'Handstand Push Up', 'shoulders', 'bodyweight', 'bodyweight_reps'],
+  ['landmine-press', 'Landmine Press', 'shoulders', 'barbell', 'weight_reps'],
+  ['machine-lateral-raise', 'Machine Lateral Raise', 'shoulders', 'machine', 'weight_reps'],
+  ['pike-push-up', 'Pike Push Up', 'shoulders', 'bodyweight', 'bodyweight_reps'],
+  ['plate-front-raise', 'Plate Front Raise', 'shoulders', 'dumbbell', 'weight_reps'],
+  ['standing-dumbbell-press', 'Standing Dumbbell Press', 'shoulders', 'dumbbell', 'weight_reps'],
+  ['wall-handstand-push-up', 'Wall Handstand Push Up', 'shoulders', 'bodyweight', 'bodyweight_reps'],
+  ['wall-walk', 'Wall Walk', 'shoulders', 'bodyweight', 'bodyweight_reps'],
+
+  // ------------------------------------------------------------------- triceps
+  ['assisted-dip', 'Assisted Dip', 'triceps', 'machine', 'assisted_bodyweight'],
+  ['bench-dip', 'Bench Dip', 'triceps', 'bodyweight', 'bodyweight_reps'],
+  ['chair-dip', 'Chair Dip', 'triceps', 'bodyweight', 'bodyweight_reps'],
+  ['crab-walk', 'Crab Walk', 'triceps', 'bodyweight', 'duration'],
+  ['diamond-push-up', 'Diamond Push Up', 'triceps', 'bodyweight', 'bodyweight_reps'],
+  ['rope-tricep-pushdown', 'Rope Tricep Pushdown', 'triceps', 'cable', 'weight_reps'],
+  ['single-arm-dumbbell-tricep-extension', 'Single Arm Dumbbell Tricep Extension', 'triceps', 'dumbbell', 'weight_reps'],
+  ['single-dumbbell-skullcrusher', 'Single Dumbbell Skullcrusher', 'triceps', 'dumbbell', 'weight_reps'],
+  ['dumbbell-skull-crusher', 'Two Dumbbell Skullcrusher', 'triceps', 'dumbbell', 'weight_reps'],
+
+  // ------------------------------------------------------------ loaded twins
+  ['weighted-neutral-grip-pull-up', 'Weighted Neutral Grip Pull Up', 'back', 'bodyweight', 'weighted_bodyweight'],
+  ['weighted-handstand-push-up', 'Weighted Handstand Push Up', 'shoulders', 'bodyweight', 'weighted_bodyweight'],
+  ['weighted-pistol-squat', 'Weighted Pistol Squat', 'quadriceps', 'bodyweight', 'weighted_bodyweight'],
+  ['weighted-decline-sit-up', 'Weighted Decline Sit Up', 'core', 'bodyweight', 'weighted_bodyweight'],
+  ['weighted-hanging-knee-raise', 'Weighted Hanging Knee Raise', 'core', 'bodyweight', 'weighted_bodyweight'],
+  ['weighted-single-leg-calf-raise', 'Weighted Single Leg Calf Raise', 'calves', 'bodyweight', 'weighted_bodyweight'],
 ];
