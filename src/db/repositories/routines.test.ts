@@ -1,10 +1,3 @@
-/**
- * TST-019 (REQ-075, AC-076, AC-077) — `deleteRoutine` is refused while a
- * Session references the Routine, and permitted once none does.
- * TST-020 (REQ-076, AC-078) — activating a second Routine leaves exactly one
- * active.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
@@ -28,7 +21,7 @@ import { newId, type SessionId } from '@/domain/ids';
 import type { RoutineId } from '@/domain/ids';
 import type { Session } from '@/domain/types';
 
-const ANCHOR = toLocalDate('2026-09-07'); // a Monday
+const ANCHOR = toLocalDate('2026-09-07');
 
 async function importFixture(name: string, createdAt: number): Promise<RoutineDraft> {
   const file = aFile([
@@ -73,8 +66,6 @@ describe('TST-020 activateRoutine', () => {
   it('leaves exactly one active Routine', async () => {
     const first = await importFixture('August Hybrid', 1_754_000_000_000);
     const second = await importFixture('September Hybrid', 1_757_000_000_000);
-    // Accepting the second import already archived the first (R-14), so the
-    // two-active state this function exists to resolve is staged directly.
     await db.routines.update(first.routine.id, { status: 'active' });
     expect(await listRoutinesByStatus('active')).toHaveLength(2);
 
@@ -109,7 +100,6 @@ describe('TST-020 activateRoutine', () => {
 });
 
 describe('TST-019 deleteRoutine', () => {
-  // AC-076
   it('is refused while a Session references the Routine, and names archiving', async () => {
     const draft = await importFixture('September Hybrid', 1_757_000_000_000);
     const workout = draft.workouts[0];
@@ -119,14 +109,12 @@ describe('TST-019 deleteRoutine', () => {
     await expect(deleteRoutine(draft.routine.id)).rejects.toBeInstanceOf(RoutineHasSessionsError);
     await expect(deleteRoutine(draft.routine.id)).rejects.toThrow(/Archive it instead/);
 
-    // Nothing was removed by the refused attempt.
     expect(await db.routines.get(draft.routine.id)).toBeDefined();
     expect(await listWorkoutsByRoutine(draft.routine.id)).toHaveLength(1);
     expect(await listPlacementsByRoutine(draft.routine.id)).toHaveLength(4);
     expect(await db.sessions.count()).toBe(1);
   });
 
-  // AC-077
   it('archiving is the alternative, and leaves Sessions untouched', async () => {
     const draft = await importFixture('September Hybrid', 1_757_000_000_000);
     const workout = draft.workouts[0];

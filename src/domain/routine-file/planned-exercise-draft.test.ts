@@ -1,8 +1,3 @@
-/**
- * TST-409 (REQ-409, REQ-913) — targets entered outside the wizard are judged by
- * the wizard's own validator, and the synthetic file cannot raise an issue the
- * form has no field to answer.
- */
 
 import { describe, expect, it } from 'vitest';
 import {
@@ -45,7 +40,6 @@ describe('plannedExerciseDraftFile', () => {
   it('never raises an issue the form has no field to answer', () => {
     // Both of these are wizard-only concerns: there is no routine name on this
     // form, and the day-collision question is answered as a warning by the
-    // add-Workout form instead (DEC-Q1, REQ-405).
     const every = [
       codesOf(targets()),
       codesOf(targets({ sets: 0, minReps: 9, maxReps: 2, restSeconds: -1 })),
@@ -85,13 +79,6 @@ describe('plannedExerciseDraftFile', () => {
   });
 });
 
-/**
- * TST-409b (REQ-409, REQ-417) — the two shapes only this form can produce are
- * refused here, because the shared validator has no code to refuse them with
- * and a stored row cannot be edited afterwards (REQ-415). That these same
- * values fail a restore is `backup/schema.test.ts`'s assertion, not this
- * file's — the rejection is asserted once, where the schema lives.
- */
 describe('plannedExerciseDraftRefusals', () => {
   const rirOf = (o: Partial<PlannedExerciseDraft>) => plannedExerciseDraftRefusals(targets(o)).rir;
   const incrementOf = (o: Partial<PlannedExerciseDraft>) =>

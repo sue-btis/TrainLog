@@ -1,5 +1,3 @@
-/** shadcn's Textarea, re-skinned on arrival: a native textarea wearing `field()`. */
-
 import type { ComponentProps } from 'react';
 import { field } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';

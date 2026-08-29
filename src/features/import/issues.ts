@@ -1,13 +1,3 @@
-/**
- * Putting a semantic issue on the field that caused it (§11.1 "Semantic").
- *
- * `validateRoutineFile` hands back machine-readable paths precisely so the
- * wizard does not have to parse prose to know what to mark. This module turns
- * those paths into a lookup, into DOM ids the action bar can focus, and into
- * the one sentence a field shows — which, per DESIGN.md, names the problem and
- * the recovery, never just the problem.
- */
-
 import {
   MAX_RIR,
   MIN_RIR,
@@ -57,13 +47,6 @@ export function issuesAt(index: IssueIndex, key: string): readonly SemanticIssue
   return index.get(key) ?? [];
 }
 
-/**
- * Whether anything under `prefix` is flagged — how a Workout tab and a
- * collapsed exercise row know to mark themselves.
- *
- * The boundary check matters: `routine.workouts[1]` must not match
- * `routine.workouts[10]`.
- */
 export function hasIssuesUnder(index: IssueIndex, prefix: string): boolean {
   for (const key of index.keys()) {
     if (key === prefix || key.startsWith(`${prefix}.`) || key.startsWith(`${prefix}[`)) {
@@ -97,10 +80,6 @@ const FIX: Record<SemanticIssueCode, string> = {
   routine_name_blank: 'Give the routine a name.',
 };
 
-/**
- * What a flagged field says under itself: the problem in this file's own
- * numbers, then what to do about it.
- */
 export function describeIssue(
   issue: SemanticIssue,
   exercise: RoutineFileExercise | undefined,
@@ -122,9 +101,6 @@ function problemOf(
     case 'target_range_inverted':
     case 'target_pair_ambiguous':
     case 'target_pair_missing':
-    // The validator names the movement and the unit it is measured in, which
-    // is the whole of what the lifter needs; restating it here would be a
-    // second place for that sentence to drift.
     case 'target_axis_mismatch':
       return issue.message;
     case 'rir_out_of_range':

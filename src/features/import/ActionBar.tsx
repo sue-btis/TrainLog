@@ -1,25 +1,3 @@
-/**
- * The wizard's action bar: what is in the way, and the one thing to do next.
- *
- * Its copy names the draft, never the file. The same bar now sits under a
- * routine built from scratch (REQ-200), where there is no file to discard and
- * nothing is being imported — "Discard this import?" over a draft the lifter
- * typed themselves describes an act that never happened.
- *
- * Leaving is not one of those things, so the way out is a quiet link at the top
- * of the column, where every other screen in this app puts Back. The bar still
- * owns the question it raises — a discard is destructive and the answer belongs
- * in the thumb zone — but it no longer carries a red X next to Next.
- *
- * It is fixed in the thumb zone because the app is operated one-handed, and it
- * carries the outstanding semantic issues because a long Step 1 otherwise
- * leaves the user hunting for the field that is blocking `Accept`. Each issue
- * is a jump: it switches to the right step and focuses the offending control.
- *
- * This is the one place glass appears, over the colour bloom DESIGN.md puts at
- * the bottom edge of every screen — the only place a blur has anything to do.
- */
-
 import { useState } from 'react';
 import {
   ArrowLeft,
@@ -44,11 +22,6 @@ interface ActionBarProps {
   readonly onConfirmCancel: (asking: boolean) => void;
   readonly onCancel: () => void;
   readonly issues: readonly SemanticIssue[];
-  /**
-   * Whether to say so. The issues still disable `Accept` when this is false —
-   * see `announceIssues` in `state.ts` for why the two are separate, and why a
-   * suppressed issue can never be the one blocking a lifter without a word.
-   */
   readonly announceIssues: boolean;
   readonly accepting: boolean;
   readonly failure: string | null;
@@ -140,9 +113,6 @@ export function ActionBar({
               <button
                 aria-controls="import-issues"
                 aria-expanded={listOpen}
-                // The one control in the bar wearing neither the press nor the
-                // focus halo, and it is the one that opens the list standing
-                // between a lifter and `Accept`.
                 className={cn(alert('missed', 'w-full items-center text-left'), PRESS, FOCUS_RING)}
                 onClick={() => setListOpen(!listOpen)}
                 type="button"

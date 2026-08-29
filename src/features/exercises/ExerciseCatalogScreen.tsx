@@ -1,35 +1,3 @@
-/**
- * Exercises (§11.12) — every movement the app knows, to be browsed.
- *
- * The bundled catalog and the Exercises a lifter's routine files created, in
- * one list. They are disjoint by DEC-007 — the catalog never enters the table —
- * so they concatenate rather than merge, and a lifter looking for "front squat"
- * does not have to know which of the two it came from.
- *
- * Two hundred movements in one scroll is a wall, so the screen opens on the
- * muscle groups themselves — a figure, a name, a count — and one tap opens the
- * group. Typing skips the index: a search is already a destination, and making
- * it name a body part first would be one tap for nothing.
- *
- * The open group lives in the query string rather than in state, so back leaves
- * the group before it leaves the screen, and a group can be linked to.
- *
- * A row goes to that exercise's history (§11.10), which already renders "No
- * history yet" for a movement never trained, so a catalog entry is a
- * destination on the day it ships.
- *
- * The screen creates, and picks nothing. Creating means owning §26's name
- * matching — get it wrong and a lifter's history splits in two — so it does not
- * own it: `findExerciseByName` in `@/domain/catalog` is the one matcher, and
- * the import pipeline asks it the same question (REQ-102). A name the app
- * already knows binds to the incumbent and says so, rather than minting a
- * second movement (REQ-101).
- *
- * Grouping and filtering are `groupExercises`, in the domain, because "a search
- * matches the way §26 matches" and "an uncategorized exercise is grouped, not
- * dropped" are rules worth testing without a browser.
- */
-
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ChevronLeft, Plus, Search } from 'lucide-react';
@@ -74,15 +42,6 @@ import { cn } from '@/lib/utils';
 /** The Select's "no filter" value. Radix reserves the empty string. */
 const ANY = 'any';
 
-/**
- * The bands the index is read in: what trains everything, then the half of the
- * body above the hips, then the half below. It is the split a lifter already
- * thinks in — upper day, lower day — so twelve cards become three short reads.
- *
- * A category the catalog does not name — one a routine file invented, or
- * `uncategorized` — is not forced into a half it may not belong to; it falls to
- * the last band, which says only "other".
- */
 const BANDS: readonly {
   readonly label: string | null;
   readonly categories: readonly string[] | null;
@@ -104,12 +63,8 @@ export function ExerciseCatalogScreen() {
 
   const all = useMemo<readonly Exercise[]>(() => [...(user ?? []), ...CATALOG], [user]);
 
-  // Which rows the lifter owns. A catalog Exercise is measured the way the
-  // build says and is never corrected here (AC-154).
   const mine = useMemo(() => new Set((user ?? []).map((exercise) => exercise.id)), [user]);
 
-  // Taken from every exercise, never from the filtered ones: an option list
-  // that shrinks as you use it leaves no way back to the value you just left.
   const equipmentOptions = useMemo(
     () =>
       [...new Set(all.map((exercise) => exercise.equipment))]
@@ -124,8 +79,6 @@ export function ExerciseCatalogScreen() {
   );
 
   const searching = query.trim() !== '';
-  // A group that the current filters emptied is no group at all: fall back to
-  // the index rather than drawing a heading over nothing.
   const opened = searching ? undefined : groups.find((g) => g.category === params.get('group'));
   const shown = opened ? [opened] : groups;
 
@@ -190,8 +143,6 @@ export function ExerciseCatalogScreen() {
             <section
               className={cn(
                 'flex flex-col gap-3',
-                // A hairline and a word, not a card: the bands order the index,
-                // they are not objects in it.
                 label !== null && 'border-t border-rule pt-4',
               )}
               key={label ?? 'full'}
@@ -250,9 +201,6 @@ export function ExerciseCatalogScreen() {
                       className={cn('flex items-center gap-3', PRESS)}
                       to={`/exercises/${exercise.id}`}
                     >
-                      {/* Tinted, not full-strength: the row is read by its
-                          name, and a black figure beside it would out-weigh
-                          the word it illustrates. */}
                       <ExerciseArt className="size-11 text-planned-ink" id={exercise.id} reserve />
                       <span className="flex min-w-0 flex-col gap-1.5">
                         <span className="type-title">{exercise.name}</span>
@@ -275,33 +223,13 @@ export function ExerciseCatalogScreen() {
   );
 }
 
-/** The Select value standing for "no category" / "no equipment" (REQ-105). */
 const UNSPECIFIED = 'unspecified';
 
-/**
- * Naming a movement the app does not ship with (REQ-100, REQ-101, REQ-105).
- *
- * The screen's own list refreshes itself — `useUserExercises` is a live query —
- * so a created Exercise appears under its group with nothing to reload.
- *
- * A collision is the interesting case. The import path reuses an incumbent
- * silently, which is right when a *file* is describing a movement; here a lifter
- * has deliberately pressed Create, and reporting success while writing nothing
- * would make the screen lie. So the outcome says which Exercise already carries
- * the name and offers it — the guard's behaviour is unchanged, only its silence
- * is (§26, DEC-Q7).
- *
- * Category and equipment are closed choices over the catalog's own vocabulary,
- * never free text: a routine file can already write anything into `category`,
- * and PRD §39 item 8 needs that vocabulary clean to count muscle volume at all.
- */
 function NewExercise() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [category, setCategory] = useState(UNSPECIFIED);
   const [equipment, setEquipment] = useState(UNSPECIFIED);
-  // The type the vast majority of movements are (REQ-132): a lifter adding a
-  // barbell variation should not have to say so.
   const [measurement, setMeasurement] = useState<Measurement>('weight_reps');
   const [outcome, setOutcome] = useState<CreatedExercise | null>(null);
   const { busy, failure, run } = useAsyncAction();
@@ -403,16 +331,6 @@ function NewExercise() {
   );
 }
 
-/**
- * A closed vocabulary as `SelectField` takes it, with the explicit "none" that
- * means `null` at the head.
- *
- * This used to be `VocabularyField`, a near-copy of `SelectField` written here
- * because the shared one lived under `features/import/` and this screen would
- * not reach into the import wizard for a form control. That was the right
- * instinct about the boundary and the wrong fix; `fields.tsx` moved to
- * `features/ui/` instead, and what was left worth keeping is this one mapping.
- */
 function vocabulary(
   options: readonly string[],
   none: string,
@@ -423,13 +341,6 @@ function vocabulary(
   ];
 }
 
-/**
- * What just happened, and the way to the Exercise it happened to.
- *
- * A collision is not an error — nothing went wrong, the movement was already
- * known — so it reads as a statement with a destination rather than as a
- * failure (REQ-101).
- */
 function Outcome({
   onDismiss,
   outcome,
@@ -460,16 +371,6 @@ function Outcome({
   );
 }
 
-/**
- * Correcting a movement the lifter measured wrong on the way in (REQ-133,
- * AC-153, AC-154).
- *
- * Offered on the row rather than behind a dialog: it is one field, and the
- * moment a lifter notices "that plank is logging reps" is the moment they are
- * looking at the row. The repository refuses once anything has been logged —
- * the measurement decides how those sets are read — and the refusal is shown
- * where the attempt was made rather than swallowed.
- */
 function CorrectMeasurement({ exercise }: { readonly exercise: Exercise }) {
   const { failure, run } = useAsyncAction();
 

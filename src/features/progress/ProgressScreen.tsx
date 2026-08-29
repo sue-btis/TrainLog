@@ -1,20 +1,3 @@
-/**
- * Progress (§11.11) — one exercise at a time, over time.
- *
- * Nothing here is stored. The series is `exerciseSeries` over the same history
- * `/exercises/:id` reads, and the best set is the same `summarizeExercise` call
- * that screen makes, so the figure above the chart and the figure on the
- * exercise's own screen cannot disagree — they are one function, called twice.
- *
- * §11.10 and §11.11 divide the work rather than repeat it: Exercise History is
- * the record — every session, every set, in words — and this is the shape of
- * that record. There is deliberately no session list on this screen.
- *
- * The selector offers only exercises that have been trained. An exercise nobody
- * has performed has no line to draw, and offering it would be offering an empty
- * state as if it were a destination.
- */
-
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { TrendingUp } from 'lucide-react';
@@ -42,8 +25,6 @@ export function ProgressScreen() {
   const [picked, setPicked] = useState<ExerciseId | null>(null);
   const [metric, setMetric] = useState<Metric>('load');
 
-  // `undefined` is a read still in flight; an empty array is a lifter who has
-  // not trained yet. They must not render the same thing.
   if (performed === undefined || names === undefined) {
     return <Reading>history</Reading>;
   }
@@ -101,11 +82,6 @@ export function ProgressScreen() {
   );
 }
 
-/**
- * One exercise's panel. Split out so the history read is keyed by the selected
- * exercise: `useExerciseHistory` re-runs when the id changes, and a component
- * that renders one exercise is the honest place to ask for one exercise.
- */
 function ExerciseProgress({
   exerciseId,
   name,
@@ -142,15 +118,6 @@ function ExerciseProgress({
 
   const summary = summarizeExercise(history);
 
-  // The maximum, not the last point flagged `isRecord`: the first session never
-  // carries that flag — it has nothing to beat — so a one-session history would
-  // name no day at all. A tie keeps the earlier point, which is the day the
-  // estimate was reached, and the same strictly-greater rule the flag applies.
-  //
-  // `null` where the type has no estimate at all, which is how the figure below
-  // knows not to state one (REQ-114, AC-120): a plank has no 1RM and no figure
-  // substitutes for it. Read off the points rather than re-asked of the type —
-  // `estimatedOneRepMaxKg` is already that answer.
   const best = points.reduce<{ point: ExercisePoint; estimate: number } | null>(
     (found, point) =>
       point.estimatedOneRepMaxKg !== null &&
@@ -160,10 +127,6 @@ function ExerciseProgress({
     null,
   );
 
-  // The switch offers only what the type defines (AC-127), and the selection
-  // falls back when the lifter picks an exercise of a type that has no values
-  // for the metric they were looking at — otherwise the chart draws an axis the
-  // type never reads. `metricsFor` is never empty, so the fallback always lands.
   const metrics = metricsFor(points[0]!.measurement);
   const shown = metrics.some((entry) => entry.id === metric) ? metric : metrics[0]!.id;
 
@@ -176,12 +139,6 @@ function ExerciseProgress({
         </Link>
       </div>
 
-      {/* §39 A·1 said once in words: the strongest this exercise has shown, and
-          when. It is not the pill above it — `bestSet` ranks by load, and load
-          is not what the estimate ranks by (105 × 1 estimates under 100 × 5) —
-          but it is derived from the same points the chart draws, so §11.10's
-          `ExerciseSummary` is left exactly as that screen renders it. The day
-          is in the axis's own notation, so it is findable on the line below. */}
       {best !== null && (
         <div className="flex flex-col gap-1">
           <span className={LABEL}>best estimated 1RM</span>

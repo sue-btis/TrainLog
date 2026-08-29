@@ -1,7 +1,3 @@
-/**
- * TST-003 — one case per semantic check of §11.1, each asserting the field
- * path, plus a clean file producing no issues (REQ-032, AC-032, AC-033).
- */
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -159,16 +155,7 @@ describe('validateRoutineFile — semantic checks (TST-003)', () => {
   });
 });
 
-// ------------------------------------------------------- TST-129, REQ-139
 
-/**
- * The axis check (REQ-139, AC-166). A range on the wrong axis is the one
- * semantic problem the file cannot reveal on its own: `reps` under a movement
- * measured in seconds maps to a PlannedExercise with *neither* pair populated,
- * which imports without complaint and only surfaces later, when the lifter's
- * own backup refuses to restore. So it is checked here, against the Exercise
- * the import will actually bind to — and only when the caller can supply one.
- */
 
 /** A v2 file holding one Workout of `exercises`; v2 is where `target` exists. */
 const v2 = (...exercises: RoutineFileExercise[]): RoutineFile => ({
@@ -237,7 +224,6 @@ describe('validateRoutineFile — target axis mismatch (TST-129, REQ-139, AC-166
       anExercise({ name: 'Plank', reps: undefined, target: { min: 30, max: 60 } }),
       // A catalog rep movement stating reps.
       anExercise(),
-      // A movement the import will mint, declaring its own type (REQ-130).
       anExercise({
         name: 'Weighted Sled Drag',
         measurement: 'duration',
@@ -245,7 +231,6 @@ describe('validateRoutineFile — target axis mismatch (TST-129, REQ-139, AC-166
         target: { min: 20, max: 40 },
       }),
       // A movement the import will mint with no declaration: weight x reps,
-      // which is what every version-1 file has always meant (DEC-K).
       anExercise({ name: 'Some Novel Press', reps: { min: 8, max: 12 } }),
     ];
 
@@ -254,7 +239,6 @@ describe('validateRoutineFile — target axis mismatch (TST-129, REQ-139, AC-166
     }
   });
 
-  // `exercise_id` is consulted before the name (§26), so the id decides the
   // axis even when the name alone would have pointed somewhere else.
   it('judges by exercise_id rather than by a name that would resolve elsewhere', () => {
     const byId = { name: 'Plank', exercise_id: 'front-squat' };
@@ -276,7 +260,6 @@ describe('validateRoutineFile — target axis mismatch (TST-129, REQ-139, AC-166
     expect(pathsOf(issues)).toEqual(['routine.workouts[0].exercises[0].target']);
   });
 
-  // A file cannot retype an Exercise that already exists (REQ-131): the
   // incumbent's measurement decides the axis, and `measurement:` in the file is
   // only ever read where the import mints something new.
   it('reads the axis from the lifter own Exercise rather than minting a new one', () => {

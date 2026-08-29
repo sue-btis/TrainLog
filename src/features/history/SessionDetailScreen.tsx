@@ -1,20 +1,3 @@
-/**
- * One Session, as it happened (§11.10).
- *
- * Read-only, at every status. Correcting a set belongs to gym mode, where the
- * set was logged; a history screen that can rewrite history is a way to lose
- * data with no undo.
- *
- * Every target on this screen comes from the ExerciseSession's own snapshot and
- * never from the PlannedExercise behind it (ADR 0002). That is the whole reason
- * the snapshot exists: re-importing a corrected file must not move what a
- * session six weeks ago says it was performed against. Nothing here reads
- * `plannedExercises`, and nothing here may start to.
- *
- * Skipped and pending exercises are listed and marked rather than dropped —
- * "you skipped the third exercise" is part of what happened.
- */
-
 import { Link, useParams, useSearchParams } from 'react-router';
 import { Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,18 +31,12 @@ export function SessionDetailScreen() {
   const [search] = useSearchParams();
   const id = (sessionId ?? '') as SessionId;
 
-  // Arriving straight from `finish()` rather than from the calendar. The record
-  // is the same record either way — what changes is that the lifter has not
-  // seen it yet, so it opens with what the hour amounted to instead of with a
-  // list they would have to add up themselves.
   const justFinished = search.get('finished') === '1';
 
   const detail = useSessionRecord(id === '' ? null : id);
   const workouts = useWorkoutsById(detail ? [detail.session.workoutId] : []);
   const exerciseIds = detail?.exercises.map((exercise) => exercise.exerciseSession.exerciseId) ?? [];
   const names = useExerciseNames(exerciseIds);
-  // Only the finish view asks for history: it is what decides whether a set
-  // beat everything before it. The calendar's view of the same Session does not.
   const histories = useExerciseHistories(justFinished ? exerciseIds : []);
 
   // `undefined` is a read still in flight; `null` is a session that is not
@@ -133,20 +110,6 @@ export function SessionDetailScreen() {
   );
 }
 
-/**
- * What the hour amounted to, shown once, at the end of it.
- *
- * Finishing used to record the Session and navigate to Today without a word,
- * which made the moment repeated after every training session the only one in
- * the product that says nothing. The order here is deliberate and is the whole
- * design: **rarest fact first**. A lift that beat everything before it is rare,
- * so it leads; the counts are always true, so they follow; the status is a
- * consequence, so it closes.
- *
- * Records are drawn in Derived Violet, the hue DESIGN.md reserves for a number
- * nobody entered. The estimate is computed, the set beside it is not, so the
- * two are deliberately drawn apart rather than together.
- */
 function FinishSummary({
   session,
   summary,
@@ -157,9 +120,6 @@ function FinishSummary({
   readonly names: ReadonlyMap<ExerciseId, string> | undefined;
 }) {
   return (
-    // The whole summary arrives as one thing. It is reached by finishing a
-    // session — the app's own ending — and it used to be simply present, which
-    // reads as a screen that was always there rather than as a result.
     <section className="arrive flex flex-col gap-4">
       {summary.records.length > 0 && (
         <div className="flex flex-col gap-3 rounded-card bg-progress-wash p-4">
@@ -168,21 +128,12 @@ function FinishSummary({
             {summary.records.length === 1 ? 'a new best' : `${summary.records.length} new bests`}
           </span>
           {summary.records.map((record) => (
-            // The one place a figure is not navigation. Everywhere else it
-            // helps a lifter find a movement in a list; here there is no list
-            // and nothing to find — three entries at most, arriving at the end
-            // of a session. It shows what was just beaten, which is the whole
-            // point of the panel, and it carries the progress hue rather than
-            // the planned one so the block stays one colour.
             <div className="flex items-center gap-3" key={record.exerciseId}>
               <ExerciseArt className="size-12 text-progress-ink" id={record.exerciseId} reserve />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="type-title text-ink">
                   {names?.get(record.exerciseId) ?? 'Exercise'}
                 </span>
-                {/* The set in its own notation, and the axis it beat named in
-                    its own words: less assistance and a faster pace are records
-                    that a bigger number would report backwards (REQ-115). */}
                 <span className="type-measure text-ink-2">
                   {setLine(record.set, record.measurement, true)} · beats everything before it
                 </span>
@@ -196,13 +147,6 @@ function FinishSummary({
         <span className={LABEL}>recorded</span>
         <div className="flex flex-wrap gap-2">
           <Figure label="sets" value={String(summary.setsLogged)} />
-          {/* Volume is derived from the sets, so it carries the derived hue —
-              and it is rounded, because the kilogram it would gain from a
-              decimal is not a fact anybody reads. */}
-          {/* Four accumulators, never one figure: kilogram-reps, reps, seconds
-              and metres are four units, and a total spanning two of them would
-              be a number about nothing (REQ-116, DEC-D). Each appears only
-              when the Session actually did that kind of work. */}
           {summary.volumeKg > 0 && (
             <Figure
               label="volume"
@@ -228,9 +172,6 @@ function FinishSummary({
             />
           )}
           {summary.minutes !== null && <Figure label="min" value={String(summary.minutes)} />}
-          {/* Derived from the sets like volume, so it carries the same hue —
-              and it sits beside the minutes it is half made of, because the
-              number only reads as effort next to the time it took. */}
           {summary.effort !== null && (
             <Figure label="effort" tone="progress" value={String(summary.effort)} />
           )}
@@ -267,12 +208,6 @@ function Figure({
   );
 }
 
-/**
- * The status as a sentence rather than as its enum. `partial` is a fact about a
- * lifter's history and it costs them progression, so it says so — the same
- * words the arming step used before they pressed it, because a consequence
- * named twice in two vocabularies reads as two different consequences.
- */
 function outcome(session: Session, summary: SessionSummary): string {
   if (session.status === 'partial') {
     const left = summary.pending + summary.skipped;
@@ -282,11 +217,6 @@ function outcome(session: Session, summary: SessionSummary): string {
   return 'Recorded in full. Every set here feeds the next load this exercise suggests.';
 }
 
-/**
- * One exercise of the session: what it was aimed at, and what was actually
- * lifted. The two are deliberately adjacent — that pairing is the product
- * (planned vs actual, §16).
- */
 function ExerciseCard({
   entry,
   name,
@@ -334,7 +264,6 @@ function ExerciseCard({
   );
 }
 
-/** `skipped` and `pending` are facts about the session; `performed` is the norm. */
 function statusChip(exerciseSession: ExerciseSession) {
   if (exerciseSession.status === 'performed') return null;
   return (
@@ -343,4 +272,3 @@ function statusChip(exerciseSession: ExerciseSession) {
     </span>
   );
 }
-

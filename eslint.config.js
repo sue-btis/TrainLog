@@ -1,11 +1,7 @@
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 
-/**
- * Layering (AGENTS.MD, REQ-004 / REQ-073):
- *   src/domain/** is pure — no persistence, no React.
- *   src/db/**     is the only IndexedDB access — no React.
- */
+/** Keep persistence and UI imports out of the pure domain; src/db owns IndexedDB. */
 export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**'] },
   ...tseslint.configs.recommended,

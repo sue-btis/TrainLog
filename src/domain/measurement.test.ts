@@ -1,15 +1,3 @@
-/**
- * `src/domain/measurement.ts` is the single place that states, per measurement
- * type, which fields a set collects, what its weight means, which axis carries
- * the target, which axis carries progress, and which way is better along it
- * (REQ-101, REQ-102, REQ-103). Every reader in the tree trusts those answers,
- * so a silent drift in the one table would spread everywhere at once.
- *
- * These tests therefore assert the table *by enumeration* rather than by
- * spot-check: the exhaustive set of nine, the exact set of inverted types, and
- * a named answer for all nine on every accessor. A tenth type added without a
- * row, or a direction flipped, fails here before it reaches a chart.
- */
 
 import { describe, expect, it } from 'vitest';
 import {

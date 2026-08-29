@@ -1,12 +1,3 @@
-/**
- * shadcn's Button, re-skinned on arrival (DESIGN.md §Implementation).
- *
- * What is kept is the behaviour: `asChild`, so a Link or a label can wear a
- * button without a nested control, and the variant/size API. What is replaced
- * is every class it shipped with — the geometry comes from `styles.ts`, which
- * stays the one place a button's face is described.
- */
-
 import type { ComponentProps } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Slot } from 'radix-ui';

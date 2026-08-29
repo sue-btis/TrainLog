@@ -1,11 +1,3 @@
-/**
- * Feature reads (AGENTS.MD: React reads the database through `useLiveQuery`
- * inside feature hooks, which call repositories — components never touch Dexie).
- *
- * Every hook is a thin wrapper over a repository call. Nothing here decides
- * anything: derivation lives in `@/domain`, and the screens read these.
- */
-
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   getActiveRoutine,
@@ -63,7 +55,6 @@ export function useExerciseNames(ids: readonly ExerciseId[]) {
   return useLiveQuery(() => getExerciseNames(key === '' ? [] : (key.split(',') as ExerciseId[])), [key]);
 }
 
-/** How each of these exercises is measured, for the start-of-exercise snapshot (REQ-105). */
 export function useExerciseMeasurements(ids: readonly ExerciseId[]) {
   const key = ids.join(',');
   return useLiveQuery(
@@ -83,15 +74,6 @@ export function useSessionDetail(sessionId: SessionId | null) {
   );
 }
 
-/**
- * One Session for the history detail. `undefined` while the query is in flight,
- * `null` when there is no such Session — the same distinction `useRoutine`
- * draws, and for the same reason: a detail screen must not flash "no such
- * session" during a read that is simply still running.
- *
- * `useSessionDetail` above cannot answer this: gym mode reads it for a Session
- * it already holds, so `undefined` there means only "still reading".
- */
 export function useSessionRecord(sessionId: SessionId | null) {
   return useLiveQuery(
     async () => (sessionId === null ? null : ((await getSessionDetail(sessionId)) ?? null)),
@@ -103,17 +85,6 @@ export function useExerciseHistory(exerciseId: ExerciseId) {
   return useLiveQuery(() => listExerciseHistory(exerciseId), [exerciseId]);
 }
 
-/**
- * The full history of several Exercises at once, keyed by `exerciseId` — what
- * a Session summary needs to say which of its exercises beat everything before.
- *
- * One query per Exercise, like `useExerciseHistory`, because that is the shape
- * of the `exerciseSessions.exerciseId` index; a Session holds a handful of
- * exercises, so the loop is the cheaper answer over a table scan.
- *
- * Keyed on the joined ids, the way `useExerciseNames` is: an array literal
- * re-created every render would re-run the query every render.
- */
 export function useExerciseHistories(ids: readonly ExerciseId[]) {
   const key = [...new Set(ids)].sort().join(',');
   return useLiveQuery(async () => {
@@ -130,16 +101,7 @@ export function usePreviousPerformance(exerciseId: ExerciseId, excludeSessionId:
   );
 }
 
-/* ── The app shell's reads ─────────────────────────────────────────────── */
 
-/**
- * The Routine the app is currently running (§11.2). `undefined` while the query
- * is in flight, `null` when no Routine is active — the same distinction
- * `useRoutine` makes, and for a sharper reason: Today renders "No active
- * routine — import a routine file" for the empty case, so a read that was
- * merely still running used to open the app on an invitation to import a
- * routine the lifter already had.
- */
 export function useActiveRoutine() {
   return useLiveQuery(async () => (await getActiveRoutine()) ?? null, []);
 }
@@ -156,12 +118,10 @@ export function useRoutine(routineId: RoutineId | null) {
   );
 }
 
-/** Every Placement in a month, across all Routines (§11.3, R-23). */
 export function usePlacementsBetween(from: LocalDate, to: LocalDate) {
   return useLiveQuery(() => listPlacementsBetween(from, to), [from, to]);
 }
 
-/** Every Session in a month, across all Routines (§11.3, R-23). */
 export function useSessionsBetween(from: LocalDate, to: LocalDate) {
   return useLiveQuery(() => listSessionsBetween(from, to), [from, to]);
 }
@@ -173,7 +133,6 @@ export function useSessionsByRoutine(routineId: RoutineId | null) {
   );
 }
 
-/** The Workout rotation advances from (§11.4). */
 export function useLastPerformedWorkout(routineId: RoutineId | null) {
   return useLiveQuery(
     () => (routineId === null ? Promise.resolve(null) : getLastPerformedWorkout(routineId)),
@@ -181,11 +140,6 @@ export function useLastPerformedWorkout(routineId: RoutineId | null) {
   );
 }
 
-/**
- * Workouts by id, for rows that name a Workout the calendar found through a
- * Placement or a Session — which can belong to any Routine, including an
- * archived one, so there is no single Routine to list them from.
- */
 export function useWorkoutsById(ids: readonly WorkoutId[]) {
   const key = [...new Set(ids)].sort().join(',');
   return useLiveQuery(async () => {
@@ -197,34 +151,15 @@ export function useWorkoutsById(ids: readonly WorkoutId[]) {
   }, [key]);
 }
 
-/* ── Gym mode's reads ──────────────────────────────────────────────────── */
 
-/**
- * Every setting, complete (§32). `undefined` only while the first read is in
- * flight — the repository resolves absent fields, so a caller never has to.
- *
- * One hook rather than one per setting: gym mode needs four of them at once
- * (the unit and RIR an unplanned exercise opens on, and the two the rest timer
- * announces with), and they live in a single row.
- */
 export function useSettings() {
   return useLiveQuery(() => getSettings(), []);
 }
 
-/**
- * What the unplanned-exercise picker offers: the bundled catalog plus every
- * Exercise a routine file has already created. The catalog ships in the build
- * and is never in the table (DEC-007), so the two lists are disjoint and are
- * concatenated rather than merged.
- */
 export function useUserExercises() {
   return useLiveQuery(() => listUserExercises(), []);
 }
 
-/**
- * What §11.11's selector offers: every Exercise trained at least once. An
- * exercise nobody has performed has no series to draw, so it is not on offer.
- */
 export function usePerformedExercises() {
   return useLiveQuery(() => listPerformedExercises(), []);
 }

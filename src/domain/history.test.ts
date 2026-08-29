@@ -165,7 +165,6 @@ describe('summarizeExercise (§11.10, R-6)', () => {
 
   it('reads the working weight from the latest completed session only (A-2)', () => {
     const summary = summarizeExercise([
-      // Newest, but partial — it shows in history and is ignored here (§11.9).
       session('partial', 3_000, [set(120, 3)]),
       session('completed', 2_000, [set(100, 5), set(105, 4)]),
     ]);
@@ -310,7 +309,6 @@ describe('exerciseSeries (§11.11, R-1)', () => {
 });
 
 describe('estimateOneRepMaxKg', () => {
-  // Epley over reps *and* RIR (§30): a set stopped short of failure demonstrates
   // more than its reps alone say, and the app records how short on purpose.
   it.each([
     [100, 5, 0, 116.67],

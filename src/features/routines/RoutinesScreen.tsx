@@ -1,21 +1,3 @@
-/**
- * Routines (§11.2).
- *
- * This screen holds no editor — a Routine is corrected in the wizard before it
- * is accepted, and added to on its own detail screen — only
- * the three things §11.2 says a lifter does with one: make it the current
- * programme, put it away, or get rid of it.
- *
- * Deleting is refused while any Session references the Routine (§37): history
- * outranks tidiness, and the refusal says so and offers archiving instead.
- *
- * Two ways in sit at the top, because a Routine now has two origins:
- * `Import routine` opens the file picker here and hands the wizard what it
- * chose, rather than routing to a wizard step whose only content is the same
- * request a second time; `Start from scratch` opens the same wizard on a blank
- * draft, with no file involved at all (REQ-200).
- */
-
 import { useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -58,10 +40,6 @@ import { formatLocalDate } from '@/domain/dates';
 
 export function RoutinesScreen() {
   const routines = useRoutines();
-  // Activating and archiving used to be bare promises handed to an `onClick`
-  // typed `() => void`: nothing awaited them, nothing caught them, and nothing
-  // on screen said a write was running. Archiving the active Routine changes
-  // what Today shows, so it is worth more than silence.
   const { busy, failure, run } = useAsyncAction();
   const [refusal, setRefusal] = useState<{ routineId: RoutineId; message: string } | null>(null);
 
@@ -106,9 +84,6 @@ export function RoutinesScreen() {
         </p>
       )}
 
-      {/* `undefined` is the read, not an answer to it. Rendering nothing for it
-          left the screen as an Import button over blank board — the same
-          picture a lifter with no routines gets, and the wrong one. */}
       {routines === undefined ? (
         <Reading>your routines</Reading>
       ) : routines.length === 0 ? (
@@ -151,13 +126,6 @@ function RoutineRow({ routine, refusal, busy, onActivate, onArchive, onDelete }:
   const [confirming, setConfirming] = useState(false);
   const active = routine.status === 'active';
 
-  // §37's refusal, asked before the lifter presses rather than after.
-  // It used to arm, confirm, and only then report that the delete was refused —
-  // for a condition the app could answer on render. Two presses to be told no
-  // is the shape of a control that should never have offered.
-  //
-  // The repository stays the authority: `refusal` below is still rendered if a
-  // delete is refused anyway, because this read can be a moment stale.
   const sessions = useSessionsByRoutine(routine.id);
   const blocked = sessions !== undefined && sessions.length > 0;
 

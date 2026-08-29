@@ -8,7 +8,6 @@ import type {
   RoutineFileWorkout,
 } from '@/domain/routine-file/schema';
 
-/** The §12 example, verbatim. TST-001 parses this. */
 export { EXAMPLE_ROUTINE_YAML as EXAMPLE_YAML } from '@/domain/routine-file/example';
 
 /** A valid parsed exercise, as the schema produces it. */

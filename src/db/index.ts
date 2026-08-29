@@ -1,10 +1,3 @@
-/**
- * The persistence seam (AGENTS.MD: `features → db → domain`).
- *
- * Everything above this layer imports from here; `dexie` itself is imported
- * only inside `src/db` (REQ-073, AC-074).
- */
-
 export { db, resetDatabase } from '@/db/database';
 export { DATABASE_NAME, SCHEMA_VERSION, TABLE_NAMES, TrainLogDatabase } from '@/db/schema';
 

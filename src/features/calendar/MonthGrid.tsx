@@ -1,16 +1,3 @@
-/**
- * A month of days, paged (§11.3).
- *
- * One component, two jobs, and they are the same job: the calendar's own grid,
- * and the date picker the Move control opens. Writing the picker as a second
- * thing would have put two different-looking months on one screen — which is
- * exactly what the native `<input type="date">` did, in a face borrowed from
- * the operating system rather than from this app.
- *
- * It renders day states in both places, so choosing where to move a Placement
- * is done while looking at what is already on those days.
- */
-
 import type { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,9 +25,7 @@ interface MonthGridProps {
   readonly placements: readonly Placement[];
   readonly sessions: readonly Session[];
   readonly onSelect: (date: LocalDate) => void;
-  /** A line under the month's name — the screen's tally, and nothing else. */
   readonly caption?: ReactNode;
-  /** Picking a new date for a Placement: what the cells say they will do. */
   readonly picking?: { readonly name: string; readonly from: LocalDate } | null;
 }
 
@@ -90,14 +75,7 @@ export function MonthGrid({
         ))}
       </div>
 
-      {/* A group of buttons, not a `role="grid"`: the grid role promises rows
-          and gridcells to a screen reader, and there were never any. Each cell
-          already names its own day and state. */}
-      {/* Keyed on the month so React remounts the grid and the entrance runs
-          again: paging used to swap forty-two cells between two frames with
-          nothing to say a month had changed. The fade also covers the frame
-          where `useLiveQuery` still holds the previous month's Placements —
-          it keeps its last result across a dependency change. */}
+      {/* Each day is an independent button, so this is a labeled group rather than a keyboard grid. */}
       <div
         aria-label={monthName(month)}
         className="arrive grid grid-cols-7 gap-1.5"
@@ -122,7 +100,6 @@ export function MonthGrid({
   );
 }
 
-/* ── Month arithmetic ───────────────────────────────────────────────────── */
 
 export function firstOfMonth(date: LocalDate): LocalDate {
   return toLocalDate(`${date.slice(0, 7)}-01`);
@@ -139,11 +116,6 @@ export function sameMonth(date: LocalDate, month: LocalDate): boolean {
   return date.slice(0, 7) === month.slice(0, 7);
 }
 
-/**
- * The six weeks a month grid always shows, Monday first: the whole month plus
- * the neighbouring days that fill its first and last rows. A fixed length keeps
- * the grid from changing height as the months are paged through.
- */
 export function monthGrid(month: LocalDate): LocalDate[] {
   const start = mondayOfWeek(firstOfMonth(month));
   return Array.from({ length: 42 }, (_, index) => addDays(start, index));

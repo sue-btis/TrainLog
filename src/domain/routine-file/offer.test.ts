@@ -47,7 +47,6 @@ function named(offers: readonly Offer[], name: string): readonly Offer[] {
 }
 
 describe('offeredExercises', () => {
-  // TST-300
   it('de-duplicates by resolved identity, so a draft row the catalog knows is offered once', () => {
     // The spelling is the proof that it routes through `findExerciseByName`:
     // only a normalized comparison recognizes this as the Front Squat.
@@ -58,7 +57,6 @@ describe('offeredExercises', () => {
     ]);
   });
 
-  // TST-300
   it('offers the whole catalog first, then persisted Exercises, then draft-only ones', () => {
     const file = aFile([aWorkout({ exercises: [anExercise({ name: 'Sled Push' })] })]);
     const stored = aUserExercise('Zercher Squat');
@@ -73,7 +71,6 @@ describe('offeredExercises', () => {
     expect(offers[CATALOG.length + 1]).toEqual({ kind: 'draft', name: 'Sled Push' });
   });
 
-  // TST-301
   it('surfaces a name that exists only in the draft, from every Workout of the file', () => {
     const file = aFile([
       aWorkout({ name: 'Push', exercises: [anExercise({ name: 'Sled Push' })] }),
@@ -98,7 +95,6 @@ describe('offeredExercises', () => {
     expect(drafts.map(offerName)).toEqual(['Sled Push']);
   });
 
-  // TST-309 — REQ-910's stated ceiling, pinned rather than closed.
   it('does not offer a user Exercise the catalog shadows, because no pick could bind to it', () => {
     const shadow = aUserExercise('front squat', 'shadow-1');
 
@@ -115,7 +111,6 @@ describe('offeredExercises', () => {
 describe('resolveTypedName', () => {
   const offers = offeredExercises(anEmptyDraft(), []);
 
-  // TST-305
   it('matches through normalizeExerciseName and nothing else', () => {
     expect(resolveTypedName('  front   SQUAT ', offers)).toEqual({
       kind: 'catalog',
@@ -123,7 +118,6 @@ describe('resolveTypedName', () => {
     });
   });
 
-  // TST-305 / REQ-305 — total by contract: a miss is the `new` offer, not absence.
   it('yields a new offer for a name none of the sources knows', () => {
     expect(resolveTypedName('Front Squats', offers)).toEqual({ kind: 'new', name: 'Front Squats' });
     expect(resolveTypedName('  Sled Push  ', offers)).toEqual({ kind: 'new', name: 'Sled Push' });
@@ -133,7 +127,6 @@ describe('resolveTypedName', () => {
     expect(resolveTypedName('   ', offers)).toEqual({ kind: 'new', name: '' });
   });
 
-  // REQ-306 — reuse, not refusal, and it reaches a persisted Exercise too.
   it('reuses a persisted Exercise rather than treating the typed name as new', () => {
     const stored = aUserExercise('Zercher Squat');
     const withUser = offeredExercises(anEmptyDraft(), [stored]);
@@ -146,7 +139,6 @@ describe('resolveTypedName', () => {
 });
 
 describe('draftExercise', () => {
-  // TST-302 / AC-004 — the seeded shape, pinned whole.
   it('seeds three sets of eight to twelve on manual progression, every optional field absent', () => {
     const row = draftExercise({ kind: 'new', name: 'Sled Push' });
 
@@ -162,7 +154,6 @@ describe('draftExercise', () => {
     expect('unit' in row).toBe(false);
   });
 
-  // TST-302
   it('writes the catalog spelling and slug for a catalog offer', () => {
     expect(draftExercise({ kind: 'catalog', exercise: frontSquat })).toMatchObject({
       name: 'Front Squat',
@@ -170,14 +161,12 @@ describe('draftExercise', () => {
     });
   });
 
-  // TST-302 / REQ-911 — the clause that keeps a foreign spelling bound.
   it('preserves the exercise_id a draft row declares, under the draft row own spelling', () => {
     expect(
       draftExercise({ kind: 'draft', name: 'Sentadilla Frontal', exerciseId: 'front-squat' }),
     ).toMatchObject({ name: 'Sentadilla Frontal', exercise_id: 'front-squat' });
   });
 
-  // TST-302 — absence, not `undefined`. An explicit key would serialize.
   it('omits exercise_id entirely for a persisted-user offer, a typed name and a bare draft row', () => {
     const rows = [
       draftExercise({ kind: 'user', exercise: aUserExercise('Zercher Squat') }),
@@ -188,7 +177,6 @@ describe('draftExercise', () => {
     for (const row of rows) expect('exercise_id' in row).toBe(false);
   });
 
-  // TST-306
   it('leaves the issue list exactly as it was, for every offer kind', () => {
     const base = aFile();
     const baseline = validateRoutineFile(base);
@@ -206,7 +194,6 @@ describe('draftExercise', () => {
 });
 
 describe('offers through routineFileToDomain', () => {
-  // TST-303
   it('binds a persisted-user offer to the stored Exercise and creates nothing', () => {
     const stored = aUserExercise('Zercher Squat');
     const offer = offeredExercises(anEmptyDraft(), [stored]).find((o) => o.kind === 'user')!;
@@ -217,14 +204,12 @@ describe('offers through routineFileToDomain', () => {
     expect(draft.plannedExercises[0]!.exerciseId).toBe(stored.id);
   });
 
-  // TST-304
   it('mints exactly one Exercise when the same new name is added to two Workouts', () => {
     let file = addExercise(anEmptyDraft('Push', 'Pull'), 0, draftExercise({
       kind: 'new',
       name: 'Sled Push',
     }));
 
-    // The second Workout picks it as a *draft* offer — the REQ-302 path.
     const fromDraft = offeredExercises(file, []).find((offer) => offer.kind === 'draft')!;
     file = addExercise(file, 1, draftExercise(fromDraft));
     const draft = toDomain(file);
@@ -233,7 +218,6 @@ describe('offers through routineFileToDomain', () => {
     expect(draft.plannedExercises[0]!.exerciseId).toBe(draft.plannedExercises[1]!.exerciseId);
   });
 
-  // TST-307 — characterization of the R-3 trap.
   it('ignores a UUID in exercise_id and re-matches the row by name', () => {
     const stored = aUserExercise('Zercher Squat', '11111111-2222-3333-4444-555555555555');
     const file = aFile([
@@ -246,7 +230,6 @@ describe('offers through routineFileToDomain', () => {
     expect(draft.plannedExercises[0]!.exerciseId).toBe(stored.id);
   });
 
-  // TST-308 — the REQ-911 case, and the reason offers are keyed by identity.
   it('does not split a movement whose draft row carries a slug under a foreign name', () => {
     let file = aFile([
       aWorkout({
@@ -257,9 +240,7 @@ describe('offers through routineFileToDomain', () => {
     ]);
 
     const offers = offeredExercises(file, []);
-    // The catalog entry keeps its own spelling and is offered once (REQ-301),
     // and the file's spelling is offered too — carrying the slug, so picking
-    // either one binds to the same Exercise (REQ-303, REQ-911).
     expect(offers.filter((offer) => offerName(offer) === 'Front Squat')).toHaveLength(1);
     expect(offers).toContainEqual({
       kind: 'draft',
@@ -275,7 +256,6 @@ describe('offers through routineFileToDomain', () => {
     expect(draft.plannedExercises[0]!.exerciseId).toBe(draft.plannedExercises[1]!.exerciseId);
   });
 
-  // REQ-911 by the typed-name path, which is the one the pick path cannot cover.
   // The wizard SHOWS "Sentadilla Frontal" in Push, so a lifter adding the same
   // movement to Pull types exactly that. It must reuse the draft row's identity
   // rather than mint a second Exercise for a movement the draft already binds.

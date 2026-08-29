@@ -22,7 +22,6 @@ import { toKg } from '@/domain/units';
 import { startPlannedExercise, startUnplannedExercise } from '@/domain/session';
 import { projectNextLoad, suggestLoad, type SessionHistory } from '@/domain/progression';
 
-/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
 const measurement = 'weight_reps' as const;
 
 const squat = toId<ExerciseId>('front-squat');
@@ -50,12 +49,6 @@ function planned(overrides: Partial<PlannedExercise> = {}): PlannedExercise {
   };
 }
 
-/**
- * One set, in whatever axes its measurement collects. Everything but `weight`
- * is optional and defaults to `null`, so a `duration` set states seconds and a
- * `distance` set states metres without either pretending to have reps
- * (REQ-106, REQ-107).
- */
 interface SetSpec {
   readonly weight: number;
   readonly reps?: number | null;
@@ -74,7 +67,6 @@ function history(options: {
   readonly routineId?: string;
   readonly startedAt?: number;
   readonly rule?: ProgressionRule;
-  /** The type the ExerciseSession snapshots, and the one the engine reads (REQ-105). */
   readonly measurement?: Measurement;
   /** Anything else about the plan behind the session — set count, either target pair. */
   readonly plan?: Partial<PlannedExercise>;
@@ -384,14 +376,6 @@ describe('TST-016 no suggestion without planned history (REQ-065, AC-069)', () =
   });
 });
 
-/**
- * Regression tests added by verification (2026-08-19).
- *
- * Mutation testing showed that two behaviours `lastCompletedSets` depends on
- * were unasserted: the ordering of the sets it evaluates, and its walk back
- * past completed Sessions that did not contain the exercise. Both sit under
- * §29's "first N sets" rule, so a silent break would move a lifter's load.
- */
 describe('lastCompletedSets — ordering and the walk backwards (REQ-061, REQ-064, §29)', () => {
   it('evaluates the first N sets by setNumber, not by the order they arrive in', () => {
     // Two working sets at 100 kg, then a lighter back-off set. With N = 2 the
@@ -535,15 +519,6 @@ describe('projectNextLoad — what the sets in hand will earn (§29)', () => {
   });
 });
 
-// --------------------------------------------------------- The nine types
-
-/**
- * One measurement type, a plan stating a range on *its own* target axis, sets
- * that meet that range, and the advance the rule owes for meeting it.
- *
- * Built once and read twice: TST-109 asserts the advance, TST-111 asserts that
- * both entry points produce it.
- */
 interface AdvanceCase {
   readonly measurement: Measurement;
   readonly plan: Partial<PlannedExercise>;
@@ -556,7 +531,6 @@ interface AdvanceCase {
   };
 }
 
-/** Two planned sets with the range in `minReps`/`maxReps` (REQ-139). */
 const repPlan = (maxReps: number, increment: number): Partial<PlannedExercise> => ({
   sets: 2,
   minReps: maxReps - 2,
@@ -566,7 +540,6 @@ const repPlan = (maxReps: number, increment: number): Partial<PlannedExercise> =
   progression: { type: 'double_progression', increment },
 });
 
-/** Two planned sets with the range in `minTarget`/`maxTarget` — canonical seconds or metres (REQ-138). */
 const targetPlan = (maxTarget: number, increment: number): Partial<PlannedExercise> => ({
   sets: 2,
   minReps: null,
@@ -596,7 +569,6 @@ const advances: readonly AdvanceCase[] = [
     expected: { axis: 'load', value: 22.5, weight: 22.5 },
   },
   {
-    // The inverted load axis: less help is the advance (REQ-120).
     measurement: 'assisted_bodyweight',
     plan: repPlan(8, 5),
     sets: [at(30, 8), at(30, 8)],
@@ -622,7 +594,6 @@ const advances: readonly AdvanceCase[] = [
   },
   {
     // Pace is seconds per metre: 300 s over 100 m is 3, and a second per metre
-    // off it is the advance (REQ-103).
     measurement: 'distance_duration',
     plan: targetPlan(100, 1),
     sets: [

@@ -1,13 +1,3 @@
-/**
- * TST-415…417 (REQ-407, REQ-408, REQ-411, REQ-413) — adding a Planned Exercise
- * to a Workout of a Routine already running.
- *
- * TST-417 is the one that matters most: it is the test DEC-B rests on. Adding
- * to a template must leave every recorded Session exactly as it was, which is
- * true only because an ExerciseSession snapshots its targets when it starts
- * (ADR 0002) rather than joining back into these rows.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
@@ -74,7 +64,6 @@ beforeEach(async () => {
 });
 
 describe('addPlannedExercise', () => {
-  // TST-415
   it('stores at the last order and is returned last', async () => {
     const workoutId = await importFixture();
 
@@ -99,7 +88,6 @@ describe('addPlannedExercise', () => {
     expect(await db.exercises.count()).toBe(exercisesBefore);
   });
 
-  // TST-416
   it('refuses an unknown Workout and writes nothing', async () => {
     await importFixture();
     const before = await db.plannedExercises.count();
@@ -111,7 +99,6 @@ describe('addPlannedExercise', () => {
     expect(await db.plannedExercises.count()).toBe(before);
   });
 
-  // TST-417 — the DEC-B safety test.
   it('leaves every recorded Session, ExerciseSession and CompletedSet identical', async () => {
     const workoutId = await importFixture();
     const routineId = (await listWorkoutsByRoutine(
@@ -177,7 +164,6 @@ describe('addPlannedExercise', () => {
     expect(await db.sessions.toArray()).toEqual(before.sessions);
     expect(await db.exerciseSessions.toArray()).toEqual(before.exerciseSessions);
     expect(await db.completedSets.toArray()).toEqual(before.completedSets);
-    // And the addition really did land, so the comparison above is not vacuous.
     expect(await listPlannedExercisesByWorkout(workoutId)).toHaveLength(2);
   });
 });

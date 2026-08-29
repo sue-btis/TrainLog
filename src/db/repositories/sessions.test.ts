@@ -1,14 +1,3 @@
-/**
- * TST-021 — an `in_progress` Session with logged sets is recovered from a fresh
- * database handle with all sets intact (REQ-058, AC-061, §35, §36).
- *
- * Also covers AC-056: the set is readable from a *fresh handle* immediately
- * after logging, before the Session finishes (REQ-054, NFR-03).
- *
- * Every query exercised here is served by a declared index (AC-073):
- * `sessions.status`, `exerciseSessions.sessionId`, `completedSets.exerciseSessionId`.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import { TrainLogDatabase } from '@/db/schema';
@@ -57,7 +46,6 @@ import type {
 } from '@/domain/ids';
 import type { PlannedExercise } from '@/domain/types';
 
-/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
 const measurement = 'weight_reps' as const;
 const measurementOf = () => measurement;
 
@@ -111,7 +99,6 @@ describe('TST-021 — in-progress session recovery', () => {
       current = logged.exerciseSession;
     }
 
-    // Simulate a reload: drop the handle the writes went through, reopen it.
     db.close();
     await db.open();
 
@@ -155,7 +142,6 @@ describe('TST-021 — in-progress session recovery', () => {
       expect(stored?.status).toBe('in_progress');
       expect(stored?.completedAt).toBeNull();
 
-      // REQ-054/DEC-009 — the status transition landed with the set, atomically.
       expect((await fresh.exerciseSessions.get(exercise.id))?.status).toBe('performed');
     } finally {
       fresh.close();
@@ -196,12 +182,6 @@ describe('TST-021 — in-progress session recovery', () => {
   });
 });
 
-/**
- * R-43, R-44 — the calendar's range read and Today's rotation anchor.
- *
- * The boundary is the point: `startedAt` is an instant, the calendar asks in
- * local days, and a session started at 23:30 belongs to that local day.
- */
 describe('session range reads (R-43, R-44)', () => {
   const at = (date: string, hours: number, minutes = 0): number => {
     const day = parseLocalDate(toLocalDate(date));
@@ -254,8 +234,6 @@ describe('session range reads (R-43, R-44)', () => {
   });
 });
 
-/* ── Gym mode: starting a Workout (R-2, R-3, R-10) ─────────────────────── */
-
 function plannedAt(order: number, id: string): PlannedExercise {
   return { ...planned, id: toId<PlannedExerciseId>(id), order };
 }
@@ -304,10 +282,6 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
     });
   });
 
-  // AM-1 (superseding REQ-108/AC-111) — bodyweight is stated once in Settings,
-  // and the Session records what it said when it started. The dated snapshot is
-  // what survives a restore, since a restore leaves `settings` alone.
-  // that starts under it.
   it('records the bodyweight settings hold when the Session starts', async () => {
     await setBodyweightKg(82.5);
 
@@ -323,8 +297,6 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
     expect((await getInProgressSession())?.bodyweightKg).toBe(82.5);
   });
 
-  // The install that recorded bodyweight against Sessions before it was a
-  // setting still opens on its last weigh-in rather than on nothing.
   it('falls back to the last Session that recorded one when settings hold none', async () => {
     const earlier = startWorkout({
       measurementOf,
@@ -386,9 +358,7 @@ describe('createStartedWorkout (R-2, AC-3, AC-5, AC-6)', () => {
       startedAt: 1_000,
     });
 
-    // A duplicate primary key inside the bulk write: the transaction must take
-    // the Session down with it rather than leaving a headless exercise or a
-    // Session whose exercises are half written.
+    // The transaction must roll back both tables on a duplicate key.
     const collided = {
       ...started,
       exerciseSessions: [
@@ -436,7 +406,6 @@ describe('saveExerciseSessions (R-10, AC-20)', () => {
     expect(after.map((it) => it.plannedExerciseId)).toEqual(['pe-a', 'pe-c', 'pe-b']);
     expect(after.map((it) => it.order)).toEqual([0, 1, 2]);
 
-    // The templates are untouched — nothing was written to them at all.
     expect(await db.plannedExercises.count()).toBe(0);
   });
 
@@ -458,15 +427,6 @@ describe('saveExerciseSessions (R-10, AC-20)', () => {
   });
 });
 
-/**
- * R-1, R-5 — the session history reads.
- *
- * `listAllSessions` is the list screen's only query: every Session across every
- * Routine, newest first, of every status. The AC-5a case below is the one that
- * matters most — history renders from the ExerciseSession snapshot, so editing
- * the template behind a past Session must not move what that Session says it
- * was performed against (ADR 0002).
- */
 describe('session history reads (R-1, R-5)', () => {
   const otherRoutine = toId<RoutineId>('routine-2');
 
@@ -526,7 +486,6 @@ describe('session history reads (R-1, R-5)', () => {
       started.exerciseSessions,
     );
 
-    // The lifter re-imports a corrected file: same template row, new targets.
     await db.plannedExercises.put({ ...planned, sets: 8, minReps: 10, maxReps: 12, restSeconds: 60 });
 
     const detail = await getSessionDetail(started.session.id);
@@ -553,7 +512,6 @@ describe('discardSession — the way out of a Session started by mistake (§35)'
     expect(await getSession(session.id)).toBeUndefined();
     expect(await getInProgressSession()).toBeUndefined();
     expect(await listExerciseSessionsBySession(session.id)).toEqual([]);
-    // And the slot is free again: REQ-058 no longer has anything to refuse.
     const next = startSession({ routineId, workoutId, startedAt: 2_000 });
     await expect(createStartedWorkout({ session: next, exerciseSessions: [] })).resolves
       .toBeUndefined();

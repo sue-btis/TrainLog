@@ -1,9 +1,3 @@
-/**
- * REQ-071 / DEC-007 — resolving an `exerciseId` to an Exercise consults the
- * catalog first and the `exercises` table second, so no caller has to know
- * that catalog Exercises are never stored.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
@@ -68,10 +62,6 @@ describe('exercise resolution', () => {
   });
 });
 
-/**
- * TST-102…TST-107 — creating a user Exercise (REQ-100, REQ-101, REQ-103,
- * REQ-104, REQ-105, REQ-106, REQ-107).
- */
 describe('createUserExercise', () => {
   it('writes one row, trimmed, with the casing the lifter typed', async () => {
     const result = await createUserExercise({
@@ -82,7 +72,7 @@ describe('createUserExercise', () => {
 
     expect(result.created).toBe(true);
     expect(result.exercise.name).toBe('Zercher Good Morning');
-    expect(await db.exercises.count()).toBe(2); // the fixture plus this one
+    expect(await db.exercises.count()).toBe(2);
   });
 
   it('binds a case-and-whitespace variant to the incumbent instead of minting', async () => {
@@ -99,7 +89,6 @@ describe('createUserExercise', () => {
 
     expect(again.created).toBe(false);
     expect(again.exercise.id).toBe(first.exercise.id);
-    // The incumbent is handed back untouched — a second create is not an edit.
     expect(again.exercise.category).toBeNull();
     expect(await db.exercises.count()).toBe(2);
   });
@@ -201,16 +190,7 @@ describe('createUserExercise', () => {
   });
 });
 
-/**
- * TST-123 — correcting how a user Exercise is measured (REQ-133, AC-152,
- * AC-153, AC-154, DEC-O).
- *
- * The refusal is the point of the verb: the measurement decides how every
- * stored set is read, so it may only be corrected while nothing has been
- * logged under it.
- */
 describe('correctExerciseMeasurement', () => {
-  /** One ExerciseSession naming the fixture, with one set under it. */
   async function logOneSet(): Promise<void> {
     const exerciseSession: ExerciseSession = {
       id: toId<ExerciseSessionId>('es-correct-1'),
@@ -284,6 +264,6 @@ describe('correctExerciseMeasurement', () => {
     ).rejects.toThrow('Only an exercise you created can have its measurement corrected.');
 
     expect((await getExercise(toId<ExerciseId>('front-squat')))?.measurement).toBe('weight_reps');
-    expect(await db.exercises.count()).toBe(1); // the fixture only
+    expect(await db.exercises.count()).toBe(1);
   });
 });

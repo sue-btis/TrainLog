@@ -1,23 +1,8 @@
-/**
- * Completed Sets (§14.8, §11.7, REQ-054, NFR-03).
- *
- * The durability guarantee of the whole product lives in `saveLoggedSet`: a set
- * is on disk the moment it is logged, not at session end, so a phone dying
- * mid-workout costs nothing already entered (§35).
- */
-
 import { db } from '@/db/database';
 import type { CompletedSetId, ExerciseSessionId } from '@/domain/ids';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 
-/**
- * Persists the pair `logSet` returned: the CompletedSet and the ExerciseSession
- * it moved to `performed` (REQ-054, REQ-056, DEC-009).
- *
- * One transaction, because the two are one fact. A set stored without its
- * status transition would leave an exercise reading `pending` while holding
- * sets; the transition stored without its set would claim work that was lost.
- */
+// The set and its performed transition must become visible together.
 export async function saveLoggedSet(logged: {
   readonly set: CompletedSet;
   readonly exerciseSession: ExerciseSession;
@@ -28,32 +13,11 @@ export async function saveLoggedSet(logged: {
   });
 }
 
-/**
- * R-4 — overwrites a set corrected by `editSet`.
- *
- * A correction touches nothing but the row itself: the set still belongs to the
- * same exercise at the same position, and no status can change, because the
- * exercise still holds exactly the sets it held before.
- */
 export async function saveEditedSet(set: CompletedSet): Promise<void> {
   await db.completedSets.put(set);
 }
 
-/**
- * R-4 — removes a set and stores what `removeSet` returned with it (§37).
- *
- * One transaction, because a deletion is three facts that are only true
- * together: the row is gone, the survivors have closed ranks into a contiguous
- * `1..n`, and an exercise left with no sets counts as undone again. Written
- * separately, a failure between them could leave two sets sharing position 2,
- * or an exercise reading `performed` while holding nothing — which
- * `deriveSessionStatus` would then let a Session finish `completed` on
- * (DEC-009).
- *
- * `removed` is what the caller asked to delete. When `removeSet` found no such
- * set it returns the list untouched, and the guard below turns the whole call
- * into a no-op rather than opening a transaction to write what is already there.
- */
+// Deleting a set, closing ranks, and reverting an empty exercise are one fact.
 export async function deleteCompletedSet(removal: {
   readonly removed: CompletedSetId;
   readonly sets: readonly CompletedSet[];
@@ -71,7 +35,6 @@ export async function deleteCompletedSet(removal: {
   });
 }
 
-/** The sets of one exercise, in set order. Index: exerciseSessionId. */
 export async function listCompletedSetsByExerciseSession(
   exerciseSessionId: ExerciseSessionId,
 ): Promise<CompletedSet[]> {
@@ -82,7 +45,6 @@ export async function listCompletedSetsByExerciseSession(
   return sets.sort((a, b) => a.setNumber - b.setNumber);
 }
 
-/** The sets of several exercises at once, grouped by ExerciseSession id. Index: exerciseSessionId. */
 export async function groupCompletedSetsByExerciseSession(
   exerciseSessionIds: readonly ExerciseSessionId[],
 ): Promise<Map<ExerciseSessionId, CompletedSet[]>> {

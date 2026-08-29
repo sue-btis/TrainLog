@@ -1,13 +1,3 @@
-/**
- * shadcn's Tabs, re-skinned on arrival.
- *
- * The behaviour is the reason it is here: arrow-key roving focus and the
- * trigger/panel wiring, which the two hand-rolled Workout strips did not have.
- * The list is a `rail` — it runs past the screen edge without a scrollbar,
- * because four Workout names do not fit a phone and a grey bar under them is a
- * desktop artefact.
- */
-
 import type { ComponentProps } from 'react';
 import { Tabs as TabsPrimitive } from 'radix-ui';
 import { TAB_TRIGGER } from '@/features/ui/styles';
@@ -18,7 +8,6 @@ export function Tabs({ className, ...props }: ComponentProps<typeof TabsPrimitiv
     <TabsPrimitive.Root className={cn('flex flex-col gap-4', className)} data-slot="tabs" {...props} />
   );
 }
-
 export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.List>) {
   return (
     <TabsPrimitive.List

@@ -1,9 +1,3 @@
-/**
- * TST-001 — the §12 example parses into the expected domain objects
- * (REQ-030, REQ-033, AC-030, AC-034).
- * TST-004 — exercise resolution (REQ-022, AC-023, AC-024, AC-025) and the
- * default unit (REQ-034, AC-035).
- */
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -211,15 +205,6 @@ describe('resolveFileExercise (TST-004)', () => {
   });
 });
 
-/**
- * The lookup half of `resolveFileExercise`, without the mint (REQ-022, REQ-102).
- *
- * The wizard asks this to decide whether an entry's measurement is still the
- * lifter's to choose, and it must answer exactly what Accept will bind to.
- * Two deciders that can disagree do not throw — they silently mint a second
- * Exercise for a movement the file already names, splitting a lifter's history
- * inside one Routine (§26, `offer.ts` header). Hence the agreement test below.
- */
 describe('resolvedFileExercise', () => {
   const mine: Exercise = {
     id: toId<ExerciseId>('user-1'),
@@ -241,7 +226,6 @@ describe('resolvedFileExercise', () => {
   it('resolves a catalog row by name alone, measurement and all (AC-024)', () => {
     // The dangerous one: a file writing `Plank` with a stale `reps: 8–12` binds
     // to a duration movement, and the rep range it states is not the range the
-    // Exercise is programmed on (REQ-139).
     const resolved = resolvedFileExercise(anExercise({ name: 'Plank' }), []);
     expect(resolved?.id).toBe('plank');
     expect(resolved?.measurement).toBe('duration');
@@ -305,7 +289,6 @@ describe('resolvedFileExercise', () => {
   });
 });
 
-// --------------------------------------------------------------- TST-120
 
 /** A file whose one exercise names a movement the catalog does not know. */
 function fileYaml(version: 1 | 2, exerciseBody: string): string {
@@ -411,7 +394,6 @@ describe('the file format states how an exercise is measured (TST-120)', () => {
   });
 });
 
-// --------------------------------------------------------------- TST-121
 
 const BLOCK_FILES = ['bloque-a-acumulacion.yaml', 'bloque-b-intensificacion.yaml'];
 
@@ -451,7 +433,6 @@ describe('the shipped blocks still load unchanged (TST-121)', () => {
     expect(draft.plannedExercises.length).toBeGreaterThan(0);
 
     // Exactly one target pair per row, and which one is the measurement's call
-    // rather than a guess from which field happens to be non-null (REQ-139).
     const minted = new Map(draft.createdExercises.map((it) => [it.id, it] as const));
     for (const planned of draft.plannedExercises) {
       const exercise = minted.get(planned.exerciseId) ?? getCatalogExercise(planned.exerciseId);
@@ -484,7 +465,6 @@ describe('the shipped blocks still load unchanged (TST-121)', () => {
         expect(row.minReps).toBeNull();
         expect(row.maxReps).toBeNull();
       }
-      // Bound to the catalog, so both blocks feed one history (REQ-131, §26).
       expect(draft.createdExercises.some((it) => it.id === id)).toBe(false);
     }
   });

@@ -1,12 +1,3 @@
-/**
- * AC-6a, AC-6b — `snapshotLine` is the one notation for the targets an exercise
- * was performed against, shared by gym mode and session history.
- *
- * Only the branching is tested. The rest of `format.ts` is `Intl` output that
- * moves with the reader's locale, which is why this file did not exist before:
- * `snapshotLine` is the first formatter here that makes decisions.
- */
-
 import { describe, expect, it } from 'vitest';
 import { toId } from '@/domain/ids';
 import type { ExerciseId, ExerciseSessionId, PlannedExerciseId, SessionId } from '@/domain/ids';
@@ -71,8 +62,6 @@ describe('snapshotLine (AC-6)', () => {
 
 describe('snapshotFigures', () => {
   it('holds its three columns whatever the snapshot omits', () => {
-    // The point of the em dash: `snapshotLine` may drop a part, a row of three
-    // may not — losing the middle column would slide `rest` under `RIR`.
     expect(
       snapshotFigures({ ...snapshot, plannedMinRir: null, plannedMaxRir: null }).map((f) => f.value),
     ).toEqual(['4 × 4–6', '—', '210s']);
@@ -83,22 +72,12 @@ describe('snapshotFigures', () => {
   });
 });
 
-/**
- * The lifter-facing names for the nine measurement types (REQ-101, REQ-102).
- *
- * The dictionary is shared by the create-Exercise form and the import wizard,
- * so a gap here is a picker offering a database word — or, worse, two types
- * under one name, which makes the choice a lie the lifter cannot see.
- */
 describe('measurementLabel / MEASUREMENT_OPTIONS', () => {
   it.each(MEASUREMENTS)('names %s in the lifter\u2019s words', (measurement) => {
     const label = measurementLabel(measurement);
     expect(label).not.toBe('');
-    // The union's own values all carry an underscore; a label that does is the
-    // raw enum leaking onto the screen.
     expect(label).not.toContain('_');
   });
-
   it('gives no two types the same name', () => {
     const labels = MEASUREMENTS.map(measurementLabel);
     expect(new Set(labels).size).toBe(labels.length);

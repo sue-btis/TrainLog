@@ -1,20 +1,3 @@
-/**
- * Today (§11.4) — the screen the app opens on.
- *
- * The suggestion resolves exactly as §11.4 states: a Placement for today names
- * the Workout; with none, the next Workout in the file's rotation after the
- * last one performed. Both are domain decisions already made and tested; this
- * screen only asks.
- *
- * A day without a Placement is not a blocked day, so the Workout selector is
- * always there. And the suggestion is a suggestion — nothing here writes.
- *
- * `Start workout` is the one thing here that writes, and it writes the whole
- * session at once: the Session plus a snapshot of every planned exercise, in one
- * transaction (R-2). With a session already open it becomes `Resume session`,
- * because §35 recovers a session and never abandons one silently.
- */
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Activity, CalendarX, CheckCircle2, FileUp, LoaderCircle, Play, Timer } from 'lucide-react';
@@ -66,7 +49,6 @@ import {
 } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
-/** How far back Today looks for a planned day that went untrained. */
 const MISSED_WINDOW_DAYS = 28;
 
 export function TodayScreen() {
@@ -77,9 +59,6 @@ export function TodayScreen() {
 
   const workouts = useWorkouts(routineId) ?? [];
   const todaysPlacements = usePlacementsBetween(today, today) ?? [];
-  // Four weeks back, only so Today can say a planned day went untrained. The
-  // calendar owns the full record; this is the one line that stops a missed day
-  // from being invisible unless a lifter goes looking for it.
   const recentPlacements = usePlacementsBetween(addDays(today, -MISSED_WINDOW_DAYS), today) ?? [];
   const lastPerformed = useLastPerformedWorkout(routineId) ?? null;
   const open = useInProgressSession();
@@ -91,10 +70,6 @@ export function TodayScreen() {
   const shown = workouts.find((workout) => workout.id === picked) ?? suggested;
   const placed = todaysPlacements.some((placement) => placement.workoutId === shown?.id);
 
-  // A Session for this Workout, finished, today. Today used to offer "Start
-  // workout" regardless — on the app's most-visited screen, for a Workout it
-  // had already recorded an hour earlier, which is how a duplicate Session gets
-  // made. An open Session is not this: `open` already has its own banner.
   const recordedToday =
     shown === null
       ? undefined
@@ -105,7 +80,6 @@ export function TodayScreen() {
             formatLocalDate(new Date(session.startedAt)) === today,
         );
 
-  // Derived, never stored (ADR 0001) — the same `isMissed` the calendar reads.
   const missed = recentPlacements.filter((placement) => isMissed(placement, sessions, today));
 
   return (
@@ -155,9 +129,6 @@ export function TodayScreen() {
         </p>
       )}
 
-      {/* `useActiveRoutine` answers `undefined` while it reads and `null` when
-          there is nothing to read. One branch covering both is why the app
-          used to open on "No active routine" for lifters who had one. */}
       {routine === undefined ? (
         <Reading>today</Reading>
       ) : routine === null ? (
@@ -194,11 +165,6 @@ export function TodayScreen() {
               <WorkoutCard
                 busy={busy}
                 onStart={(exercises, measurementOf) =>
-                  // R-2 — the Session and every snapshotted exercise are written
-                  // in one transaction, so `/session` cannot arrive before the
-                  // rows it reads exist. A refusal (REQ-058: another session is
-                  // already open) surfaces through `failure` rather than being
-                  // swallowed into a screen that silently did nothing.
                   void run(async () => {
                     await createStartedWorkout(
                       startWorkout({
@@ -246,9 +212,7 @@ function NoRoutine() {
 
 interface WorkoutCardProps {
   readonly workout: Workout;
-  /** Whether a Session is already open — then the action is to resume, not start. */
   readonly open: boolean;
-  /** A finished Session for this Workout, today, if there is one (§11.4). */
   readonly recordedToday: Session | undefined;
   /** Whether the start is already in flight — the control it belongs to says so. */
   readonly busy: boolean;
@@ -259,27 +223,14 @@ interface WorkoutCardProps {
 }
 
 function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCardProps) {
-  // The same distinction the screen above makes, one card down: `undefined` is
-  // the read, `[]` is a Workout that really holds nothing. Collapsed into one,
-  // this card opened on "0 exercises · This Workout has no exercises" for the
-  // Workout it was about to list.
   const planned = usePlannedExercises(workout.id);
   const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
   const measurements = useExerciseMeasurements(exercises.map((exercise) => exercise.exerciseId));
   const settings = useSettings();
-  // `weight_reps` where an id resolves to nothing, the same fallback the
-  // migration applies and for the same reason (REQ-125).
   const measurementOf = (id: ExerciseId): Measurement =>
     measurements?.get(id) ?? 'weight_reps';
 
-  // AM-1 — the one place the app asks for a bodyweight, and it asks here
-  // rather than in gym mode because §21 protects that screen and because
-  // this is the moment a lifter can still act: the Session has not started,
-  // and the value it opens on is the one Settings holds now.
-  //
-  // `undefined` is the settings read still in flight, and it is not an
-  // answer: asking then would flash the line for a frame at every load.
   const bodyweightUnknown =
     settings !== undefined &&
     settings.bodyweightKg === null &&
@@ -300,10 +251,6 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
         )}
       </div>
 
-      {/* One paragraph, not a `WELL`: a well inside a card is the nested
-          surface DESIGN.md forbids, and `WELL` is a flex column besides —
-          which lays a sentence out one child per line and leaves the full
-          stop floating under the link. */}
       {bodyweightUnknown && (
         <p className="type-body-sm text-ink-2" role="status">
           This Session has exercises measured against your bodyweight, and the app
@@ -315,9 +262,6 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
         </p>
       )}
 
-      {/* The bare sentence rather than `Reading`: that component brings a
-          `WELL` with it, and a well inside a card is the nested surface
-          DESIGN.md forbids (see `styles.ts`). */}
       {planned === undefined ? (
         <p className="type-body-sm text-ink-2">Reading the exercises…</p>
       ) : exercises.length === 0 ? (
@@ -388,7 +332,6 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
   );
 }
 
-/** The last time this Workout was trained — §11.4's "última sesión". */
 function LastSession({
   sessions,
   workoutId,
@@ -415,10 +358,6 @@ function LastSession({
   );
 }
 
-/**
- * §11.4's resolution, in one place: a Placement for today names the Workout,
- * otherwise the rotation advances from the last one performed.
- */
 function suggestWorkout(
   workouts: readonly Workout[],
   placedToday: readonly WorkoutId[],

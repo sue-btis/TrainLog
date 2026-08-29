@@ -1,20 +1,5 @@
-/**
- * The shipped exercise catalog data (REQ-020, DEC-007).
- *
- * A build-time module: it is imported statically, never fetched, and never
- * written into the `exercises` table. Every slug here is PERMANENT (REQ-023) —
- * stored history references it, so a slug may be added but never renamed or
- * removed.
- *
- * `category` and `equipment` are `string` on the frozen `Exercise` type; the
- * two vocabularies below are internal to this module and exist only to keep the
- * authored rows consistent with each other. They are deliberately not exported
- * into the domain contract.
- */
-
 import type { Measurement } from '@/domain/measurement';
 
-/** Muscle-group vocabulary used by the catalog rows. */
 type Category =
   | 'quadriceps'
   | 'hamstrings'
@@ -29,10 +14,8 @@ type Category =
   | 'core'
   | 'full-body';
 
-/** Equipment vocabulary used by the catalog rows. */
 type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'kettlebell' | 'band';
 
-/** `[slug, name, category, equipment, measurement]`. */
 type Row = readonly [
   slug: string,
   name: string,
@@ -42,7 +25,6 @@ type Row = readonly [
 ];
 
 export const CATALOG_ROWS: readonly Row[] = [
-  // ---------------------------------------------------------------- lower body
   ['back-squat', 'Back Squat', 'quadriceps', 'barbell', 'weight_reps'],
   ['front-squat', 'Front Squat', 'quadriceps', 'barbell', 'weight_reps'],
   ['box-squat', 'Box Squat', 'quadriceps', 'barbell', 'weight_reps'],
@@ -67,14 +49,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['seated-leg-curl', 'Seated Leg Curl', 'hamstrings', 'machine', 'weight_reps'],
   ['nordic-curl', 'Nordic Curl', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
   ['glute-ham-raise', 'Glute Ham Raise', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
-  // The loaded twins below revoke DEC-S of the exercise-measurement change,
-  // which forbade adding a rep-based row on the grounds that a missing one is a
-  // catalog gap `createUserExercise` already covers. It is, and the twins are
-  // still worth shipping: `weighted-dip` and `weighted-pull-up` have always
-  // been here, and a lifter who starts hanging a disc from a belt should find
-  // the loaded movement rather than mint it. Each is its own row with its own
-  // permanent slug (REQ-023) — never a measurement change on the unloaded one,
-  // which would reinterpret every set already logged against it.
   ['weighted-glute-ham-raise', 'Weighted Glute Ham Raise', 'hamstrings', 'bodyweight', 'weighted_bodyweight'],
   ['hip-thrust', 'Hip Thrust', 'glutes', 'barbell', 'weight_reps'],
   ['cable-pull-through', 'Cable Pull Through', 'glutes', 'cable', 'weight_reps'],
@@ -83,7 +57,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['standing-calf-raise', 'Standing Calf Raise', 'calves', 'machine', 'weight_reps'],
   ['seated-calf-raise', 'Seated Calf Raise', 'calves', 'machine', 'weight_reps'],
 
-  // --------------------------------------------------------------------- chest
   ['bench-press', 'Bench Press', 'chest', 'barbell', 'weight_reps'],
   ['incline-bench-press', 'Incline Bench Press', 'chest', 'barbell', 'weight_reps'],
   ['close-grip-bench-press', 'Close Grip Bench Press', 'triceps', 'barbell', 'weight_reps'],
@@ -98,7 +71,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['dip', 'Dip', 'chest', 'bodyweight', 'bodyweight_reps'],
   ['weighted-dip', 'Weighted Dip', 'chest', 'bodyweight', 'weighted_bodyweight'],
 
-  // ---------------------------------------------------------------------- back
   ['pull-up', 'Pull Up', 'back', 'bodyweight', 'bodyweight_reps'],
   ['weighted-pull-up', 'Weighted Pull Up', 'back', 'bodyweight', 'weighted_bodyweight'],
   ['chin-up', 'Chin Up', 'back', 'bodyweight', 'bodyweight_reps'],
@@ -119,7 +91,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['back-extension', 'Back Extension', 'back', 'bodyweight', 'bodyweight_reps'],
   ['weighted-back-extension', 'Weighted Back Extension', 'back', 'bodyweight', 'weighted_bodyweight'],
 
-  // ----------------------------------------------------------------- shoulders
   ['overhead-press', 'Overhead Press', 'shoulders', 'barbell', 'weight_reps'],
   ['push-press', 'Push Press', 'shoulders', 'barbell', 'weight_reps'],
   ['seated-dumbbell-press', 'Seated Dumbbell Press', 'shoulders', 'dumbbell', 'weight_reps'],
@@ -133,7 +104,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['face-pull', 'Face Pull', 'shoulders', 'cable', 'weight_reps'],
   ['band-pull-apart', 'Band Pull Apart', 'shoulders', 'band', 'weight_reps'],
 
-  // ---------------------------------------------------------------------- arms
   ['barbell-curl', 'Barbell Curl', 'biceps', 'barbell', 'weight_reps'],
   ['ez-bar-curl', 'EZ Bar Curl', 'biceps', 'barbell', 'weight_reps'],
   ['dumbbell-curl', 'Dumbbell Curl', 'biceps', 'dumbbell', 'weight_reps'],
@@ -149,7 +119,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['wrist-curl', 'Wrist Curl', 'forearms', 'dumbbell', 'weight_reps'],
   ['farmers-walk', 'Farmers Walk', 'forearms', 'dumbbell', 'weight_distance'],
 
-  // ---------------------------------------------------------------------- core
   ['plank', 'Plank', 'core', 'bodyweight', 'duration'],
   ['hanging-leg-raise', 'Hanging Leg Raise', 'core', 'bodyweight', 'bodyweight_reps'],
   ['weighted-hanging-leg-raise', 'Weighted Hanging Leg Raise', 'core', 'bodyweight', 'weighted_bodyweight'],
@@ -159,7 +128,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['cable-crunch', 'Cable Crunch', 'core', 'cable', 'weight_reps'],
   ['pallof-press', 'Pallof Press', 'core', 'cable', 'weight_reps'],
 
-  // ----------------------------------------------------------------- full body
   ['power-clean', 'Power Clean', 'full-body', 'barbell', 'weight_reps'],
   ['hang-clean', 'Hang Clean', 'full-body', 'barbell', 'weight_reps'],
   ['clean-and-jerk', 'Clean And Jerk', 'full-body', 'barbell', 'weight_reps'],
@@ -167,58 +135,11 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['thruster', 'Thruster', 'full-body', 'barbell', 'weight_reps'],
   ['turkish-get-up', 'Turkish Get Up', 'full-body', 'kettlebell', 'weight_reps'],
 
-  // ------------------------------------------------- isometric holds and jumps
-  // The three holds are the movements whose *measurement* the rows above cannot
-  // declare (REQ-122, DEC-S): `docs/bloque-a-acumulacion.yaml` and
-  // `docs/bloque-b-intensificacion.yaml` programme all three in seconds, and
-  // before this group existed both had to smuggle the prescription into
-  // `notes`. No cardio row: those would be speculative and would name no muscle
-  // group (REQ-140, AC-169).
-  //
-  // Broad Jump sits here for history rather than for its type. It shipped as
-  // `distance` on the reading that a jump is one jump, measured in metres; the
-  // programmes count jumps instead — a set is three of them, and what is
-  // tracked is the reps performed, not the metres of any one. So it is
-  // `bodyweight_reps` like every other rep-counted movement, and the `distance`
-  // type stays for what is actually run or thrown (DEC-R, revised). The slug is
-  // permanent (REQ-023), so the row stays where it is.
-  //
-  // Categories and equipment are the vocabularies above, unchanged (REQ-140).
   ['planche-lean', 'Planche Lean', 'shoulders', 'bodyweight', 'duration'],
   ['handstand-hold', 'Handstand Hold', 'shoulders', 'bodyweight', 'duration'],
   ['tuck-planche-hold', 'Tuck Planche Hold', 'shoulders', 'bodyweight', 'duration'],
   ['broad-jump', 'Broad Jump', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
 
-  // ===================================================================== import
-  // Everything below comes from the Workout Guide manifest
-  // (github.com/bryllim/workout-guide, metadata MIT), copied at build time —
-  // the package is NOT a dependency. Its value is 906 SVG illustrations this
-  // app never draws, and taking it would put asset paths and attribution
-  // objects in a bundle that must work with no network at all. Only the rows
-  // were worth having.
-  //
-  // Three things were changed on the way in, and each one is load-bearing:
-  //
-  // 1. Its 20 muscles and 17 equipment values fold into the two vocabularies
-  //    above (REQ-105). `Lats` and `Upper Back` are `back`; a `Wall`, a
-  //    `Chair`, a `Towel` is `bodyweight`; a `Plate` is a free weight. Widening
-  //    the vocabularies instead would report false figures for muscle volume
-  //    (PRD §39 item 8).
-  // 2. Names are rewritten to the house style — `Neutral-Grip Pull-up` becomes
-  //    `Neutral Grip Pull Up`. `normalizeExerciseName` collapses whitespace,
-  //    not hyphens, so an unrewritten name would slip past the §26 match and
-  //    split a history in two.
-  // 3. Stretches, mobility and cardio are dropped (REQ-140, AC-169), as are
-  //    fourteen rows that are a movement already here under another name —
-  //    `Deadlift` is `conventional-deadlift`, `Squat` is `back-squat`.
-  //
-  // The loaded twins at the end follow the `weighted-dip` pattern: a separate
-  // permanent slug, never a measurement change on the unloaded row. There is
-  // one only where a belt or a held weight is how the movement is actually
-  // progressed — a weighted twin for every bodyweight row would double the
-  // catalog with movements nobody loads.
-
-  // ---------------------------------------------------------------------- back
   ['active-hang', 'Active Hang', 'back', 'bodyweight', 'duration'],
   ['assisted-pull-up', 'Assisted Pull Up', 'back', 'machine', 'assisted_bodyweight'],
   ['banded-face-pull', 'Banded Face Pull', 'back', 'band', 'bodyweight_reps'],
@@ -244,20 +165,17 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['towel-row', 'Towel Row', 'back', 'bodyweight', 'bodyweight_reps'],
   ['wide-grip-lat-pulldown', 'Wide Grip Lat Pulldown', 'back', 'cable', 'weight_reps'],
 
-  // -------------------------------------------------------------------- biceps
   ['assisted-chin-up', 'Assisted Chin Up', 'biceps', 'machine', 'assisted_bodyweight'],
   ['concentration-curl', 'Concentration Curl', 'biceps', 'dumbbell', 'weight_reps'],
   ['drag-curl', 'Drag Curl', 'biceps', 'barbell', 'weight_reps'],
   ['rope-hammer-curl', 'Rope Hammer Curl', 'biceps', 'cable', 'weight_reps'],
   ['spider-curl', 'Spider Curl', 'biceps', 'dumbbell', 'weight_reps'],
 
-  // -------------------------------------------------------------------- calves
   ['donkey-calf-raise', 'Donkey Calf Raise', 'calves', 'machine', 'weight_reps'],
   ['fast-feet', 'Fast Feet', 'calves', 'bodyweight', 'duration'],
   ['leg-press-calf-raise', 'Leg Press Calf Raise', 'calves', 'machine', 'weight_reps'],
   ['single-leg-calf-raise', 'Single Leg Calf Raise', 'calves', 'bodyweight', 'bodyweight_reps'],
 
-  // --------------------------------------------------------------------- chest
   ['archer-push-up', 'Archer Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
   ['decline-bench-press', 'Decline Bench Press', 'chest', 'barbell', 'weight_reps'],
   ['decline-dumbbell-press', 'Decline Dumbbell Press', 'chest', 'dumbbell', 'weight_reps'],
@@ -273,7 +191,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['wall-push-up', 'Wall Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
   ['wide-push-up', 'Wide Push Up', 'chest', 'bodyweight', 'bodyweight_reps'],
 
-  // ---------------------------------------------------------------------- core
   ['banded-dead-bug', 'Banded Dead Bug', 'core', 'band', 'bodyweight_reps'],
   ['banded-pallof-press', 'Banded Pallof Press', 'core', 'band', 'bodyweight_reps'],
   ['banded-woodchop', 'Banded Woodchop', 'core', 'band', 'bodyweight_reps'],
@@ -313,11 +230,9 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['v-up', 'V Up', 'core', 'bodyweight', 'bodyweight_reps'],
   ['weighted-crunch', 'Weighted Crunch', 'core', 'dumbbell', 'weight_reps'],
 
-  // ------------------------------------------------------------------ forearms
   ['dead-hang', 'Dead Hang', 'forearms', 'bodyweight', 'duration'],
   ['wrist-extension', 'Wrist Extension', 'forearms', 'dumbbell', 'weight_reps'],
 
-  // ----------------------------------------------------------------- full-body
   ['burpee', 'Burpee', 'full-body', 'bodyweight', 'bodyweight_reps'],
   ['high-knees', 'High Knees', 'full-body', 'bodyweight', 'duration'],
   ['jumping-jack', 'Jumping Jack', 'full-body', 'bodyweight', 'duration'],
@@ -325,7 +240,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['skater-hop', 'Skater Hop', 'full-body', 'bodyweight', 'bodyweight_reps'],
   ['sprawl', 'Sprawl', 'full-body', 'bodyweight', 'bodyweight_reps'],
 
-  // -------------------------------------------------------------------- glutes
   ['banded-clamshell', 'Banded Clamshell', 'glutes', 'band', 'bodyweight_reps'],
   ['banded-donkey-kick', 'Banded Donkey Kick', 'glutes', 'band', 'bodyweight_reps'],
   ['banded-fire-hydrant', 'Banded Fire Hydrant', 'glutes', 'band', 'bodyweight_reps'],
@@ -363,7 +277,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['single-leg-glute-bridge', 'Single Leg Glute Bridge', 'glutes', 'bodyweight', 'bodyweight_reps'],
   ['smith-machine-hip-thrust', 'Smith Machine Hip Thrust', 'glutes', 'machine', 'weight_reps'],
 
-  // ---------------------------------------------------------------- hamstrings
   ['dumbbell-romanian-deadlift', 'Dumbbell Romanian Deadlift', 'hamstrings', 'dumbbell', 'weight_reps'],
   ['dumbbell-sumo-deadlift', 'Dumbbell Sumo Deadlift', 'hamstrings', 'dumbbell', 'weight_reps'],
   ['kettlebell-romanian-deadlift', 'Kettlebell Romanian Deadlift', 'hamstrings', 'kettlebell', 'weight_reps'],
@@ -375,7 +288,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['towel-hamstring-curl', 'Towel Hamstring Curl', 'hamstrings', 'bodyweight', 'bodyweight_reps'],
   ['trap-bar-deadlift', 'Trap Bar Deadlift', 'hamstrings', 'barbell', 'weight_reps'],
 
-  // ---------------------------------------------------------------- quadriceps
   ['assisted-pistol-squat', 'Assisted Pistol Squat', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
   ['banded-squat', 'Banded Squat', 'quadriceps', 'band', 'bodyweight_reps'],
   ['belt-squat', 'Belt Squat', 'quadriceps', 'machine', 'weight_reps'],
@@ -402,7 +314,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['step-down', 'Step Down', 'quadriceps', 'bodyweight', 'bodyweight_reps'],
   ['wall-sit', 'Wall Sit', 'quadriceps', 'bodyweight', 'duration'],
 
-  // ----------------------------------------------------------------- shoulders
   ['bent-over-rear-delt-raise', 'Bent Over Rear Delt Raise', 'shoulders', 'dumbbell', 'weight_reps'],
   ['cable-front-raise', 'Cable Front Raise', 'shoulders', 'cable', 'weight_reps'],
   ['cable-rear-delt-fly', 'Cable Rear Delt Fly', 'shoulders', 'cable', 'weight_reps'],
@@ -417,7 +328,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['wall-handstand-push-up', 'Wall Handstand Push Up', 'shoulders', 'bodyweight', 'bodyweight_reps'],
   ['wall-walk', 'Wall Walk', 'shoulders', 'bodyweight', 'bodyweight_reps'],
 
-  // ------------------------------------------------------------------- triceps
   ['assisted-dip', 'Assisted Dip', 'triceps', 'machine', 'assisted_bodyweight'],
   ['bench-dip', 'Bench Dip', 'triceps', 'bodyweight', 'bodyweight_reps'],
   ['chair-dip', 'Chair Dip', 'triceps', 'bodyweight', 'bodyweight_reps'],
@@ -428,7 +338,6 @@ export const CATALOG_ROWS: readonly Row[] = [
   ['single-dumbbell-skullcrusher', 'Single Dumbbell Skullcrusher', 'triceps', 'dumbbell', 'weight_reps'],
   ['dumbbell-skull-crusher', 'Two Dumbbell Skullcrusher', 'triceps', 'dumbbell', 'weight_reps'],
 
-  // ------------------------------------------------------------ loaded twins
   ['weighted-neutral-grip-pull-up', 'Weighted Neutral Grip Pull Up', 'back', 'bodyweight', 'weighted_bodyweight'],
   ['weighted-handstand-push-up', 'Weighted Handstand Push Up', 'shoulders', 'bodyweight', 'weighted_bodyweight'],
   ['weighted-pistol-squat', 'Weighted Pistol Squat', 'quadriceps', 'bodyweight', 'weighted_bodyweight'],

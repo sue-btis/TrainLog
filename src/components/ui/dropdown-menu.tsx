@@ -1,16 +1,3 @@
-/**
- * shadcn's DropdownMenu, re-skinned on arrival and trimmed to what is used.
- *
- * This is the one primitive that is here for behaviour alone: a menu is a
- * keyboard contract — arrows, Home/End, type-ahead, Escape, focus returned to
- * the trigger, and a portal so the panel is not clipped by the card it belongs
- * to. That is the part not worth re-deriving by hand in a row component.
- *
- * The checkbox and radio items shadcn ships with are gone: nothing in this app
- * offers a menu of settings, and an unused sub-component is a face nobody has
- * checked against DESIGN.md.
- */
-
 import type { ComponentProps } from 'react';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 import { LABEL, MENU_ITEM } from '@/features/ui/styles';
@@ -36,7 +23,6 @@ export function DropdownMenuContent({
     </DropdownMenuPrimitive.Portal>
   );
 }
-
 type ItemProps = ComponentProps<typeof DropdownMenuPrimitive.Item> & {
   /** Destructive: the red is the warning, so nothing else has to shout. */
   readonly destructive?: boolean;

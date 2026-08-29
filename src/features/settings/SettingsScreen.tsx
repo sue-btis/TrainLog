@@ -1,26 +1,3 @@
-/**
- * Settings (§32) and the backup (§17, §18, §19).
- *
- * Reached from the gear in the top bar rather than from a tab, which is what
- * puts it one press away from wherever a lifter already is. It used to live at
- * the bottom of More, mixed in with the places you go; those are destinations
- * and these are the app's own knobs, and one screen holding both meant neither
- * had a name.
- *
- * There is no server and no account, so the backup on this screen is the only
- * thing standing between a lifter and losing every session they have logged.
- * That shapes the whole screen: exporting is one press, and restoring — the one
- * irreversible thing the app can do — is deliberately three, with the middle
- * one spent telling you exactly what you are about to destroy.
- *
- * Restore never repairs. A document that fails validation is reported and
- * dropped; nothing partial is ever written (§18), and the database is not
- * touched until the lifter has seen the summary and pressed again.
- *
- * Settings lead, because they are what the screen is for day to day, while a
- * backup is what it is for once.
- */
-
 import { useEffect, useId, useRef, useState } from 'react';
 import {
   Bell,
@@ -82,7 +59,6 @@ import {
 } from '@/pwa/persistence';
 import { cn } from '@/lib/utils';
 
-/** A validated document waiting for the lifter to confirm replacing everything. */
 interface Pending {
   readonly fileName: string;
   readonly document: BackupDocument;
@@ -95,7 +71,6 @@ interface Refusal {
   readonly errors: readonly StructuralError[];
 }
 
-/** `trainlog-backup-2026-08-18` — today, locally. */
 function stamp(prefix: string, extension: string): string {
   return `${prefix}-${formatLocalDate(new Date())}.${extension}`;
 }
@@ -120,8 +95,6 @@ export function SettingsScreen() {
     const at = Date.now();
     const document = await exportBackup(at);
     download(stamp('trainlog-backup', 'json'), JSON.stringify(document), 'application/json');
-    // Stamped after the file is handed over, so a failed export does not claim
-    // a backup that was never taken.
     await setLastBackupAt(at);
     setDone('Backup saved. Keep it somewhere that is not this phone.');
   }
@@ -189,9 +162,6 @@ export function SettingsScreen() {
             default unit stays as you have it here.
           </p>
 
-          {/* The visible button is the control; this input is only its
-              mechanism, so it is out of the tab order rather than an invisible
-              stop in it. */}
           <input
             accept=".json,application/json"
             aria-hidden="true"
@@ -264,33 +234,14 @@ export function SettingsScreen() {
   );
 }
 
-/** The RIR options a lifter picks from, `none` standing for no opinion (§32). */
 const RIR_OPTIONS = ['none', '0', '1', '2', '3', '4'] as const;
 
-/**
- * Settings (§32).
- *
- * Every one of these is a *default* — the value used when nothing more specific
- * is known — and none of them reaches backwards. Changing the unit does not
- * convert a single logged set: the unit an Exercise trains in was fixed when it
- * was imported (§11.7), and rewriting history to match a preference is how a
- * lifter's numbers stop meaning what they meant.
- *
- * Each control saves on change. There is no Save button for the same reason a
- * set is written the moment it is logged (NFR-03): the app does not hold what
- * you told it in memory and hope you come back.
- *
- * No theme control: dark was rejected from the use scene (DESIGN.md, the
- * No-Dark-Variant Rule), so §32's theme row was removed rather than shipped.
- */
 function SettingsSection() {
   const settings = useSettings();
   const unitId = useId();
   const rirId = useId();
   const bodyweightId = useId();
 
-  // One read, in flight. Rendering the controls at their defaults first would
-  // show a lifter their settings reset for a frame before snapping back.
   if (settings === undefined) {
     return <Reading>your settings</Reading>;
   }
@@ -401,17 +352,6 @@ function SettingsSection() {
   );
 }
 
-/**
- * The lifter's bodyweight (REQ-108, DEC-C).
- *
- * A plain line rather than a control with steppers: it is stated once and read
- * by everything measured against the lifter, not stepped between sets. It used
- * to sit at the top of gym mode, where it asked the same question before every
- * session and competed with the set in front of you (§21).
- *
- * Empty means never recorded and renders empty — never a zero, which would be
- * a claim about a lifter rather than an absence (AC-112).
- */
 function Bodyweight({ id, value }: { readonly id: string; readonly value: number | null }) {
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -424,8 +364,6 @@ function Bodyweight({ id, value }: { readonly id: string; readonly value: number
       return;
     }
     const parsed = Number(text);
-    // Anything that is not a positive number falls back to the last good value
-    // rather than raising an error over a mistyped digit.
     if (Number.isFinite(parsed) && parsed > 0 && parsed !== value) {
       void setBodyweightKg(Math.round(parsed * 100) / 100);
     }
@@ -448,19 +386,8 @@ function Bodyweight({ id, value }: { readonly id: string; readonly value: number
   );
 }
 
-/**
- * How long ago the last backup was taken, or that there has never been one.
- *
- * An export button with no memory is pressed once and forgotten; the age is
- * what makes it a habit. The wording gets blunter the older it gets, and the
- * "never" case is the one that matters most — it is the state every lifter
- * starts in and the one the app used to say nothing about.
- */
 function BackupAge() {
   const settings = useSettings();
-  // Read once, on mount. `Date.now()` in the body would be an impure render,
-  // and the age of a backup does not need to tick — the screen is opened, read,
-  // and left.
   const [now] = useState(Date.now);
   if (settings === undefined) return null;
 
@@ -483,20 +410,6 @@ function BackupAge() {
   );
 }
 
-/**
- * Where a lifter's training actually stands on this device.
- *
- * The app has no account and no server, so this is the honest answer to "what
- * happens to my history" — and until now it was answered nowhere. The state is
- * read, not asked for: the request itself happens where the lifter has just
- * invested something (`ensurePersistentStorage`, called on import and on
- * finishing a session), because that is when a browser is willing to grant it.
- *
- * Installing is named separately because it is a different mechanism, not a
- * nicer version of the same one. WebKit deletes a site's IndexedDB after seven
- * days of Safari use without visiting it, and a home-screen app is the exemption
- * — no API call reaches that.
- */
 function Durability() {
   const [durability, setDurability] = useState<StorageDurability | null>(null);
   const installed = isInstalled();
@@ -534,13 +447,6 @@ function Durability() {
   );
 }
 
-/**
- * The leading glyph of a control that is working, or the one it wears at rest.
- *
- * Every control on this screen reads or writes the whole database, so every one
- * of them can take long enough to look like nothing happened — and the spinner
- * is the only thing that separates "exporting" from "pressed and ignored".
- */
 function Working({ busy, icon: Icon }: { readonly busy: boolean; readonly icon: LucideIcon }) {
   if (busy) {
     return (
@@ -568,17 +474,6 @@ function Head({
   );
 }
 
-/**
- * One switch and the sentence saying what it does.
- *
- * A plain `<label>` rather than the shared `Label`: that component binds
- * `type-label` — the 10px uppercase mono of a section heading — and a settings
- * row is titled, not headed. Passing `type-title` alongside it would leave two
- * type utilities on one element with CSS source order deciding which wins,
- * which is the kind of thing that silently flips a screen's typography the next
- * time `theme.css` is reordered. `htmlFor` gives the same click-to-toggle
- * either way.
- */
 function Toggle({
   label,
   hint,
@@ -608,13 +503,6 @@ function Toggle({
   );
 }
 
-/**
- * What restoring costs, said before it happens (DEC-C).
- *
- * Counts on both sides rather than "are you sure": the number that matters is
- * how many sessions are about to stop existing, and only the lifter knows
- * whether that is the right trade.
- */
 function RestoreConfirmation({
   pending,
   busy,
@@ -622,7 +510,6 @@ function RestoreConfirmation({
   onConfirm,
 }: {
   readonly pending: Pending;
-  /** The restore itself, in flight. It replaces every table, so it is never twice. */
   readonly busy: boolean;
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
@@ -704,13 +591,6 @@ function Row({
   );
 }
 
-/**
- * Why a file was refused, and where (R-4).
- *
- * Every failing field is listed rather than only the first: a backup is
- * repaired in a text editor, if at all, and one fault at a time would make that
- * a very long evening.
- */
 function RestoreRefusal({ refusal }: { readonly refusal: Refusal }) {
   return (
     <div className={alert('missed')} role="alert">

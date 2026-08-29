@@ -6,22 +6,7 @@
 <title>TrainLog — Dose Card design system</title>
 </head>
 <body>
-<!--
-THESIS: A Placement is an unpressed dome and a Session is a pressed cell, so "planned" and
-"actual" are a physical state read at arm's length. Refuses the tracker default: dark ground,
-neon ring, centred hero metric.
-OWN-WORLD: Cool board-stock white, recessed cells holding one saturated hue each (blue planned,
-green actual, violet progression, red missed, amber live), convex white domes under a clear film,
-Archivo Expanded load numerals over Martian Mono measure labels.
-STORY: The lifter sees the next set as the one dome under the thumb, presses it, and the cell
-records what happened without ever rewriting the card.
-FIRST VIEWPORT: A week card of domes, the active dome largest at thumb height carrying weight
-times reps and RIR, logged cells pressed behind it, rest timer draining along the card's own edge.
-FORM: Dose Card, candidate 3 of the grounded list, seed key 85c45fbe.
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
--->
 <style>
-/* faces ------------------------------------------------------------- */
 @font-face{font-family:Archivo;font-style:normal;font-weight:400 800;font-stretch:62% 125%;font-display:swap;
   src:url(fonts/archivo-latin.woff2) format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
@@ -35,9 +20,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
   src:url(fonts/martianmono-latin-ext.woff2) format('woff2');
   unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
 
-/* tokens ------------------------------------------------------------ */
 :root{
-  /* solid whites. depth comes from light, colour comes from fills. */
   --board:#F4F6FB; --card:#FFFFFF; --panel:#FAFBFE; --field:#FFFFFF; --well:#EDF1F8;
   --glass-fill:rgba(255,255,255,.55);
   --shade:148,163,193;
@@ -53,8 +36,6 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
   --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:72px;
 
-  /* neomorphic pair: mineral shadow bottom-right, white light top-left, always symmetric */
-  /* neumorphism gives components depth. it is not the aesthetic. */
   --dome:4px 4px 10px rgba(var(--shade),.30), -3px -3px 8px rgba(255,255,255,.95);
   --dome-lift:7px 8px 18px rgba(var(--shade),.30), -4px -4px 10px rgba(255,255,255,1);
   --pressed:inset 3px 3px 7px rgba(var(--shade),.32), inset -2px -2px 5px rgba(255,255,255,.95);
@@ -77,7 +58,6 @@ html{-webkit-text-size-adjust:100%;color-scheme:light}
 body{margin:0;background:var(--board);background-attachment:fixed;color:var(--ink);font-family:var(--face);font-stretch:100%;
   font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
 
-/* page chrome ------------------------------------------------------- */
 .sheet{max-width:1180px;margin:0 auto;padding:var(--s-8) var(--s-5)}
 .masthead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--s-5);
   padding-bottom:var(--s-5);border-bottom:1px solid var(--rule);margin-bottom:var(--s-8)}
@@ -94,13 +74,11 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .label{font-family:var(--measure);font-size:.625rem;font-weight:600;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ink-3);display:block}
 
-/* card -------------------------------------------------------------- */
 .card{background:var(--card);border-radius:var(--r-card);box-shadow:var(--edge),var(--lift);
   padding:var(--s-5)}
 .grid{display:grid;gap:var(--s-4)}
 .g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 
-/* colour ------------------------------------------------------------ */
 .swatches{display:grid;gap:var(--s-3);grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 .sw{background:var(--card);border-radius:var(--r-card);box-shadow:var(--edge),var(--lift);padding:var(--s-4);
   display:flex;flex-direction:column;gap:var(--s-3)}
@@ -113,7 +91,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .sw-role{color:var(--ink-2);font-size:.8125rem;line-height:1.45}
 .sw-hex{font-family:var(--measure);font-size:.6875rem;color:var(--ink-3)}
 
-/* the dome ---------------------------------------------------------- */
 .strip{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
 .dome{position:relative;width:76px;height:76px;border:0;padding:0;cursor:pointer;
   border-radius:var(--r-cell);background:var(--card);box-shadow:var(--dome);
@@ -146,7 +123,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 @keyframes breathe{0%,100%{box-shadow:var(--dome-lift),0 0 0 3px var(--live)}
   50%{box-shadow:var(--dome-lift),0 0 0 8px var(--live-wash),0 0 0 3px var(--live)}}
 
-/* device frame ------------------------------------------------------ */
 .frames{display:flex;flex-wrap:wrap;gap:var(--s-6);align-items:flex-start}
 .frame{width:390px;max-width:100%;background:var(--board);border-radius:30px;overflow:hidden;
   box-shadow:var(--edge),var(--overlay)}
@@ -159,14 +135,12 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
     radial-gradient(70% 24% at 50% 104%, rgba(15,155,103,.14), transparent 64%),
     var(--board)}
 
-/* the film ---------------------------------------------------------- */
 .film{position:relative;border-radius:var(--r-control);overflow:hidden;
   background:var(--glass-fill);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
   box-shadow:var(--glass),var(--edge)}
 .film::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
   background:radial-gradient(120% 90% at 12% 0%,rgba(255,255,255,.55),transparent 62%)}
 
-/* set logger -------------------------------------------------------- */
 .logger{display:grid;gap:var(--s-3)}
 .readout{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:var(--s-2);align-items:end}
 .field{background:var(--well);border-radius:var(--r-field);box-shadow:var(--pressed);padding:var(--s-3)}
@@ -181,7 +155,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .step:active{transform:scale(.96);box-shadow:var(--pressed)}
 .step:focus-visible{outline:3px solid var(--planned);outline-offset:2px}
 
-/* buttons ----------------------------------------------------------- */
 .btn{border:0;cursor:pointer;font-family:var(--face);font-weight:700;font-size:.9375rem;
   letter-spacing:-.005em;padding:14px 22px;border-radius:var(--r-control);
   display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:48px;
@@ -203,7 +176,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
   animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* chips ------------------------------------------------------------- */
 .chip{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r-chip);padding:5px 11px;
   font-family:var(--measure);font-size:.625rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
   box-shadow:var(--edge);background:var(--panel);color:var(--ink-2);white-space:nowrap}
@@ -214,7 +186,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .chip-missed{background:var(--missed-ink);color:#fff;box-shadow:none}
 .chip-live{background:var(--live);color:#3A2400;box-shadow:none}
 
-/* fields ------------------------------------------------------------ */
 .input{width:100%;font:inherit;color:var(--ink);background:var(--field);border:0;border-radius:var(--r-field);
   padding:14px var(--s-3);box-shadow:var(--pressed);min-height:48px;
   transition:box-shadow var(--press),background var(--press)}
@@ -223,7 +194,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .input[aria-invalid="true"]{box-shadow:var(--pressed),0 0 0 1px var(--missed)}
 .err{display:flex;gap:6px;align-items:flex-start;color:var(--missed-ink);font-size:.8125rem;margin:6px 0 0}
 
-/* rest timer -------------------------------------------------------- */
 .timer{position:relative;border-radius:var(--r-card);background:var(--live-ink);color:#fff;
   box-shadow:var(--lift);padding:var(--s-5);overflow:hidden;text-align:center}
 .timer .t{font-stretch:118%;font-weight:800;font-size:3.5rem;letter-spacing:-.045em;line-height:1;
@@ -234,7 +204,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .timer .rail i{display:block;height:100%;background:#FFD489;width:100%;transform-origin:left center;
   transform:scaleX(.6);transition:transform 1s linear}
 
-/* week card --------------------------------------------------------- */
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .day{aspect-ratio:1;border-radius:var(--r-control);display:grid;place-content:center;gap:2px;
   font-family:var(--measure);font-size:.5625rem;font-weight:600;letter-spacing:.04em;
@@ -248,7 +217,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .day[data-state="planned"]{color:var(--planned-ink);box-shadow:var(--dome),inset 0 0 0 2px var(--planned-wash)}
 .day[data-state="today"]{background:var(--live);color:#3A2400;box-shadow:var(--dome-lift)}
 
-/* nav --------------------------------------------------------------- */
 .nav{display:grid;grid-template-columns:repeat(4,1fr);padding:var(--s-2);gap:var(--s-1)}
 .nav a{text-decoration:none;display:grid;place-items:center;gap:3px;padding:8px 4px;border-radius:var(--r-control);
   font-family:var(--measure);font-size:.5625rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
@@ -257,7 +225,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .nav a:hover{background:var(--board);color:var(--ink-2)}
 .nav a[aria-current="page"]{color:#fff;background:var(--planned-ink);box-shadow:var(--sunk)}
 
-/* type specimen ----------------------------------------------------- */
 .spec{display:grid;gap:var(--s-4)}
 .spec-row{display:grid;grid-template-columns:110px 1fr;gap:var(--s-4);align-items:baseline;
   padding-bottom:var(--s-4);border-bottom:1px dashed var(--rule)}
@@ -269,7 +236,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .t-measure{font-family:var(--measure);font-size:.8125rem;font-weight:500;font-variant-numeric:tabular-nums}
 .t-label{font-family:var(--measure);font-size:.625rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
 
-/* chart ------------------------------------------------------------- */
 .chartwrap{background:var(--card);border-radius:var(--r-card);box-shadow:var(--edge),var(--lift);padding:var(--s-5)}
 .chartwrap .scroll{overflow-x:auto}
 .legend{display:flex;flex-wrap:wrap;gap:var(--s-4);margin-top:var(--s-3)}
@@ -277,7 +243,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
   color:var(--ink-2);letter-spacing:.04em}
 .legend i{width:18px;height:3px;border-radius:2px;display:block;flex:none}
 
-/* empty / alert ----------------------------------------------------- */
 .empty{text-align:center;padding:var(--s-6) var(--s-4);border-radius:var(--r-card);
   background:var(--well);box-shadow:var(--pressed)}
 .empty h4{margin:var(--s-3) 0 var(--s-1);font-size:1.0625rem;font-weight:700}
@@ -289,7 +254,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 .alert p{margin:2px 0 0;font-size:.875rem}
 .alert svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 
-/* skeleton ---------------------------------------------------------- */
 .skel{background:var(--well);border-radius:var(--r-field);box-shadow:var(--pressed);height:18px;
   animation:settling 1.6s ease-in-out infinite}
 @keyframes settling{0%,100%{opacity:1}50%{opacity:.48}}
@@ -612,7 +576,6 @@ h3{font-size:1rem;font-weight:700;letter-spacing:-.01em;margin:var(--s-6) 0 var(
 </div>
 
 <script>
-// the one authored moment: the press
 document.addEventListener('click', function (e) {
   var d = e.target.closest('.dome');
   if (!d || d.disabled) return;
@@ -624,7 +587,6 @@ document.addEventListener('click', function (e) {
   setTimeout(function () { d.classList.remove('is-bursting'); }, 500);
 });
 
-// steppers drive the load readout
 var w = 82.5;
 document.querySelectorAll('.step').forEach(function (btn) {
   btn.addEventListener('click', function () {
@@ -633,7 +595,6 @@ document.querySelectorAll('.step').forEach(function (btn) {
   });
 });
 
-// rest timer
 var left = 108;
 setInterval(function () {
   left = left > 0 ? left - 1 : 180;

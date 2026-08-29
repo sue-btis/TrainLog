@@ -1,23 +1,3 @@
-/**
- * Adversarial input (§18, critical reliability).
- *
- * `parseBackup` is handed whatever a lifter picked in a file dialog. The
- * example-based tests next door check inputs someone thought of; this one
- * checks the ones nobody did.
- *
- * Two invariants, and they are the whole contract this function has with its
- * caller:
- *
- *   1. It always returns. It never throws, for any string whatsoever — a throw
- *      escapes as an unhandled rejection and takes the screen with it, and the
- *      screen is where a lifter is trying to recover their training history.
- *   2. A refusal always says something. `{ok: false, errors: []}` tells the
- *      lifter their file is bad and nothing about why.
- *
- * The generator is seeded and deterministic: a failure here reproduces from the
- * printed seed rather than being a coin toss in CI. `Math.random` is
- * deliberately not used.
- */
 
 import { describe, expect, it } from 'vitest';
 import { parseBackup } from '@/domain/backup/schema';
@@ -61,7 +41,6 @@ const HOSTILE: readonly unknown[] = [
   { __proto__: { polluted: true } },
   '\u0000',
   '𝕏'.repeat(50),
-  // TST-118 (REQ-128) — values shaped like the closed enums this change added.
   // A near-miss is the input that finds a `startsWith` where an `===` belonged.
   'weight_reps',
   'WEIGHT_REPS',
@@ -81,7 +60,6 @@ function validDocument(): Record<string, unknown> {
     exportedAt: 1_755_000_000_000,
     routines: [{ id: 'r1', name: 'Base', weeks: 4, status: 'active', createdAt: 1 }],
     workouts: [{ id: 'w1', routineId: 'r1', name: 'Lower', suggestedDays: ['monday'], order: 0 }],
-    // TST-118 (REQ-128) — every table is populated, and every row carries the
     // fields this change added. An empty table cannot be corrupted *inside*,
     // so with the old fixture the row-level branch of `corrupt` only ever
     // reached routines and workouts, and the new fields were never fuzzed at
@@ -165,7 +143,6 @@ function validDocument(): Record<string, unknown> {
         completedAt: 4,
       },
     ],
-    // REQ-108 — the settings row carries the bodyweight too, so the walk above
     // and the field passes below both reach it.
     settings: { id: 'settings', defaultUnit: 'kg', bodyweightKg: 81.4 },
   };
@@ -200,13 +177,6 @@ function corrupt(random: () => number, depth: number): unknown {
   return document;
 }
 
-/**
- * Sets one field of one row, whichever shape the table has.
- *
- * `settings` is a lone object rather than an array of rows (§17), and the field
- * passes below would otherwise have to skip it — which is precisely how
- * `bodyweightKg` went unfuzzed while every other added field was covered.
- */
 function withField(
   document: Record<string, unknown>,
   table: string,
@@ -288,14 +258,6 @@ describe('parseBackup under hostile input', () => {
     }
   });
 
-  /**
-   * TST-118 (REQ-128) — the added fields, one at a time.
-   *
-   * The whole-document walk above reaches these only by chance. This one aims
-   * at them: every field this change added, crossed with every hostile value,
-   * with the rest of the document left valid so nothing else can absorb the
-   * blame. Both invariants still hold — a return, and a reason.
-   */
   it('never throws on a hostile value in any field this change added', () => {
     const fields: readonly (readonly [string, string])[] = [
       ['exercises', 'measurement'],
@@ -330,13 +292,6 @@ describe('parseBackup under hostile input', () => {
     }
   });
 
-  /**
-   * TST-118 (REQ-128) — and a *missing* one is not the same as a hostile one.
-   *
-   * Every added field is nullable and defaulted so a version-1 document is not
-   * refused for lacking it. Deleting them one at a time pins that the defaults
-   * cannot be tripped into throwing either.
-   */
   it('never throws when an added field is simply absent', () => {
     const fields: readonly (readonly [string, string])[] = [
       ['exercises', 'measurement'],

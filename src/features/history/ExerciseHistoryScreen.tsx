@@ -1,21 +1,3 @@
-/**
- * Exercise History (§11.10) — one screen per exercise.
- *
- * The four figures at the top and the session list below are the whole of what
- * §11.10 asks for. None of them is stored: every one is `summarizeExercise` over
- * the history, recomputed on arrival, for the same reason progression is derived
- * (§11.9). Correcting a set on the training screen changes these figures on the
- * next read, with nothing to keep in step.
- *
- * History is read by `exerciseId`, never by `plannedExerciseId` (§26), so it
- * spans Routines: re-importing a corrected file continues the same history
- * rather than starting a second one beside it.
- *
- * Every session appears here, of any status. §11.8's rule holds — this is what
- * happened, not what fed the engine — so a `partial` session is listed and
- * marked rather than hidden.
- */
-
 import { useParams } from 'react-router';
 import { ChevronDown, Dumbbell } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -40,8 +22,6 @@ export function ExerciseHistoryScreen() {
   const names = useExerciseNames(id === '' ? [] : [id]);
   const name = names?.get(id);
 
-  // `undefined` is a read still in flight; an empty array is an exercise never
-  // performed. They must not render the same thing.
   if (history === undefined) {
     return <Reading>history</Reading>;
   }
@@ -88,7 +68,6 @@ export function ExerciseHistoryScreen() {
   );
 }
 
-/** §11.10's readout: working weight, best set, sessions, last performed. */
 function Figures({ summary }: { readonly summary: ExerciseSummary }) {
   return (
     <Card>
@@ -102,26 +81,11 @@ function Figures({ summary }: { readonly summary: ExerciseSummary }) {
   );
 }
 
-/**
- * Every session, newest first. The day is the row; the sets are behind it.
- *
- * §11.10 asks for the sets, not for all of them at once: a lifter scanning a
- * year of squats is looking for a date and a load, and twelve rows of five sets
- * each buries both. Collapsed, a row answers "when, and how heavy" — the
- * session's heaviest and lightest set. Opening one gives the sets in full.
- *
- * `<details>` because the browser already does this: disclosure state, keyboard
- * operation and the accessible name come free, and none of it is ours to keep
- * working.
- */
 function Sessions({ entries }: { readonly entries: readonly SessionHistory[] }) {
   return (
     <section className={RULED}>
       <span className={LABEL}>every session</span>
 
-      {/* Cards, not ruled rows: each session here says what gym mode's previous
-          panel says — a day and the two ends of it — and one card per session is
-          the same shape repeated rather than a second way of drawing it. */}
       <div className="flex flex-col gap-3">
         {entries.map((entry) => (
           <SessionRow entry={entry} key={entry.session.id} />
@@ -133,9 +97,6 @@ function Sessions({ entries }: { readonly entries: readonly SessionHistory[] }) 
 
 function SessionRow({ entry }: { readonly entry: SessionHistory }) {
   const sets = entry.exercises.flatMap((exercise) => exercise.sets);
-  // The same derivation the figures above use, over one session instead of all
-  // of them — comparing on `weightKg`, which is the only load that compares
-  // across units (§11.7).
   const { heaviest, lightest, measurement } = summarizeExercise([entry]);
 
   return (
@@ -179,5 +140,3 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
     </details>
   );
 }
-
-/** `75 kg`, in the unit it was actually lifted in (§11.7). */

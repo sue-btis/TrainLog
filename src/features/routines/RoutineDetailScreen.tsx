@@ -1,17 +1,3 @@
-/**
- * One Routine (§11.2, §31 Screen 5).
- *
- * It shows the programme as it was accepted: Workouts in rotation order, their
- * suggested days, and every Planned Exercise with its targets. The suggested
- * days shown are the advisory ones read at import, not the calendar, which is
- * the user's and lives on its own screen.
- *
- * Nothing here rewrites what is stored. An **active** Routine gains exactly two
- * additive controls (DEC-B) — add a Workout, add an exercise to one — and no
- * rename, delete, reorder or target edit. An archived Routine gains neither:
- * its Placements would land on a calendar that reads across every Routine.
- */
-
 import { Link, useParams } from 'react-router';
 import { Card } from '@/components/ui/card';
 import { formatLocalDate } from '@/domain/dates';
@@ -42,14 +28,9 @@ export function RoutineDetailScreen() {
   const params = useParams();
   const routineId = params.routineId === undefined ? null : toId<RoutineId>(params.routineId);
   const routine = useRoutine(routineId);
-  // Counted in the header, so an in-flight read must not be counted as zero:
-  // "4 weeks · 0 workouts · 0 sessions placed" is a sentence about a Routine
-  // that is not this one.
   const routineWorkouts = useWorkouts(routineId);
   const routinePlacements = usePlacements(routineId);
   const counted = routineWorkouts !== undefined && routinePlacements !== undefined;
-  // The unit an added exercise opens on. A *default*, exactly as §32 means it:
-  // the value used when nothing more specific is known.
   const defaultUnit: Unit = useSettings()?.defaultUnit ?? 'kg';
 
   const workouts = routineWorkouts ?? [];
@@ -121,8 +102,6 @@ function WorkoutCard({ workoutId, name, suggestedDays, active, defaultUnit }: Wo
   const planned = usePlannedExercises(workoutId);
   const exercises = planned ?? [];
   const names = useExerciseNames(exercises.map((exercise) => exercise.exerciseId));
-  // The programme line is written in the axis the exercise is measured on, so
-  // a plank reads `3×45s` rather than `3×45` reps (REQ-112).
   const measurements = useExerciseMeasurements(exercises.map((it) => it.exerciseId));
 
   return (
@@ -136,8 +115,6 @@ function WorkoutCard({ workoutId, name, suggestedDays, active, defaultUnit }: Wo
         </p>
       </div>
 
-      {/* Bare, not `Reading`: a well inside a card is the nested surface
-          DESIGN.md forbids (see `styles.ts`). */}
       {planned === undefined ? (
         <p className="type-body-sm text-ink-2">Reading the exercises…</p>
       ) : exercises.length === 0 ? (
@@ -180,8 +157,6 @@ function ExerciseRow({ exercise, measurement, name, position }: ExerciseRowProps
       <div className="flex items-start gap-3">
         <span className="type-measure-sm text-ink-3">{position}</span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* The name is the way into what this exercise has actually done
-              (§11.10) — the programming beside it is only what was asked for. */}
           <Link
             className="type-title underline decoration-rule underline-offset-4"
             to={`/exercises/${exercise.exerciseId}`}

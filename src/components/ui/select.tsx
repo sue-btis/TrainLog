@@ -1,17 +1,3 @@
-/**
- * shadcn's Select, re-skinned on arrival and trimmed to what is used.
- *
- * A native `<select>` would be the lazier control, and on a phone it opens the
- * system's own sheet — but its open panel cannot be styled, so the one moment
- * the user is choosing is the one moment the app stops looking like itself.
- * Radix gives back the panel: typed-ahead, arrow keys, Escape, focus returned
- * to the trigger, and a listbox that wears `styles.ts` like everything else.
- *
- * The trigger is a field, because that is what it is standing in for. The panel
- * is the same near-white card the menu uses, with the current value marked by a
- * check rather than by a fill — a chosen row is not a pressed cell.
- */
-
 import type { ComponentProps } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Select as SelectPrimitive } from 'radix-ui';
@@ -45,7 +31,6 @@ export function SelectTrigger({ className, children, invalid = false, ...props }
     </SelectPrimitive.Trigger>
   );
 }
-
 export function SelectContent({
   className,
   children,

@@ -1,18 +1,3 @@
-/**
- * Step 1 — Exercises (§11.1).
- *
- * One Workout at a time, because a real programme is three or four Workouts of
- * five or six exercises and all of it at once is twenty screens of scroll on a
- * phone. Each exercise is a collapsed row that reads like the programme —
- * `4×4–6 · RIR 1–2 · 210s` — and opens into its editor. A row carrying a
- * semantic issue is open and stays open: it is the one thing standing between
- * the lifter and `Accept`, so it does not get to hide.
- *
- * The routine name and each Workout name are fields here, not labels: a draft
- * authored from scratch arrives with neither, and a file that named one badly
- * was previously uncorrectable without editing the file and choosing it again.
- */
-
 import { useState } from 'react';
 import { ArrowRight, EllipsisVertical, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import type { ExerciseRef, Offer, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
@@ -72,20 +57,10 @@ interface ExercisesStepProps {
   readonly announceIssues: boolean;
   readonly activeWorkout: number;
   readonly openRef: ExerciseRef | null;
-  /**
-   * Everything the picker may offer, merged and ordered in the domain. Passed
-   * in rather than derived here: it depends on the lifter's persisted
-   * Exercises, which is a database read, and this component performs none.
-   */
   readonly offers: readonly Offer[];
   readonly onActiveWorkout: (index: number) => void;
   readonly onToggle: (ref: ExerciseRef | null) => void;
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
-  /**
-   * The lifter's persisted Exercises, for deciding whether an entry names a
-   * movement the app already has. The catalog is not included and must not be:
-   * `resolvedFileExercise` consults it itself.
-   */
   readonly knownExercises: readonly Exercise[];
   readonly onDelete: (ref: ExerciseRef) => void;
   readonly onRoutineName: (name: string) => void;
@@ -115,16 +90,10 @@ export function ExercisesStep({
   const workouts = file.routine.workouts;
   const current = workouts[activeWorkout];
   const nameKey = 'routine.name';
-  // A blank name on a draft nobody has typed into yet is an empty field, not a
-  // mistake. The placeholder is already saying what goes there.
   const nameIssue = announceIssues ? issuesAt(issues, nameKey)[0] : undefined;
 
   return (
     <>
-      {/* The name is editable for every draft, not only an authored one: a file
-          that named a routine badly was previously uncorrectable without editing
-          the file and choosing it again. The count stays the mono provenance
-          line beneath it. */}
       <div className="flex flex-col gap-1">
         <TextField
           error={nameIssue === undefined ? null : describeIssue(nameIssue, undefined)}
@@ -181,10 +150,6 @@ export function ExercisesStep({
 
             {current.exercises.length === 0 ? (
               <div className={WELL}>
-                {/* Not "no exercises left": a Workout added here never had any,
-                    and only the delete path arrives with something removed.
-                    The well carries the way back in (REQ-309) — emptying a
-                    Workout used to be a one-way door out of the wizard. */}
                 <p className="type-title">{current.name} has no exercises</p>
                 <p className="type-body-sm text-ink-2">
                   That is allowed — the Workout will simply record nothing when you train it.
@@ -239,17 +204,6 @@ export function ExercisesStep({
   );
 }
 
-/**
- * Naming a new Workout (REQ-206, REQ-207).
- *
- * The blank name is refused in the form rather than admitted and flagged
- * afterwards: this control is a submit, so a refusal has somewhere to live —
- * unlike the routine name, which is an inline field with nothing to press and
- * therefore has to be a semantic issue instead.
- *
- * Collapsed until asked for. A draft that already reads well should not carry
- * an open form under it for the whole of step 1.
- */
 function AddWorkout({ onAdd }: { readonly onAdd: (name: string) => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -307,27 +261,6 @@ interface WorkoutHandoffProps {
   readonly onNext: () => void;
 }
 
-/**
- * The end of a Workout's list, and the way into the next one.
- *
- * A tab strip is a poor invitation: it says the other Workouts exist, once, at
- * the top, and then scrolls away above six exercises. By the time the lifter
- * reaches the bottom of Push they have no reason to remember Pull is waiting —
- * so the list itself hands them over, at the moment they have finished reading
- * and are looking for what is next.
- *
- * The count is stated in words rather than left to the strip, because "1 of 3"
- * is what makes an unopened Workout feel outstanding rather than optional. The
- * button does not name the Workout it goes to: a routine file may call it
- * anything, and "Review D2 / GPP (deload)" is a worse promise than "next".
- *
- * It is blue, and white nowhere: every exercise above it is a raised white card,
- * so a sixth white dome at the bottom of the stack reads as one more of them.
- * Instrument Blue is already this system's navigation hue — the active nav item
- * and the focus ring are both blue — and moving between Workouts is navigation,
- * not another edit. The washed face says the same thing the colour does: this
- * row is about the list, not in it.
- */
 function WorkoutHandoff({ position, total, hasNext, onNext }: WorkoutHandoffProps) {
   return (
     <div className="flex flex-col gap-2 pt-1">
@@ -377,18 +310,11 @@ function ExerciseRow({
 }: ExerciseRowProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const base = exercisePath(exerciseRef.workout, exerciseRef.exercise);
-  // A version-2 file may state a target range instead of a rep range (REQ-130).
   const { reps, target } = exercise;
   // The Exercise this entry will bind to, or `undefined` where the import
   // will mint one and the measurement is still the lifter's to choose.
   const incumbent = resolvedFileExercise(exercise, knownExercises);
-  // What this entry will actually be measured as: the incumbent's own type
-  // where the name resolves (REQ-131), the declared one where it mints.
   const measurement = incumbent?.measurement ?? declaredMeasurement(exercise);
-  // The range is on the wrong axis for the movement it binds to. The fields
-  // for the *right* axis are offered empty, and committing one drops the
-  // other: there is no honest conversion between a rep count and a number of
-  // seconds, so the lifter states the range rather than the app inventing it.
   const mismatched = issuesAt(issues, `${base}.reps`).some(
     (issue) => issue.code === 'target_axis_mismatch',
   );
@@ -403,9 +329,6 @@ function ExerciseRow({
     value: number | null | undefined,
   ) => {
     const next = value ?? current?.[end] ?? 0;
-    // A pair created from nothing opens as a fixed target: `45` means 45, and
-    // a range is the second keystroke. Seeding the other end at zero would
-    // flag "runs backwards" in the gap between the two.
     return current === undefined ? { min: next, max: next } : { ...current, [end]: next };
   };
   const flagged = hasIssuesUnder(issues, base);
@@ -492,9 +415,6 @@ function ExerciseRow({
                 optional
                 value={exercise.rest_seconds}
               />
-              {/* Whichever axis this movement is actually measured on. Only
-                  one pair is ever on screen, because only one is ever stored
-                  (REQ-139). */}
               {showReps && (
                 <>
                   <NumberField
@@ -562,17 +482,6 @@ function ExerciseRow({
                 options={UNIT_OPTIONS}
                 value={exercise.unit ?? defaultUnit}
               />
-              {/* The same treatment `unit` has always had, for the field that
-                  decides far more (REQ-104). A file may omit it and most do:
-                  81 of the catalog's 100 rows are weight x reps, and a version
-                  1 file means that throughout. Omitting it is fine; not being
-                  able to *see* what was decided is not, because a hold that
-                  lands as weight x reps can no longer be corrected once a set
-                  references it (DEC-O).
-
-                  Editable only where the import will mint the Exercise. A name
-                  that resolves keeps its own type (REQ-131), so an editable
-                  control there would promise a change that never happens. */}
               {incumbent === undefined ? (
                 <SelectField
                   id={fieldId(`${base}.measurement`)}
@@ -615,27 +524,15 @@ interface SummaryProps {
   readonly exercise: RoutineFileExercise;
   readonly position: number;
   readonly defaultUnit: Unit;
-  /** What the entry will be measured as, resolved by the row (REQ-131). */
   readonly measurement: Measurement;
 }
 
-/**
- * What the row says when it is closed: the exercise, as the programme states it.
- *
- * The progression sits between the name and the targets because that is what it
- * is — not a target for today but the rule that decides the next one, so it
- * reads as provenance under the title rather than as another number in the row.
- */
 function Summary({ exercise, position, defaultUnit, measurement }: SummaryProps) {
   return (
     <>
       <span className="type-measure-sm text-ink-3">{position}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="type-title truncate">{exercise.name}</span>
-        {/* How it is measured sits directly under the name, because it is
-            the fact the three lines below are read *through*: `4×45` means
-            nothing until you know whether those are repetitions or
-            seconds. */}
         <span className="type-measure-sm text-ink-2">
           {measurementLine(measurement, exercise, defaultUnit)}
         </span>
@@ -648,14 +545,6 @@ function Summary({ exercise, position, defaultUnit, measurement }: SummaryProps)
   );
 }
 
-/**
- * `Weight × reps · kg`, `Time`, `Distance + time`.
- *
- * The weight unit is named only where the type actually collects a weight:
- * on a plank `kg` is not a fact about the exercise, it is a leftover from a
- * field it does not use. The other units are not repeated because the label
- * already carries them — `Time · s` says the same thing twice.
- */
 function measurementLine(
   measurement: Measurement,
   exercise: RoutineFileExercise,
@@ -669,17 +558,10 @@ function measurementLine(
 
 interface ProgressionRowProps {
   readonly error: string | null;
-  /** The repair button's id, so the action bar can jump to this issue. */
   readonly id: string;
   readonly onUseManual: () => void;
 }
 
-/**
- * Progression is not one of the fields §11.1 lists as editable, and it is not
- * edited here — except in the one case the same section calls a semantic issue
- * to be corrected in the wizard. An unrecognized type has exactly two honest
- * outcomes: run the exercise on manual progression, or remove it.
- */
 function ProgressionRow({ error, id, onUseManual }: ProgressionRowProps) {
   if (error === null) return null; // the summary already states the rule
 
@@ -703,17 +585,6 @@ function ProgressionRow({ error, id, onUseManual }: ProgressionRowProps) {
 }
 
 /** `4×4–6 · RIR 1–2 · 210s · kg` — the programme as the file states it. */
-/**
- * `4×4–6 · RIR 1–2 · rest 210s`, `4×45s · rest 90s`, `4×2.2–2.6 m`.
- *
- * The range is written in the unit of the axis it is stated on, and which
- * pair is live is the measurement's call rather than a test of which field
- * happens to be filled (REQ-139). Rest is labelled now that a target can
- * also be seconds: `4×45s · 90s` reads as two of the same thing.
- *
- * The weight unit is gone from here — it moved up to `measurementLine`,
- * beside the type that decides whether it means anything at all.
- */
 function programmingLine(exercise: RoutineFileExercise, measurement: Measurement): string {
   const onReps = targetsReps(measurement);
   const stated = onReps ? exercise.reps : exercise.target;
@@ -728,7 +599,6 @@ function programmingLine(exercise: RoutineFileExercise, measurement: Measurement
   if (exercise.rest_seconds !== undefined) parts.push(`rest ${exercise.rest_seconds}s`);
   return parts.join(' · ');
 }
-
 function progressionLine(exercise: RoutineFileExercise): string {
   const { type, increment } = exercise.progression;
   const name = type.replace(/_/g, ' ');

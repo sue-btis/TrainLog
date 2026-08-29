@@ -1,20 +1,3 @@
-/**
- * Routine import (§11.1).
- *
- *   select file → parse → structural check → step 1 exercises →
- *   step 2 days + weeks → accept → store routine → generate placements
- *
- * Every decision on that path already belongs to the domain: `parseRoutineFile`
- * rejects, `validateRoutineFile` flags, the edit functions correct,
- * `routineFileToDomain` and `generatePlacements` produce, and `importRoutine`
- * writes the lot in one transaction. This component owns what is left — which
- * step is showing, which row is open, and where the clock is read.
- *
- * The clock is read exactly once, in `accept`. §12 deliberately gives a routine
- * no start date, so the anchor belongs to the moment of import and to nothing
- * else (DEC-008).
- */
-
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { CalendarDays, Check, Dumbbell, FileUp, ListChecks } from 'lucide-react';
@@ -82,20 +65,14 @@ export function ImportWizard() {
   const [params] = useSearchParams();
   const blankRequested = params.get('new') === '1';
   const [activeWorkout, setActiveWorkout] = useState(0);
-  /** Raised by the Leave link, answered in the action bar (DEC: see ActionBar). */
   const [leaving, setLeaving] = useState(false);
   const [openRef, setOpenRef] = useState<ExerciseRef | null>(null);
   // Reading and parsing the file. Short for a small routine, long enough on a
   // phone for the file step to look like it had ignored the file it was handed.
   const { busy: reading, failure: readFailure, run: runRead } = useAsyncAction();
   const column = useRef<HTMLDivElement>(null);
-  /** The control an action-bar jump asked for, focused once it has rendered. */
   const pendingFocus = useRef<string | null>(null);
 
-  // The picker's three sources (REQ-301). The persisted Exercises are a live
-  // read, so an Exercise created on the catalog screen in another tab appears
-  // here without the wizard being restarted; `undefined` is that read still in
-  // flight, and an empty list is the honest answer while it is.
   const userExercises = useUserExercises();
 
   const file = state.phase === 'editing' ? state.file : null;
@@ -104,9 +81,6 @@ export function ImportWizard() {
       file === null
         ? []
         : // The axis check needs to know which Exercise each entry will bind to,
-          // and `undefined` is the read still in flight rather than an answer.
-          // Passing `[]` then would resolve names against the catalog alone and
-          // flag a mismatch that vanishes a frame later, so the check waits.
           validateRoutineFile(
             file,
             userExercises === undefined ? undefined : { knownExercises: userExercises },
@@ -119,8 +93,6 @@ export function ImportWizard() {
     [file, userExercises],
   );
 
-  // A jump from the action bar lands on the control that carries the issue —
-  // which only exists after the step and Workout it lives on have rendered.
   useEffect(() => {
     const id = pendingFocus.current;
     if (id === null) return;
@@ -130,10 +102,6 @@ export function ImportWizard() {
     target?.focus({ preventScroll: true });
   });
 
-  // The file was already chosen on the screen that sent us here, so the wizard
-  // opens on the first real step rather than on one asking for it again. When
-  // nothing was handed over — a reload, a bookmarked `/import` — the file step
-  // renders and asks, which is what it is there for.
   useEffect(() => {
     const handed = takeHandedOffFile();
     if (handed !== null) {
@@ -143,13 +111,8 @@ export function ImportWizard() {
     // A file beats `?new=1`: the parameter is an intent, a handed-over file is
     // a thing the lifter already chose, and the two never both apply.
     if (blankRequested) void runRead(startBlank);
-    // Once, on mount: the handover is consumed by the first read, and the
-    // parameter is read once here rather than watched. `runRead` is stable, so
-    // naming it does not turn this into an every-render effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runRead]);
 
-  /** The from-scratch entry: the same pipeline, entered without a file. */
   async function startBlank() {
     setActiveWorkout(0);
     setOpenRef(null);
@@ -162,25 +125,6 @@ export function ImportWizard() {
     });
   }
 
-  /**
-   * Leaving mid-draft, without answering the Leave link (REQ-903).
-   *
-   * Two mechanisms, because one does not cover the exits. `beforeunload`
-   * catches a reload and a closed tab. It does NOT catch the browser or
-   * hardware back button: `/import` is a client route under `BrowserRouter`, so
-   * back is a same-document `popstate` and the document is never unloaded — and
-   * on the one-handed phone this app is built for, back is the likeliest way
-   * out. React Router's `useBlocker` is not available to us; it needs a data
-   * router, and this app mounts `BrowserRouter`.
-   *
-   * So the draft pushes a sentinel history entry while it is being edited, and
-   * answers `popstate` by raising the same Leave question the top bar raises.
-   * Nothing is stored either way — this only stops the loss being silent.
-   *
-   * A file-origin draft loses less (the file still exists) but the phase is the
-   * only condition available now that `editing` no longer records an origin,
-   * and warning on both is the safer half of that trade.
-   */
   const editing = state.phase === 'editing';
   useEffect(() => {
     if (!editing) return;
@@ -188,9 +132,6 @@ export function ImportWizard() {
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener('beforeunload', warn);
 
-    // Spread the existing state rather than replacing it: React Router keeps
-    // its own `{ usr, key, idx }` there, and `BrowserRouter` happens to ignore
-    // the loss today — a data router or `ScrollRestoration` would not.
     const sentinel = () =>
       window.history.pushState({ ...window.history.state, trainlogDraft: true }, '');
     const onTop = () =>
@@ -198,8 +139,6 @@ export function ImportWizard() {
 
     sentinel();
     const onPop = () => {
-      // Put the sentinel back, so the question can be asked again if they
-      // dismiss it and press back a second time.
       sentinel();
       setLeaving(true);
     };
@@ -208,11 +147,6 @@ export function ImportWizard() {
     return () => {
       window.removeEventListener('beforeunload', warn);
       window.removeEventListener('popstate', onPop);
-      // Retire the sentinel, or it outlives the draft: after Accept the first
-      // back press lands on it, the URL does not change and the screen appears
-      // frozen. Only while it is still the entry on top — once the lifter has
-      // navigated on, the top belongs to the new screen and going back would
-      // undo their navigation instead.
       if (onTop()) window.history.back();
     };
   }, [editing]);
@@ -265,10 +199,6 @@ export function ImportWizard() {
 
       await importRoutine(draft, placements);
 
-      // The database now holds something a lifter would mind losing, and an
-      // accepted import is a moment of real engagement — which is what browsers
-      // weigh when deciding to grant persistence. Fire and forget: the answer
-      // changes nothing on this screen, and a refusal is not an import failure.
       void ensurePersistentStorage();
 
       dispatch({
@@ -326,14 +256,6 @@ export function ImportWizard() {
       file && dispatch({ type: 'edited', file: setRoutineName(file, name) }),
     workoutName: (workout: number, name: string) =>
       file && dispatch({ type: 'edited', file: setWorkoutName(file, workout, name) }),
-    /**
-     * REQ-300 — appended last, and the new row opens for editing.
-     *
-     * The index is the length *before* the append, which is where the verb puts
-     * it. Opening it is the point: the seeded row is 3×8–12 on manual
-     * progression (REQ-900), which is a guess, and a guess the lifter cannot
-     * see is worse than one they are handed with the fields already open.
-     */
     addExercise: (workout: number, offer: Offer) => {
       if (!file) return;
       const at = file.routine.workouts[workout]?.exercises.length ?? 0;
@@ -342,10 +264,6 @@ export function ImportWizard() {
     },
     addWorkout: (name: string) => {
       if (!file) return;
-      // The new Workout becomes the one on screen. Without this, adding the
-      // second Workout to a one-Workout draft changes nothing visible — the tab
-      // strip only appears above one, so the lifter would be looking at the old
-      // Workout with no sign the new one exists.
       setActiveWorkout(file.routine.workouts.length);
       setOpenRef(null);
       dispatch({ type: 'edited', file: addWorkout(file, name) });
@@ -439,19 +357,11 @@ export function ImportWizard() {
   );
 }
 
-/**
- * The step names the bar carries. The wizard is one screen with four titles.
- *
- * None of them claims a file any more: the same steps carry a routine that was
- * imported and one that was authored here, and the bar cannot tell which — the
- * editing phase deliberately stopped recording it.
- */
 function titleOf(state: WizardState): string {
   if (state.phase === 'choosing') return 'Add a routine';
   if (state.phase === 'accepted') return 'Ready';
   return state.step === 1 ? 'Review the exercises' : 'Days and weeks';
 }
-
 /** And its four drawings, so the bar shows the step as well as naming it. */
 function iconOf(state: WizardState) {
   if (state.phase === 'choosing') return FileUp;

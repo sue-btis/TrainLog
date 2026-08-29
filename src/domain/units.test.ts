@@ -3,7 +3,6 @@ import { toKg, toMetres, type DistanceUnit, type Unit } from '@/domain/units';
 
 describe('toKg', () => {
   const cases: ReadonlyArray<{ weight: number; unit: Unit; expected: number }> = [
-    // AC-013
     { weight: 100, unit: 'lb', expected: 45.359 },
     { weight: 75, unit: 'kg', expected: 75 },
     // kg passes through, rounded to the same precision
@@ -35,13 +34,6 @@ describe('toKg', () => {
   });
 });
 
-/**
- * `toMetres` is the distance twin of `toKg` (REQ-107, DEC-J): a distance is
- * stored as entered with its unit, plus a derived metre value every comparison
- * and chart reads. Two things can silently go wrong — a wrong conversion
- * factor, and a rounding rule that disagrees with the weight side — so this
- * block pins the exact factors and the stated 3-decimal precision.
- */
 describe('toMetres (TST-112)', () => {
   const cases: ReadonlyArray<{ distance: number; unit: DistanceUnit; expected: number }> = [
     // The three stated round-trips

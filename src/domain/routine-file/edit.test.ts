@@ -1,11 +1,3 @@
-/**
- * TST-025 — the wizard's edit operations (§11.1 steps 1 and 2).
- *
- * Two properties matter beyond the obvious ones: every operation leaves its
- * input file untouched, because the wizard holds the previous file in React
- * state; and every operation is total, because an index can name an exercise
- * that a previous edit already removed.
- */
 
 import { describe, expect, it } from 'vitest';
 import {
@@ -188,7 +180,6 @@ describe('setWeeks', () => {
   });
 });
 
-/** TST-001, TST-002, TST-007 — adding a Workout (REQ-001, REQ-002, REQ-007). */
 describe('addWorkout', () => {
   it('appends a named Workout with no days and no exercises', () => {
     const file = aFile([aWorkout({ name: 'Push' })]);
@@ -224,7 +215,6 @@ describe('addWorkout', () => {
   });
 });
 
-/** TST-003, TST-005, TST-006 — adding an exercise (REQ-003, REQ-005, REQ-006). */
 describe('addExercise', () => {
   it('appends the given row verbatim and leaves other Workouts alone', () => {
     const file = aFile([
@@ -271,7 +261,6 @@ describe('addExercise', () => {
     expect(new Set(draft.plannedExercises.map((p) => p.exerciseId)).size).toBe(1);
   });
 
-  // TST-009 (REQ-011, REQ-901) — the point of REQ-011 is that adding a row buys
   // no second validator. Breaking an added row raises the *existing* issue, at
   // that row's own path — not the first row's, which is what a path built from
   // the wrong index would give and what nothing else here would catch.
@@ -305,7 +294,6 @@ describe('addExercise', () => {
   });
 });
 
-/** TST-008, TST-012 — naming (REQ-008, REQ-012). */
 describe('setRoutineName and setWorkoutName', () => {
   it('replaces the routine name and keeps the Workouts referentially identical', () => {
     const file = aFile();
@@ -335,7 +323,6 @@ describe('setRoutineName and setWorkoutName', () => {
   });
 });
 
-/** TST-014, TST-015 — the blank draft (REQ-014, REQ-203, REQ-210). */
 describe('blankRoutineFile', () => {
   it('is version 1, unnamed, no Workouts, at the weeks it was given', () => {
     expect(blankRoutineFile(4)).toEqual({
@@ -363,7 +350,6 @@ describe('blankRoutineFile', () => {
   });
 });
 
-/** TST-013 — the blank-name rule on any draft, not only a scratch one. */
 describe('routine_name_blank', () => {
   it('fires for an empty and a whitespace-only name, at routine.name', () => {
     for (const name of ['', '   ']) {
@@ -378,7 +364,6 @@ describe('routine_name_blank', () => {
   });
 });
 
-/** TST-010 — delete then add, in one draft (REQ-009, REQ-511). */
 describe('emptying a Workout and putting an exercise back', () => {
   it('round-trips', () => {
     const file = aFile([aWorkout({ exercises: [named('Bench')] })]);

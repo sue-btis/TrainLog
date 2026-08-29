@@ -1,26 +1,3 @@
-/**
- * Reordering the session's exercises (FR-14, §11.5).
- *
- * Dragging, because that is what the gesture is: an exercise is picked up and
- * put where it belongs, and the list under your thumb is the answer rather than
- * a row of numbers to translate into one. The whole session stays on screen and
- * any exercise goes anywhere, as many times as it takes.
- *
- * Drag lives on a handle rather than the whole row. The list scrolls, and a row
- * that is both the scroll surface and the drag target makes every flick a
- * gamble — which matters most in exactly the place this screen is used, phone on
- * a bench and one hand occupied (§20). The handle also carries dnd-kit's
- * keyboard sensor, so the same reorder is space-then-arrows for anyone not
- * dragging at all.
- *
- * Each move is written as it is made, like every other write in gym mode
- * (NFR-03). There is nothing to save and nothing lost by leaving.
- *
- * Only `ExerciseSession.order` is ever written. The PlannedExercises behind
- * these rows are not touched: deviation belongs to the Session, and a Routine
- * is never rewritten, only added to (AGENTS.MD).
- */
-
 import {
   DndContext,
   type DragEndEvent,
@@ -162,11 +139,6 @@ function Row({
           </div>
         </div>
 
-        {/* Arrows first, drag second.
-            A 180ms press-and-hold drag was the only way to reorder, and it is
-            the least reliable gesture available to a sweaty thumb on the one
-            screen designed for exactly that hand. Two buttons cost nothing and
-            never miss. The handle stays for anyone who prefers it. */}
         <div className="flex shrink-0 items-center gap-1">
           <Button
             aria-label={`Move ${name} up`}
@@ -188,8 +160,6 @@ function Row({
           >
             <ChevronDown aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
           </Button>
-          {/* The one thing that starts a drag — and the one thing that must not
-              scroll under a held thumb, which is what `touch-none` says. */}
           <button
             aria-label={`Reorder ${name}`}
             className="flex size-12 shrink-0 cursor-grab touch-none items-center justify-center text-ink-3 active:cursor-grabbing"

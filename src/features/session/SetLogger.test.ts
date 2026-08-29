@@ -1,21 +1,3 @@
-/**
- * What the logger decides before a set is stored (FR-14, §32, REQ-106, REQ-110).
- *
- * Four seams, and each is a place a measurement type is consulted rather than
- * guessed at: which window the fields are marked against (`targetsOf`), whether
- * the green button is allowed at all (`isComplete`), which values reach the
- * domain and which become `null` (`valuesFor`), and the way back from a stored
- * set into the form (`valuesOf`).
- *
- * The three per-type tables below are keyed by `Measurement`, so a tenth type
- * added to the union fails to compile here before it can slip through untested.
- *
- * The failures these guard against are the quiet ones: a `null` RIR range read
- * as a range, which would mark every RIR a lifter enters as "off plan" against
- * a plan that never asked for one; and a plank refused because it logged no
- * reps.
- */
-
 import { describe, expect, it } from 'vitest';
 import { toId } from '@/domain/ids';
 import type {
@@ -100,9 +82,6 @@ describe('targetsOf (FR-14)', () => {
   });
 
   it('REQ-139: the measurement decides which pair is read, not which is non-null', () => {
-    // A rep-axis type with the *target* pair populated instead: reading whichever
-    // field happens to be non-null would yield [45, 60]; reading the measurement
-    // yields nothing, which is the truth — this plan states no rep window.
     expect(
       targetsOf({
         ...planned,
@@ -115,10 +94,6 @@ describe('targetsOf (FR-14)', () => {
   });
 });
 
-/**
- * The field each type's primary axis is read from, named for all nine. A tenth
- * type cannot be added to the union without stating its answer here.
- */
 const primaryField: { readonly [M in Measurement]: 'reps' | 'durationSeconds' | 'distance' } = {
   weight_reps: 'reps',
   bodyweight_reps: 'reps',
@@ -161,7 +136,6 @@ describe('isComplete (TST-125, REQ-110, AC-115)', () => {
     expect(isComplete('weight_reps', { ...EMPTY_VALUES, weight: 0, reps: 5 })).toBe(true);
   });
 });
-
 describe('valuesFor (REQ-106, AC-107, AC-167)', () => {
   const entered: SetValues = {
     weight: 60,

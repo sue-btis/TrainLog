@@ -1,14 +1,3 @@
-/**
- * `describeIssue` over the synthetic file the add-exercise form builds.
- *
- * The form used to show `issue.message` raw, which names a file path — Workout
- * and exercise indices — that a lifter adding to a stored Routine never saw,
- * and stops at the problem. `describeIssue` is what the wizard's fields show:
- * the numbers as typed, then what to do. The seam worth guarding is that these
- * two halves still fit — `describeIssue` reads the row's own fields, and
- * `plannedExerciseDraftFile` is what shapes that row.
- */
-
 import { describe, expect, it } from 'vitest';
 import {
   plannedExerciseDraftFile,
@@ -51,7 +40,6 @@ describe('describeIssue, on the add-exercise form’s file', () => {
       'RIR 0–40 falls outside 0–10. Set both ends of the range between 0 and 10.',
     );
   });
-
   it('never falls back to the raw message for a code this form can raise', () => {
     for (const overrides of [
       { sets: 0 },

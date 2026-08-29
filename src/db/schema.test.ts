@@ -1,13 +1,3 @@
-/**
- * TST-017 — a round-trip through every table of REQ-070 under `fake-indexeddb`,
- * plus AC-071: the opened database reports exactly those nine tables.
- *
- * Round-tripping each table is what proves the stored shape survives structured
- * cloning: readonly arrays (`suggestedDays`, `notes`), the embedded
- * `ProgressionRule` union (DEC-006), and the two `ExerciseSession` variants
- * (planned and unplanned) all read back field for field.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import { SCHEMA_VERSION, TABLE_NAMES } from '@/db/schema';
@@ -155,7 +145,6 @@ const settings: Settings = { id: 'settings', defaultUnit: 'kg' };
 beforeEach(resetDatabase);
 
 describe('Dexie schema version 1', () => {
-  // AC-071
   it('declares exactly the nine tables of REQ-070', async () => {
     if (!db.isOpen()) await db.open();
     expect(db.tables.map((table) => table.name).sort()).toEqual([
@@ -174,7 +163,6 @@ describe('Dexie schema version 1', () => {
   });
 });
 
-// TST-017 — one round-trip per table, each exercising that table's indexes.
 describe('TST-017 round-trip per table', () => {
   it('routines', async () => {
     await db.routines.add(routine);
@@ -192,7 +180,6 @@ describe('TST-017 round-trip per table', () => {
     await db.plannedExercises.add(plannedExercise);
     const stored = await db.plannedExercises.get(plannedExerciseId);
     expect(stored).toEqual(plannedExercise);
-    // DEC-006: the embedded rule survives the round-trip.
     expect(stored?.progression).toEqual({ type: 'double_progression', increment: 2.5 });
     expect(await db.plannedExercises.where('workoutId').equals(workoutId).toArray()).toEqual([
       plannedExercise,
@@ -203,7 +190,6 @@ describe('TST-017 round-trip per table', () => {
     await db.placements.add(placement);
     const stored = await db.placements.get(placement.id);
     expect(stored).toEqual(placement);
-    // AC-014: the day reads back as the same YYYY-MM-DD, never as an instant.
     expect(stored?.date).toBe('2026-09-07');
     expect(
       await db.placements
@@ -233,7 +219,6 @@ describe('TST-017 round-trip per table', () => {
       unplannedExerciseSession,
     );
     expect(await db.exerciseSessions.where('sessionId').equals(sessionId).count()).toBe(2);
-    // REQ-061: history is reachable by exerciseId.
     expect(await db.exerciseSessions.where('exerciseId').equals(frontSquatId).toArray()).toEqual([
       plannedExerciseSession,
     ]);

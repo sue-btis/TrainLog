@@ -1,16 +1,3 @@
-/**
- * shadcn's Switch, re-skinned on arrival (DESIGN.md §5: track `bg-well`, thumb
- * `bg-card shadow-dome`, checked `bg-actual-ink`).
- *
- * Radix is kept over a bare checkbox for the behaviour a settings row needs and
- * a checkbox does not give: the label's tap lands on the control, the state
- * reaches assistive technology as a switch rather than as a tick box, and the
- * keyboard contract (Space, Enter) arrives with it.
- *
- * Checked is `actual-ink` on purpose — the hue the system already uses for what
- * is true of the world rather than what was planned.
- */
-
 import type { ComponentProps } from 'react';
 import { Switch as SwitchPrimitive } from 'radix-ui';
 import { FOCUS_RING, PRESS } from '@/features/ui/styles';

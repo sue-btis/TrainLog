@@ -1,15 +1,3 @@
-/**
- * Correcting and removing a logged set (R-4, §11.7, §37).
- *
- * The delete is the one destructive write in the execution flow, and what makes
- * it correct is that three facts land together: the set is gone, the survivors
- * have closed ranks, and an exercise left with nothing counts as undone again
- * (DEC-009). Each is tested here against a fresh handle, because a write that is
- * only true in memory is not a write.
- *
- * Every query used is served by a declared index: `completedSets.exerciseSessionId`.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
@@ -31,7 +19,6 @@ import type {
 import type { CompletedSet, PlannedExercise, PlannedExerciseSession } from '@/domain/types';
 import { toKg } from '@/domain/units';
 
-/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
 const measurement = 'weight_reps' as const;
 
 const sessionId = toId<SessionId>('session-1');
@@ -56,7 +43,6 @@ const planned: PlannedExercise = {
   progression: { type: 'double_progression', increment: 2.5 },
 };
 
-/** Stores an exercise with `count` sets and returns both, as the database holds them. */
 async function seed(count: number): Promise<{
   exercise: PlannedExerciseSession;
   sets: CompletedSet[];
@@ -174,9 +160,7 @@ describe('deleteCompletedSet (R-4, AC-12, AC-13)', () => {
     const { exercise, sets } = await seed(3);
     const removal = removeSet({ exerciseSession: exercise, sets, setId: sets[1]!.id });
 
-    // A survivor carrying a foreign key the exerciseSessions table cannot take:
-    // the transaction must take the deletion down with it rather than leaving
-    // two sets numbered 1 and a third that was never removed.
+    // The transaction must remove the deleted row and preserve contiguous survivors.
     const corrupt = {
       removed: sets[1]!.id,
       sets: removal.sets,

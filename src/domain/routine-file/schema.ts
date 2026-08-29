@@ -1,25 +1,3 @@
-/**
- * Routine file format v1 — the YAML surface of §12, made executable
- * (REQ-030, REQ-031).
- *
- * `parseRoutineFile` is a pure function over a string: it performs no I/O, it
- * reads no clock, and it either returns a typed routine file or a list of
- * structural errors. A structural failure rejects the file outright and yields
- * no partial result (§11.1 "Structural", REQ-031).
- *
- * Everything §11.1 calls semantic — inverted rep ranges, RIR out of range,
- * negative rest, non-positive sets, an unrecognized progression, two Workouts
- * on one suggested day, a Routine that declares no Workouts, and a blank
- * Routine name — is deliberately accepted here and reported by
- * `validateRoutineFile` instead, because those must load into the wizard. The
- * last two are why there is no `.min(1)` on `routine.name` or on `workouts`:
- * a blank draft is a legitimate starting point, and rejecting it structurally
- * would leave nothing for the wizard to correct.
- *
- * The schema mirrors §12 exactly; unknown keys (such as the example's `goal`)
- * are dropped rather than rejected, so the format can gain optional fields
- * without breaking older readers.
- */
 
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
@@ -38,11 +16,6 @@ const weekdaySchema = z.enum([
 
 const rangeSchema = z.object({ min: z.number(), max: z.number() });
 
-/**
- * A progression as written in the file. Only `type` and, for
- * `double_progression`, `increment` are structural: an unfamiliar `type` is a
- * semantic issue (§11.1), not a rejection, so this stays a plain string.
- */
 const progressionSchema = z
   .object({ type: z.string(), increment: z.number().optional() })
   .check((ctx) => {
@@ -61,23 +34,9 @@ const exerciseSchema = z.object({
   exercise_id: z.string().optional(),
   category: z.string().optional(),
   unit: z.enum(['kg', 'lb']).optional(),
-  /**
-   * How the movement is measured (v2 only, REQ-130). Omitted means
-   * `weight_reps`, which is what every version-1 file has always meant. It
-   * applies only where the import mints the Exercise: a name that resolves
-   * to one the app already knows keeps its own type (REQ-131, §26).
-   */
   measurement: z.enum(MEASUREMENTS).optional(),
   sets: z.number(),
-  /**
-   * The rep range. Optional since v2: a plank has none, and states its
-   * target in `target` below instead (REQ-139 — exactly one of the two).
-   */
   reps: rangeSchema.optional(),
-  /**
-   * The non-rep target range, in the axis's canonical unit — seconds for a
-   * duration exercise, metres for a distance one (REQ-138).
-   */
   target: rangeSchema.optional(),
   rir: rangeSchema.optional(),
   rest_seconds: z.number().optional(),
@@ -92,13 +51,6 @@ const workoutSchema = z.object({
   exercises: z.array(exerciseSchema),
 });
 
-/**
- * The format version the file declares.
- *
- * `1` is still accepted and means every exercise is weight x reps (DEC-K).
- * `2` may declare a measurement per exercise and may omit `reps` for a type
- * that has none.
- */
 const routineFileSchema = z.object({
   version: z.union([z.literal(1), z.literal(2)]),
   routine: z.object({
@@ -120,7 +72,6 @@ export type RoutineFileProgression = z.infer<typeof progressionSchema>;
  */
 export type RoutineFileWeekday = Weekday;
 
-/** One step of a machine-readable path to a field in the file. */
 export type PathSegment = string | number;
 
 /**
@@ -130,7 +81,6 @@ export type PathSegment = string | number;
  */
 export type FieldPath = readonly PathSegment[];
 
-/** Renders a `FieldPath` for a human: `routine.workouts[0].exercises[2].reps`. */
 export function formatPath(path: FieldPath): string {
   return path
     .map((segment, index) =>
@@ -154,10 +104,6 @@ export type ParseRoutineFileResult =
   | { readonly ok: true; readonly file: RoutineFile }
   | { readonly ok: false; readonly errors: readonly StructuralError[] };
 
-/**
- * Parses and structurally validates a routine file (REQ-030).
- * Pure: no file system, no network, no clock.
- */
 export function parseRoutineFile(text: string): ParseRoutineFileResult {
   let document: unknown;
   try {

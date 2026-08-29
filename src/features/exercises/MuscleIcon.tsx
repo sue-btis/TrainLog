@@ -1,27 +1,5 @@
-/**
- * The figure beside a muscle group (§11.12).
- *
- * One silhouette, drawn from the same set of body parts every time, with the
- * parts a category trains filled in `currentColor` and the rest left in the
- * well's tint. Twelve bespoke drawings would say the same thing twelve ways;
- * one figure with a moving highlight says "this part of you" once, and a lifter
- * reads the group without reading the word.
- *
- * Three of the vocabulary's groups live on the back of the body — back, glutes,
- * hamstrings, triceps — and a front figure would give hamstrings the same
- * highlight as quadriceps. So the figure has a rear view: the identical
- * silhouette with a spine drawn down it, which is the one cue that reads as
- * "turned around" without a caption.
- *
- * The category strings are the catalog's vocabulary (`src/domain/catalog/data`).
- * Anything else — an exercise a routine file named with its own category, or
- * none — falls through to the plain figure, which is honest: the app does not
- * know what it trains.
- */
-
 import { cn } from '@/lib/utils';
 
-/** Every part the figure is built from. */
 const PARTS = {
   head: <circle cx={20} cy={6} r={4.2} />,
   shoulderL: <rect height={5.5} rx={2.75} width={6} x={8.5} y={12} />,
@@ -46,7 +24,6 @@ const ORDER = Object.keys(PARTS) as readonly Part[];
 const ARMS_UPPER: readonly Part[] = ['upperArmL', 'upperArmR'];
 const LEGS_UPPER: readonly Part[] = ['thighL', 'thighR'];
 
-/** What each catalog category highlights, and from which side. */
 const GROUPS: Record<string, { readonly rear?: true; readonly parts: readonly Part[] }> = {
   chest: { parts: ['torso'] },
   back: { rear: true, parts: ['torso'] },
@@ -67,7 +44,6 @@ interface MuscleIconProps {
   readonly category: string;
   readonly className?: string;
 }
-
 export function MuscleIcon({ category, className }: MuscleIconProps) {
   const group = GROUPS[category];
   const active = new Set(group?.parts ?? []);

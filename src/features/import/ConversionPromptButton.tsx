@@ -1,19 +1,3 @@
-/**
- * The other half of `Import routine` (§11.1): getting a routine that lives
- * somewhere else into the file the wizard reads.
- *
- * Most routines arrive as a PDF, a spreadsheet or a coach's message, and the
- * lifter has an assistant to hand. What they lack is the format. This copies a
- * prompt that carries the format and one instruction above all others — adapt,
- * never invent — so the assistant translates the routine instead of writing a
- * new one, and asks about anything the source does not say rather than filling
- * it in quietly.
- *
- * The prompt is a plain string, not a file to fetch: the app makes no network
- * requests at runtime, and this way it is in the bundle the same as the
- * catalog is.
- */
-
 import { useState } from 'react';
 import { ClipboardCheck, ClipboardCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,16 +7,6 @@ import type { Exercise } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
 import { ICON_STROKE } from '@/features/ui/styles';
 
-/**
- * The movements this app already measures in something other than repetitions.
- *
- * Only these need calling out. A movement on the rep axis takes `reps` and an
- * assistant that guesses its type wrong costs nothing; one measured in seconds
- * or metres takes `target` instead, and a rep range on it produces a planned
- * exercise with no range at all — a row the backup validator later refuses.
- * Six of the catalog's hundred rows are in this list, plus whatever the lifter
- * has created, so naming them is cheap and naming all hundred would not be.
- */
 function nonRepMovements(exercises: readonly Exercise[]): string {
   const rows = exercises
     .filter((exercise) => !targetsReps(exercise.measurement))
@@ -54,15 +28,6 @@ function nonRepMovements(exercises: readonly Exercise[]): string {
   ].join('\n');
 }
 
-/**
- * The prompt handed to an assistant. It mirrors `schema.ts` and `validate.ts`:
- * every rule stated here is one the importer enforces, so a file that follows
- * it parses and passes semantic validation.
- *
- * A function rather than a constant because it names the lifter's own
- * exercises: an assistant that does not know a movement is measured in seconds
- * writes a rep range for it, and the file is broken before it is read.
- */
 export function conversionPrompt(exercises: readonly Exercise[]): string {
   return `You are converting an EXISTING training routine into the import format of an app called TrainLog.
 
@@ -140,9 +105,6 @@ Do not produce the YAML until I have chosen and the gaps are filled. Then output
 
 export function ConversionPromptButton() {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  // The catalog ships in the build and the table holds the lifter's own, so the
-  // two are disjoint and concatenate (DEC-007). `undefined` is the read still in
-  // flight; the catalog alone is already a useful prompt, so it does not wait.
   const user = useUserExercises();
   const prompt = conversionPrompt([...CATALOG, ...(user ?? [])]);
 
@@ -152,12 +114,9 @@ export function ConversionPromptButton() {
       setState('copied');
       setTimeout(() => setState('idle'), 2000);
     } catch {
-      // Clipboard access can be refused outright; the prompt is still the
-      // point, so hand it over as text the lifter can select instead.
       setState('failed');
     }
   }
-
   return (
     <>
       <Button onClick={() => void copy()} size="block" type="button" variant="secondary">

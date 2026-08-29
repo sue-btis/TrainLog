@@ -1,16 +1,3 @@
-/**
- * Where a routine comes from, and the structural refusal (§11.1 "Structural").
- *
- * Two ways in, not one: a file the lifter already has, or nothing at all. Both
- * land on the same step 1 holding the same draft — a routine authored here is a
- * routine file that never sat on disk.
- *
- * A structural failure is terminal by design: there is no partial result to
- * show and nothing in the wizard could repair a file it could not read. So the
- * screen says what happened, says exactly where, and offers the moves that
- * help — another file, or building it here instead.
- */
-
 import { useRef } from 'react';
 import { FileUp, LoaderCircle, PencilLine, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,7 +9,6 @@ interface FileStepProps {
   readonly fileName: string | null;
   readonly errors: readonly StructuralError[] | null;
   readonly unreadable: string | null;
-  /** The chosen file is being read and parsed. The control it came from says so. */
   readonly reading: boolean;
   readonly onFile: (file: File) => void;
   /** Start with no file: an empty draft, named and filled in here. */
@@ -85,8 +71,6 @@ export function FileStep({
         </div>
       )}
 
-      {/* The visible button is the control; this input is only its mechanism,
-          so it is out of the tab order rather than an invisible stop in it. */}
       <input
         accept=".yaml,.yml,application/yaml,text/yaml"
         aria-hidden="true"
@@ -134,12 +118,6 @@ export function FileStep({
         Start from scratch
       </Button>
 
-      {/* What the file has to look like, shipped.
-          Nothing here is retyped: the example is the same string
-          `parse.test.ts` feeds to the parser, so a reference that stops being
-          true fails the build rather than misleading someone in a gym. Closed
-          by default — it is for the moment a file is wrong, not for every
-          import. */}
       <details className={WELL}>
         <summary className="type-title cursor-pointer list-none">
           What a routine file looks like

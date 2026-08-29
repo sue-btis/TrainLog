@@ -1,18 +1,9 @@
-/**
- * Semantic validation (REQ-032, §11.1 "Semantic").
- *
- * A semantic issue never rejects the file: it loads, and the wizard marks the
- * field and blocks `Accept` until it is corrected. Every issue carries
- * machine-readable `paths` so the field can be found without parsing prose —
- * usually one, and one per Workout for a shared suggested day (AC-033).
- */
 
 import { targetUnitOf, targetsReps } from '@/domain/measurement';
 import { resolveFileExercise } from '@/domain/routine-file/to-domain';
 import type { Exercise } from '@/domain/types';
 import type { FieldPath, RoutineFile } from '@/domain/routine-file/schema';
 
-/** The checks of §11.1, as codes a UI can switch on. */
 export type SemanticIssueCode =
   | 'reps_range_inverted'
   | 'target_range_inverted'
@@ -34,14 +25,9 @@ export interface SemanticIssue {
   readonly message: string;
 }
 
-/**
- * The RIR bounds of the "fuera del rango permitido" check. The PRD does not
- * name a range; 0–10 is this change's recorded assumption (spec §13).
- */
 export const MIN_RIR = 0;
 export const MAX_RIR = 10;
 
-/** The progression types the engine implements (§27 MVP). */
 const KNOWN_PROGRESSION_TYPES = new Set(['manual', 'double_progression']);
 
 /** What the caller can tell the validator that the file itself does not say. */
@@ -69,14 +55,6 @@ export function validateRoutineFile(
   const issues: SemanticIssue[] = [];
   const { knownExercises } = options ?? {};
 
-  // A Routine authored in the wizard starts with no name at all, and a name is
-  // what every list, Today and the wizard header render it by. Semantic rather
-  // than structural on purpose: `.min(1)` on `routine.name` would reject the
-  // blank draft the from-scratch flow opens on, which is the one thing that
-  // must stay parseable (§11.1, and the file's own Structural/Semantic split).
-  //
-  // Unlike `routine_has_no_workouts` below, this one has a field to point at,
-  // so it carries a path and the action bar can jump to it.
   const unnamed = file.routine.name.trim() === '';
   if (unnamed) {
     issues.push({
@@ -141,11 +119,6 @@ export function validateRoutineFile(
         });
       }
 
-      // Exactly one target pair, decided by the measurement (REQ-139). Both
-      // populated is a contradiction and neither is a plan with no target,
-      // and both are refused rather than silently resolved by preferring
-      // one — which would be this file quietly choosing what the lifter
-      // meant.
       if (reps !== undefined && target !== undefined) {
         issues.push({
           code: 'target_pair_ambiguous',
@@ -232,7 +205,6 @@ export function validateRoutineFile(
   return issues;
 }
 
-/** One issue per weekday claimed by more than one Workout (§12, AC-033). */
 function sharedSuggestedDays(file: RoutineFile): SemanticIssue[] {
   const claims = new Map<string, { path: FieldPath; workout: string }[]>();
 

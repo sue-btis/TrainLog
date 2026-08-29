@@ -6,34 +6,8 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { pwaOptions } from './src/pwa/config.ts';
 
-/**
- * Two dev modes, because the app is designed for a phone but developed on a
- * desktop.
- *
- * `pnpm dev` serves plain HTTP on localhost — which is itself a secure context,
- * so everything works, including `newId()`.
- *
- * `pnpm dev:phone` binds every interface and serves HTTPS, so the app can be
- * opened on a real phone over the local network. HTTPS is a requirement there,
- * not a preference: `newId()` is `crypto.randomUUID()`, and the Web Crypto API
- * exists only in a secure context. Over plain `http://<lan-ip>` every screen
- * would render and every write that generates an id — importing a routine,
- * starting a session — would throw.
- *
- * The certificate is self-signed, so a phone warns once before trusting it.
- * Accepting that warning still yields a secure context, which is the point.
- *
- * `pnpm preview:phone` is the same arrangement for the built app, and it is the
- * only way to exercise the PWA on a phone. The service worker is disabled in
- * dev, so `dev:phone` can never show installation or offline behavior; and a
- * plain `pnpm preview` binds loopback only, so a phone has nothing to reach.
- * `basicSsl` covers `preview.https` as well as `server.https`, so passing
- * `--mode phone` to either command yields a secure context.
- *
- * Neither mode reaches the build: `basicSsl` configures the dev and preview
- * servers only and is a devDependency that never ships.
- */
 export default defineConfig(({ mode }) => {
+  // Phone mode uses HTTPS for browser APIs that require a secure context.
   const phone = mode === 'phone';
 
   return {
@@ -48,12 +22,10 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      // Loopback only unless a phone needs to reach it.
       host: phone,
     },
     preview: {
       port: 4173,
-      // Same rule, and the only surface where the service worker actually runs.
       host: phone,
     },
   };

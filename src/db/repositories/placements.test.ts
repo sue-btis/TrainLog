@@ -1,8 +1,3 @@
-/**
- * Placement reads (§14.9). Both queries are served by a declared index
- * (AC-073): `routineId` and `date`.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
@@ -53,11 +48,7 @@ describe('placement reads', () => {
   });
 });
 
-/**
- * R-42 — the calendar's two verbs. Both assert that Sessions are untouched:
- * Placements and Sessions are independent (ADR 0001), and the moment moving
- * intent could disturb the record, the model would be broken.
- */
+/** Placement mutations must leave independent Sessions untouched. */
 describe('placement mutations (R-42, §11.3)', () => {
   const aSession: Session = {
     id: toId<SessionId>('session-1'),

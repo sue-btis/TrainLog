@@ -1,11 +1,3 @@
-/**
- * How the screens render values a lifter reads at arm's length.
- *
- * Presentation only — every one of these is a pure string function over data
- * the domain already decided. Dates are formatted through `Intl` with the
- * browser's own locale, which needs no dictionary and no network.
- */
-
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import {
   MEASUREMENTS,
@@ -25,24 +17,16 @@ import type {
 
 /** `4–6`, or `4` when both ends agree. Internal: the two lines below read it. */
 function range(min: number | null, max: number | null): string {
-  // An em dash where the range is absent, as the RIR line already does for an
-  // unsaid RIR range. Unreachable today: every stored target is a rep range.
   if (min === null || max === null) return '—';
   return min === max ? String(min) : `${min}–${max}`;
 }
 
-/**
- * The programmed range, in the notation of the axis it is stated on.
- *
- * Which of the two target pairs is live is decided by the measurement and
- * never by testing which field is non-null (REQ-139), and the unit comes
- * from the measurement module rather than being restated here (REQ-102).
- */
 function targetRange(
   measurement: Measurement,
   reps: readonly [number | null, number | null],
   target: readonly [number | null, number | null],
 ): string {
+  // The measurement selects the target axis; do not choose by whichever pair is non-null.
   const onReps = targetsReps(measurement);
   const [min, max] = onReps ? reps : target;
   const text = range(min, max);
@@ -67,16 +51,8 @@ export function programmingLine(exercise: PlannedExercise, measurement: Measurem
   return parts.join(' · ');
 }
 
-/**
- * `4×4–6 · RIR 1–2 · rest 210s` — the targets an exercise was performed
- * against, read off the ExerciseSession's own snapshot and never off the
- * PlannedExercise behind it (ADR 0002).
- *
- * The same line in gym mode and in session history, from one function, so the
- * screen showing what you are about to do and the screen showing what you did
- * cannot drift into two notations for the same fact.
- */
 export function snapshotLine(planned: PlannedExerciseSession): string {
+  // Read targets from the Session snapshot so template edits cannot rewrite history.
   const parts = [
     `${planned.plannedSets}×${targetRange(
       planned.measurement,
@@ -91,25 +67,11 @@ export function snapshotLine(planned: PlannedExerciseSession): string {
   return parts.join(' · ');
 }
 
-/**
- * The same snapshot as three labelled figures rather than one line — what gym
- * mode draws above the domes.
- *
- * `snapshotLine` is kept and untouched: session history reads a sentence, and
- * AC-6 pins its notation. This is the same facts for a screen that reads them
- * one at a time, between sets, with a barbell in the other hand.
- *
- * An em dash where the programme said nothing. `snapshotLine` drops those parts
- * instead, because a sentence can be shorter; a row of three cannot lose its
- * middle column without the two beside it moving.
- */
 export function snapshotFigures(
   planned: PlannedExerciseSession,
 ): readonly { readonly label: string; readonly value: string }[] {
   return [
     {
-      // The label names the axis the target is actually on, so a plank does
-      // not sit under a heading saying reps (AC-117, AC-162).
       label: targetsReps(planned.measurement)
         ? 'sets × reps'
         : `sets × ${targetUnitOf(planned.measurement)}`,
@@ -169,15 +131,6 @@ export function plural(count: number, singular: string, pluralForm = `${singular
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-/**
- * What a Session's status is called on screen (CONTEXT.md).
- *
- * Six screens used to render the stored value, four of them through
- * `status.replace('_', ' ')` — so the one word Today showed about the session a
- * lifter had just finished was the lowercase enum `partial`. These are database
- * values; the glossary governs what the lifter reads, and it does not contain
- * them. Written once so the six cannot drift into six vocabularies.
- */
 export function sessionStatusLabel(status: SessionStatus): string {
   switch (status) {
     case 'in_progress':
@@ -189,17 +142,6 @@ export function sessionStatusLabel(status: SessionStatus): string {
   }
 }
 
-/**
- * What each measurement type is called on screen (CONTEXT.md).
- *
- * The union's own values are database vocabulary — `weighted_bodyweight` is
- * not something a lifter says. Written once here, beside the other two enum
- * label functions, because the create-Exercise form and the import wizard both
- * offer this choice and two dictionaries for one choice would drift.
- *
- * `Record<Measurement, string>` rather than a switch: a tenth type fails to
- * compile here instead of quietly rendering its raw value.
- */
 const MEASUREMENT_LABELS: Record<Measurement, string> = {
   weight_reps: 'Weight × reps',
   bodyweight_reps: 'Bodyweight reps',
@@ -217,7 +159,6 @@ export function measurementLabel(measurement: Measurement): string {
   return MEASUREMENT_LABELS[measurement];
 }
 
-/** Every type as a pickable option, in the union's own order. */
 export const MEASUREMENT_OPTIONS: readonly {
   readonly value: Measurement;
   readonly label: string;
@@ -243,12 +184,6 @@ export function load(set: CompletedSet | null): string {
   return set === null ? '—' : `${set.weight} ${set.unit}`;
 }
 
-/**
- * `45s`, `1:30`, `2:05:30` — seconds said the way a clock says them.
- *
- * Under a minute stays bare, because `45s` is what a programme writes and
- * `0:45` is what a stopwatch writes, and this is reading back a programme.
- */
 export function seconds(total: number): string {
   if (total < 60) return `${total}s`;
   const pad = (value: number): string => String(value).padStart(2, '0');
@@ -258,18 +193,6 @@ export function seconds(total: number): string {
   return hours === 0 ? `${minutes}:${pad(rest)}` : `${hours}:${pad(minutes)}:${pad(rest)}`;
 }
 
-/**
- * A set in its own type's notation (REQ-112, AC-117).
- *
- * `77.5 × 5` for weight × reps — §11.10's notation, unchanged. A duration
- * set renders as a duration and is never shown a rep count; a distance set
- * is never shown a weight it does not carry. Which fields to say comes from
- * the measurement module's own shape table, so this function states none of
- * it a second time (REQ-102).
- *
- * The type is a parameter and is never inferred from which fields happen to
- * be populated (DEC-H).
- */
 export function setLine(
   set: CompletedSet | null,
   measurement: Measurement,
@@ -287,7 +210,6 @@ export function setLine(
   if (fields.includes('weight') && fields.includes('reps')) {
     return `${signed} × ${set.reps ?? '—'}`;
   }
-
   const parts: string[] = [];
   for (const field of fields) {
     switch (field) {

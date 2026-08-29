@@ -1,19 +1,3 @@
-/**
- * The way into the import wizard (§11.1).
- *
- * It opens the file picker itself and only then navigates. Pressing
- * `Import routine` used to land on a wizard whose first step's entire content
- * was a second button asking for the same thing — a screen between the lifter
- * and the file, justifying itself with nothing.
- *
- * The chosen `File` is handed over in a module variable rather than in router
- * state: a `File` in `history.state` has to survive structured cloning into the
- * session history, which is a lot of contract for a value that lives for one
- * navigation inside one tab. If the handover is lost — a reload, a bookmarked
- * `/import` — the wizard falls back to its own file step, which is exactly what
- * that step is still for after `Import another`.
- */
-
 import { useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -34,8 +18,6 @@ export function ImportRoutineButton({ children }: { readonly children: ReactNode
 
   return (
     <>
-      {/* The visible button is the control; this input is only its mechanism,
-          so it is out of the tab order rather than an invisible stop in it. */}
       <input
         accept=".yaml,.yml,application/yaml,text/yaml"
         aria-hidden="true"

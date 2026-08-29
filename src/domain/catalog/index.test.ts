@@ -1,4 +1,3 @@
-/** TST-023 — the shipped catalog (REQ-020, REQ-023, AC-020, AC-024). */
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -75,16 +74,6 @@ describe('normalizeExerciseName', () => {
   });
 });
 
-/**
- * TST-105 (REQ-105) — the clause the rest of the suite never asserted: the
- * offered vocabularies come from `CATALOG` alone.
- *
- * The failure it guards is a rewrite to `[...user, ...CATALOG]`, which reads
- * like an improvement and is not: a routine file may write anything into
- * `category`, so one dirty import would teach the create form a word the
- * catalog never used, and PRD §39 item 8 groups muscle volume over exactly
- * these values.
- */
 describe('CATALOG_CATEGORIES and CATALOG_EQUIPMENT', () => {
   const dirty: Exercise = {
     id: toId<ExerciseId>('cable-moon-walk'),
@@ -234,7 +223,6 @@ describe('groupExercises', () => {
   });
 });
 
-/** TST-100, TST-108 — the shared §26 matcher (REQ-102, REQ-109). */
 describe('findExerciseByName', () => {
   const mine: Exercise = {
     id: toId<ExerciseId>('11111111-2222-3333-4444-555555555555'),
@@ -248,7 +236,6 @@ describe('findExerciseByName', () => {
     expect(findExerciseByName('  front   SQUAT ', [])?.id).toBe('front-squat');
   });
 
-  // Moved here when the second §26 decider was deleted: the whole catalog is
   // reachable through the one matcher that survived, not just the sample above.
   it('resolves every catalog entry by its own name', () => {
     for (const entry of CATALOG) {
@@ -281,20 +268,12 @@ describe('findExerciseByName', () => {
     // Precomposed vs combining-mark. normalizeExerciseName lowercases, trims and
     // collapses whitespace — it does not fold Unicode composition. Closing this
     // would change which Exercise every stored name resolves to, so it is left
-    // open deliberately and pinned here (REQ-109). Delete this test only as part
     // of a change that decides that.
     const precomposed: Exercise = { ...mine, name: 'Curl Bíceps' };
     expect(findExerciseByName('Curl Bi\u0301ceps', [precomposed])).toBeUndefined();
   });
 });
 
-/**
- * The 96 slugs the catalog shipped before measurement was declared on it.
- *
- * Written out rather than derived: a slug is permanent (REQ-023) because stored
- * history references it, so the frozen set is the contract, and a list computed
- * from `CATALOG` would agree with any rename this test exists to catch.
- */
 const ORIGINAL_SLUGS = [
   'back-squat', 'front-squat', 'box-squat', 'pause-squat', 'overhead-squat', 'goblet-squat',
   'hack-squat', 'leg-press', 'leg-extension', 'barbell-lunge', 'walking-lunge',
@@ -318,7 +297,6 @@ const ORIGINAL_SLUGS = [
   'power-clean', 'hang-clean', 'clean-and-jerk', 'snatch', 'thruster', 'turkish-get-up',
 ] as const;
 
-/** TST-122 (REQ-122, REQ-123, AC-133, AC-134, AC-135, AC-169, AC-170). */
 describe('catalog measurement', () => {
   const frozen: readonly string[] = ORIGINAL_SLUGS;
   const added = CATALOG.filter((entry) => !frozen.includes(entry.id));
@@ -373,7 +351,6 @@ describe('catalog measurement', () => {
     // `distance_duration` is the cardio type. The change owner's programme
     // contains no running, cycling, rowing or swimming, and such a movement
     // names no muscle group, which would dirty the `category` vocabulary that
-    // PRD §39 item 8 groups volume over.
     expect(CATALOG.filter((entry) => entry.measurement === 'distance_duration')).toEqual([]);
 
     // The list of *permitted* measurements is gone, not relaxed. Earlier
@@ -402,14 +379,6 @@ describe('catalog measurement', () => {
   });
 });
 
-/**
- * TST-130 (REQ-122, REQ-140) — the repository's own programme, read from disk.
- *
- * The point of the added rows: every isometric hold and the jump that
- * `docs/bloque-a-acumulacion.yaml` programmes resolves to a catalog row whose
- * measurement matches how the file actually prescribes it — the holds in
- * seconds, the jump in metres — rather than smuggling that into `notes`.
- */
 describe('the movements bloque-a-acumulacion.yaml programmes', () => {
   const parsed = parseRoutineFile(
     readFileSync(new URL('../../../docs/bloque-a-acumulacion.yaml', import.meta.url), 'utf8'),
@@ -417,7 +386,6 @@ describe('the movements bloque-a-acumulacion.yaml programmes', () => {
   if (!parsed.ok) throw new Error('docs/bloque-a-acumulacion.yaml no longer parses');
   const programmed = parsed.file.routine.workouts.flatMap((workout) => workout.exercises);
 
-  /** The file's own resolution order (§26): the id when it names one, else the name. */
   const resolve = (exercise: { readonly name: string; readonly exercise_id?: string }) =>
     exercise.exercise_id !== undefined
       ? getCatalogExercise(toId<ExerciseId>(exercise.exercise_id))
@@ -437,7 +405,6 @@ describe('the movements bloque-a-acumulacion.yaml programmes', () => {
   );
 
   // Counted in jumps, not measured in metres: a set is three of them, and what
-  // the programme tracks is the reps performed (DEC-R, revised).
   it('resolves Broad Jump to a bodyweight_reps row', () => {
     expect(programmedAs('Broad Jump')?.measurement).toBe('bodyweight_reps');
   });

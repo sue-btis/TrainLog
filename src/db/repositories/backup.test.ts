@@ -1,13 +1,3 @@
-/**
- * Export, restore, and the round-trip between them (AC-3, AC-6, AC-7).
- *
- * The round-trip is the load-bearing test in this change. Export and restore
- * are a writer and a reader of one format, and a disagreement between them does
- * not throw — it produces a database that looks plausible and is wrong, on the
- * one copy of a lifter's history that exists. Everything else here checks a
- * property; `exports then restores unchanged` checks that the pair agree.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import {
@@ -44,9 +34,7 @@ import type {
 
 const EXPORTED_AT = 1_755_000_000_000;
 
-/** A catalog slug — never written to `exercises` (DEC-007). */
 const CATALOG = toId<ExerciseId>('front-squat');
-/** A user-created Exercise — it must travel inside the document. */
 const USER_EXERCISE = toId<ExerciseId>('user-1');
 
 const routine: Routine = {
@@ -99,11 +87,6 @@ const userExercise: Exercise = {
   measurement: 'weight_reps',
 };
 
-/**
- * 2026-08-18 at 18:00 *local*, built from local parts rather than written as an
- * epoch number so the calendar day the CSV must print is a fact of the fixture
- * and not something the test has to guess.
- */
 const STARTED_AT = new Date(2026, 7, 18, 18, 0).getTime();
 const SESSION_DAY = toLocalDate('2026-08-18');
 
@@ -163,7 +146,6 @@ const completedSet: CompletedSet = {
   completedAt: 1_755_100_500_000,
 };
 
-/** Fills every table: a routine, a session against it, one logged set. */
 async function seed(): Promise<void> {
   await db.routines.add(routine);
   await db.workouts.add(workout);
@@ -175,7 +157,6 @@ async function seed(): Promise<void> {
   await db.completedSets.add(completedSet);
 }
 
-/** Every restored table's rows, keyed by table, for whole-database comparison. */
 async function snapshot(): Promise<Record<string, unknown[]>> {
   const entries = await Promise.all(
     RESTORED_TABLES.map(async (table) => [table, await db.table(table).toArray()] as const),
@@ -201,7 +182,6 @@ describe('exportBackup', () => {
     expect(document.completedSets).toEqual([completedSet]);
   });
 
-  // AC-3 — §17: "el catálogo base no se exporta".
   it('carries user-created Exercises and no catalog Exercise', async () => {
     await seed();
     const document = await exportBackup(EXPORTED_AT);
@@ -229,8 +209,6 @@ describe('exportBackup', () => {
     }
   });
 
-  // The check that keeps the writer honest: whatever export produces must pass
-  // the validator restore puts every document through.
   it('produces a document its own validator accepts', async () => {
     await seed();
     const document = await exportBackup(EXPORTED_AT);
@@ -254,7 +232,6 @@ describe('restoreSummary', () => {
     expect(summary.current.routines).toBe(1);
   });
 
-  // AC-6b — the lifter is told the live session is among the losses.
   it('reports an in-progress Session that is about to be destroyed', async () => {
     await seed();
     await db.sessions.put({ ...session, id: toId<SessionId>('s2'), status: 'in_progress' });
@@ -278,7 +255,6 @@ describe('restoreSummary', () => {
 });
 
 describe('restoreBackup', () => {
-  /** A document describing a different training history than `seed()` wrote. */
   function otherHistory(): BackupDocument {
     const otherRoutine: Routine = { ...routine, id: toId<RoutineId>('r2'), name: 'Block 2' };
     return {
@@ -296,7 +272,6 @@ describe('restoreBackup', () => {
     };
   }
 
-  // AC-7a — replace, never merge (§18, §37).
   it('replaces every restored table, leaving nothing of the old database', async () => {
     await seed();
     await restoreBackup(otherHistory());
@@ -312,20 +287,17 @@ describe('restoreBackup', () => {
     expect(await listUserExercises()).toEqual([]);
   });
 
-  // AC-7b — §18 lists what restore replaces, and settings is not on it.
   it('leaves the device its own default unit', async () => {
     await setDefaultUnit('lb');
     await restoreBackup({ ...otherHistory(), settings: { id: 'settings', defaultUnit: 'kg' } });
     expect((await getSettings()).defaultUnit).toBe('lb');
   });
 
-  // AC-7c — a partial restore is a corrupt database.
   it('leaves the database untouched when a write fails part-way', async () => {
     await seed();
     const before = await snapshot();
 
-    // A duplicate id inside one table: the tables written before it have
-    // already been cleared and refilled when `bulkAdd` rejects.
+    // The transaction must roll back tables written before the duplicate fails.
     const duplicated: BackupDocument = {
       ...otherHistory(),
       completedSets: [completedSet, completedSet],
@@ -357,23 +329,11 @@ describe('restoreBackup', () => {
   });
 });
 
-// ------------------------------------------------------------- Integration Gate A
-
 describe('the round trip', () => {
-  /**
-   * Export → wipe → parse → restore, and the eight restored tables must come
-   * back exactly. This proves the writer and the reader agree about the format,
-   * which no test of either one alone can show.
-   *
-   * `settings` is excluded because R-7 excludes it, not because it was
-   * overlooked: §18 lists the tables restore replaces and settings is not among
-   * them.
-   */
   it('exports, serializes, and restores a database unchanged', async () => {
     await seed();
     const before = await snapshot();
 
-    // Through a real string, exactly as the file would travel.
     const text = JSON.stringify(await exportBackup(EXPORTED_AT));
     await resetDatabase();
 
@@ -424,7 +384,6 @@ describe('listSetsForCsv', () => {
     ]);
   });
 
-  // AC-8c — the catalog is consulted first, then the user table (DEC-007).
   it('names catalog and user-created Exercises alike', async () => {
     await seed();
     await db.completedSets.add({
@@ -437,7 +396,6 @@ describe('listSetsForCsv', () => {
     expect(names).toEqual(['Front Squat', 'Reverse Hyper']);
   });
 
-  // AC-8d — DEC-B: as entered, not converted.
   it('carries the weight as entered with its unit', async () => {
     await seed();
     await db.completedSets.clear();
@@ -453,10 +411,8 @@ describe('listSetsForCsv', () => {
     ]);
   });
 
-  // AC-8b — REQ-013: the evening it happened in, not tomorrow in UTC.
   it('dates a set by the local day of its Session', async () => {
-    // 2026-08-18 at 22:30 local. In any timezone east of UTC this instant is
-    // already the 19th in UTC, so a UTC-derived date would drift a day.
+    // A UTC-derived date would drift for an evening Session in a western zone.
     const startedAt = new Date(2026, 7, 18, 22, 30).getTime();
     await seed();
     await db.sessions.update(session.id, { startedAt });
@@ -491,13 +447,10 @@ describe('listSetsForCsv', () => {
 
   it('skips an exercise that was started but never logged', async () => {
     await seed();
-    // `es2` is performed but carries no sets in the seed.
     expect(await listSetsForCsv()).toHaveLength(1);
   });
 
   it('skips a Session that has no exercises at all', async () => {
-    // A workout started and abandoned before anything was chosen. It must not
-    // break the export for every session after it.
     await seed();
     await db.sessions.add({
       ...session,
@@ -510,8 +463,6 @@ describe('listSetsForCsv', () => {
   });
 
   it('falls back to the id when an Exercise resolves to no name', async () => {
-    // REQ-023 forbids removing a catalog slug, so this should be unreachable —
-    // but a row labelled with its id is recoverable and a blank one is not.
     await seed();
     await db.exerciseSessions.add({
       ...unplannedSession,

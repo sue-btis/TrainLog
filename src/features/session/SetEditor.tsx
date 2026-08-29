@@ -1,19 +1,3 @@
-/**
- * Correcting or removing a set already logged (R-4, §37).
- *
- * A set gets mistyped — the wrong load, a rep miscounted, the button pressed
- * twice. Before this, the only record of that was permanent, which made the
- * history slightly untrue and, through `weightKg`, moved what progression
- * suggested next.
- *
- * It reuses `SetFields`, the same control the logger uses, so a correction is
- * entered exactly the way the original was.
- *
- * Delete arms rather than fires (§37, DESIGN.md's destructive-armed pattern).
- * It stays red at rest — a control that removes something must be identifiable
- * before it is touched — and the second press names the consequence.
- */
-
 import { useState } from 'react';
 import { Check, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,11 +15,6 @@ import { ICON_STROKE, LABEL } from '@/features/ui/styles';
 
 interface SetEditorProps {
   readonly set: CompletedSet;
-  /**
-   * The type the correction collects fields for — the same control the logger
-   * uses, so a duration set is corrected in seconds and never in weight and
-   * reps (REQ-111, AC-116).
-   */
   readonly measurement: Measurement;
   readonly weightStep: number;
   /** The same windows the logger marks against — a correction is measured by
@@ -62,12 +41,6 @@ export function SetEditor({
 
   return (
     <section className="flex flex-col gap-3">
-      {/* Delete sits up here, beside cancel — not under Save.
-          The two used to be stacked full-width and adjacent: solid green
-          "Save the correction" directly above solid red "Delete this set", both
-          landing in the thumb zone, on a screen used with wet hands. The arming
-          step catches the first mis-tap and nothing catches the second, so the
-          answer is distance rather than another confirmation. */}
       <div className="flex items-center justify-between gap-3">
         <span className={LABEL}>editing set {set.setNumber}</span>
         <div className="flex items-center gap-1">
@@ -98,9 +71,6 @@ export function SetEditor({
       />
 
       {armed ? (
-        // One `arrive` on the group, not three racing each other: the warning and
-        // the two buttons that follow it are a single change of what this panel
-        // is asking.
         <div className="arrive flex flex-col gap-3">
           <p className="type-body-sm text-ink-2">
             Set {set.setNumber} goes for good, and the sets after it move up a place.

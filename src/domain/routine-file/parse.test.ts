@@ -1,13 +1,8 @@
-/**
- * TST-002 — one case per structural failure class of §11.1 (REQ-031, AC-031).
- * The §12 example parsing cleanly covers the REQ-030 half of TST-001.
- */
 
 import { describe, expect, it } from 'vitest';
 import { formatPath, parseRoutineFile } from '@/domain/routine-file';
 import { EXAMPLE_YAML } from '@/domain/routine-file/fixtures';
 
-/** The §12 example with one line dropped. */
 function exampleWithout(line: RegExp): string {
   const kept = EXAMPLE_YAML.split('\n').filter((l) => !line.test(l));
   if (kept.length === EXAMPLE_YAML.split('\n').length) {
@@ -16,7 +11,6 @@ function exampleWithout(line: RegExp): string {
   return kept.join('\n');
 }
 
-/** The §12 example with one substring replaced. */
 function exampleWith(from: string, to: string): string {
   if (!EXAMPLE_YAML.includes(from)) throw new Error(`fixture drift: ${from}`);
   return EXAMPLE_YAML.replace(from, to);

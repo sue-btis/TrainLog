@@ -26,7 +26,6 @@ import {
   startWorkout,
 } from '@/domain/session';
 
-/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
 const measurement = 'weight_reps' as const;
 const measurementOf = () => measurement;
 
@@ -304,7 +303,6 @@ describe('TST-011 set logging, deviation and status derivation (REQ-054...REQ-05
   });
 });
 
-/* ── Gym mode (R-2, R-7, R-10) ─────────────────────────────────────────── */
 
 function plannedAt(order: number, id: string): PlannedExercise {
   return { ...plannedExercise(), id: toId<PlannedExerciseId>(id), order };
@@ -509,7 +507,6 @@ describe('restRemaining (R-7, AC-13, AC-14)', () => {
   });
 });
 
-/* ── Correcting and removing a set (R-4) ───────────────────────────────── */
 
 function loggedSets(count: number): CompletedSet[] {
   let exercise: PlannedExerciseSession = startPlannedExercise({

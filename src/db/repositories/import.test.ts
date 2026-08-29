@@ -1,9 +1,3 @@
-/**
- * TST-018 (REQ-074, AC-075) — accepting an import is atomic.
- * TST-022 (REQ-021, REQ-071, AC-022, AC-072) — no catalog Exercise is ever
- * written to the `exercises` table.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import { importRoutine } from '@/db/repositories/import';
@@ -23,10 +17,9 @@ import { toLocalDate } from '@/domain/dates';
 import type { RoutineFile } from '@/domain/routine-file';
 import type { Placement } from '@/domain/types';
 
-const ANCHOR = toLocalDate('2026-09-07'); // a Monday
+const ANCHOR = toLocalDate('2026-09-07');
 const CREATED_AT = 1_757_200_000_000;
 
-/** A file whose exercises all resolve to the catalog (by id and by name). */
 function catalogOnlyFile(): RoutineFile {
   return aFile([
     aWorkout({
@@ -34,7 +27,7 @@ function catalogOnlyFile(): RoutineFile {
       suggested_days: ['monday', 'friday'],
       exercises: [
         anExercise({ name: 'Front Squat', exercise_id: 'front-squat' }),
-        anExercise({ name: '  romanian   deadlift ' }), // resolves by normalized name
+        anExercise({ name: '  romanian   deadlift ' }),
       ],
     }),
   ]);
@@ -70,10 +63,9 @@ describe('importRoutine', () => {
     expect(await db.workouts.count()).toBe(1);
     expect(await db.plannedExercises.count()).toBe(2);
     expect(await db.placements.count()).toBe(placements.length);
-    expect(placements.length).toBe(8); // 4 weeks x monday + friday
+    expect(placements.length).toBe(8);
   });
 
-  // TST-022 / AC-022
   it('never writes a catalog Exercise into the exercises table', async () => {
     const draft = draftOf(catalogOnlyFile());
     expect(draft.createdExercises).toEqual([]);
@@ -82,12 +74,10 @@ describe('importRoutine', () => {
 
     expect(await db.exercises.count()).toBe(0);
     expect(await listUserExercises()).toEqual([]);
-    // The planned exercises still reference the catalog slugs.
     const planned = await db.plannedExercises.toArray();
     expect(planned.map((p) => p.exerciseId).sort()).toEqual(['front-squat', 'romanian-deadlift']);
   });
 
-  // AC-072
   it('writes exactly one row for one unknown exercise name', async () => {
     const file = aFile([
       aWorkout({
@@ -95,7 +85,7 @@ describe('importRoutine', () => {
         exercises: [
           anExercise({ name: 'Front Squat', exercise_id: 'front-squat' }),
           anExercise({ name: 'Sandbag Bear Hug Carry' }),
-          anExercise({ name: 'sandbag   bear hug carry' }), // the same movement
+          anExercise({ name: 'sandbag   bear hug carry' }),
         ],
       }),
     ]);
@@ -109,13 +99,7 @@ describe('importRoutine', () => {
   });
 });
 
-/**
- * TST-026 (R-14, AC-17) — an accepted import becomes the one active Routine.
- *
- * The wizard is what makes this reachable: every draft arrives `active`, so
- * without the demotion a second import would leave two Routines claiming to be
- * the programme in progress.
- */
+/** A successful active import must leave only one active Routine. */
 describe('importRoutine — at most one active Routine', () => {
   it('archives the previously active Routine when a new one is accepted', async () => {
     const first = draftOf(catalogOnlyFile());
@@ -147,16 +131,7 @@ describe('importRoutine — at most one active Routine', () => {
   });
 });
 
-/**
- * TST-018 — failure injection (AC-075).
- *
- * The failure is induced inside Dexie, not mocked: the placement list carries
- * the same primary key twice, so the final `bulkAdd` raises a real
- * `ConstraintError` from IndexedDB after the Routine, its Workouts, its
- * PlannedExercises and the created Exercise are already written in the
- * transaction. That is the worst case — the last write of the five — so a clean
- * table set afterwards proves every earlier write rolled back with it.
- */
+/** A duplicate key must roll back all writes in the import transaction. */
 describe('TST-018 import atomicity', () => {
   it('leaves zero residue when a write fails mid-transaction', async () => {
     const file = aFile([
@@ -164,7 +139,7 @@ describe('TST-018 import atomicity', () => {
         suggested_days: ['monday'],
         exercises: [
           anExercise({ name: 'Front Squat', exercise_id: 'front-squat' }),
-          anExercise({ name: 'Sandbag Bear Hug Carry' }), // forces a user Exercise
+          anExercise({ name: 'Sandbag Bear Hug Carry' }),
         ],
       }),
     ]);
@@ -173,10 +148,8 @@ describe('TST-018 import atomicity', () => {
     const first = placements[0];
     if (!first) throw new Error('fixture must generate at least one placement');
 
-    // Every earlier write is valid; only the last one collides.
     const poisoned: Placement[] = [...placements, { ...first }];
 
-    // A real IndexedDB ConstraintError, surfaced by Dexie as a BulkError.
     await expect(importRoutine(draft, poisoned)).rejects.toMatchObject({
       name: 'BulkError',
     });
@@ -190,8 +163,6 @@ describe('TST-018 import atomicity', () => {
 
   it('leaves zero residue when an early write fails', async () => {
     const draft = draftOf(catalogOnlyFile());
-    // Two Workouts sharing one id: the failure lands on the second write,
-    // after the Routine row was added.
     const firstWorkout = draft.workouts[0];
     if (!firstWorkout) throw new Error('fixture must generate a workout');
     const poisoned: RoutineDraft = {
@@ -210,16 +181,8 @@ describe('TST-018 import atomicity', () => {
   });
 });
 
-/**
- * TST-207 (REQ-210) — a Routine authored from scratch is accepted, stored and
- * made active by exactly the path an imported one is.
- *
- * The point is that there is no second write path. The draft reaching
- * `importRoutine` was never a file, and nothing downstream can tell.
- */
 describe('accepting a from-scratch routine', () => {
   it('writes it, activates it, and archives the routine that was active', async () => {
-    // One already active, as if imported earlier.
     const first = routineFileToDomain(catalogOnlyFile(), {
       defaultUnit: 'kg',
       existingExercises: [],
@@ -227,8 +190,6 @@ describe('accepting a from-scratch routine', () => {
     });
     await importRoutine(first, []);
 
-    // Authored here: blank, named, one Workout, one exercise nobody has named
-    // before. No suggested day, so no Placement is generated at all.
     const authored = addExercise(
       addWorkout(setRoutineName(blankRoutineFile(4), 'Winter Block'), 'Push'),
       0,
@@ -261,8 +222,6 @@ describe('accepting a from-scratch routine', () => {
     );
     expect(await db.placements.where('routineId').equals(draft.routine.id).count()).toBe(0);
 
-    // The one movement the authored routine named did not exist before, so it
-    // was minted here — through the same §26 resolution an import uses.
     const names = (await listUserExercises()).map((e) => e.name);
     expect(names).toContain('Zercher Good Morning');
   });

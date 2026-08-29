@@ -1,35 +1,3 @@
-/**
- * Validating a backup document (§18 "Validate").
- *
- * `parseBackup` is a pure function over a string: no database, no clock, no
- * I/O. It either returns a document that is safe to write or the reasons it is
- * not. Never both, and never a partial document — §18 is explicit that the
- * backup must be validated *before* the local database is modified, and
- * restore replaces the only copy a lifter has.
- *
- * The severity here is deliberately higher than the routine file's. That
- * pipeline splits structural from semantic so a flawed file can still be
- * *repaired in the wizard* (§11.1). A backup has no wizard and no author to
- * consult: it is either a faithful record or it is not, so everything below
- * rejects. Nothing is coerced, defaulted, or dropped.
- *
- * Three passes, in order, and the order is the design:
- *
- *   1. JSON        — is it a file at all?
- *   2. Version     — §18: newer than this build is refused outright, because
- *                    ignoring fields we do not understand would silently
- *                    discard a lifter's data.
- *   3. Shape       — every row against its domain type.
- *   4. References  — every id points at something that exists.
- *
- * Passes 3 and 4 do not both run. A row whose shape is wrong cannot be
- * meaningfully asked about its references, and reporting both would bury the
- * real fault under consequences of it.
- *
- * `toId` "does not validate — the caller asserts provenance" (`domain/ids.ts`).
- * This module is the caller that cannot assert it, which is why every id-shaped
- * field is checked here rather than trusted.
- */
 
 import { z } from 'zod';
 import { getCatalogExercise } from '@/domain/catalog';
@@ -57,23 +25,6 @@ export type ParseBackupResult =
   | { readonly ok: true; readonly document: BackupDocument }
   | { readonly ok: false; readonly errors: readonly StructuralError[] };
 
-// ---------------------------------------------------------------- row shapes
-
-/**
- * An id as it appears in a file: a non-empty string, tagged with the entity it
- * identifies.
- *
- * Not `uuid()`. Catalog ids are kebab-case slugs and share the `exercises` key
- * space with generated UUIDs by design (DEC-007), so a UUID check would refuse
- * every catalog reference. Identity is proven by resolution in pass 4, which is
- * the check that actually matters.
- *
- * The `toId` transform is what lets this module's output be typed as
- * `BackupDocument` outright instead of cast into it. Branding each field where
- * it is validated means the compiler checks the schema against the domain: a
- * field this file forgets, or types differently from `src/domain/types.ts`, is
- * a build error rather than something a cast would wave through.
- */
 function idOf<T extends Id<string>>(): z.ZodType<T, string> {
   return z
     .string()
@@ -84,35 +35,8 @@ function idOf<T extends Id<string>>(): z.ZodType<T, string> {
 const unit = z.enum(['kg', 'lb']);
 const distanceUnit = z.enum(['m', 'km', 'mi']);
 
-/**
- * The measurement union, closed exactly as `progression` is closed: a type the
- * app cannot read is refused rather than kept as data (REQ-128).
- *
- * `.default('weight_reps')` is the compatibility rule of REQ-125 expressed in
- * the parser: a document written before measurements existed carries none, and
- * the only type provable from that data is weight x reps.
- */
 const measurement = z.enum(MEASUREMENTS);
 
-/**
- * The numeric vocabulary of a backup (§18).
- *
- * A backup is evidence of what happened, and a count of repetitions below zero
- * is not evidence of anything — restored, it becomes a negative estimated 1RM
- * on a chart, which is worse than a refusal because it looks like training.
- *
- * The bound is always what the app can *write*, never what the routine-file
- * validator demands of a file. `Field` clamps set logging at zero and caps
- * nothing above it (`SetLogger.tsx`), so `RIR 12` is a real thing a lifter can
- * log; borrowing `MAX_RIR` from `routine-file/validate.ts` — which governs a
- * *planned* RIR, and is a recorded assumption rather than a PRD rule — would
- * refuse a genuine backup. **Nothing here has an upper bound**, and the failure
- * that matters is not a bad file getting in, it is a lifter's only copy of their
- * training being turned away.
- *
- * `positiveCount` is used only where zero is impossible in the data the app
- * writes; everything unproven takes the wider bound.
- */
 const count = z.number().int().min(0);
 const positiveCount = z.number().int().min(1);
 const measure = z.number().min(0);
@@ -135,14 +59,6 @@ const weekday = z.enum([
   'sunday',
 ]);
 
-/**
- * The progression union (§27, §28, §29).
- *
- * Closed on purpose: an unrecognized `type` is refused rather than kept as
- * data. The routine file tolerates one because the wizard can correct it; a
- * backup has no such step, and a progression the engine cannot read is history
- * the app cannot use.
- */
 const progression = z.discriminatedUnion('type', [
   z.object({ type: z.literal('manual') }),
   z.object({ type: z.literal('double_progression'), increment: measure }),
@@ -164,18 +80,6 @@ const workout = z.object({
   order: count,
 });
 
-/**
- * Exactly one target pair is populated per planned exercise (REQ-139).
- *
- * Both pairs is a contradiction — two ranges, and nothing in the document says
- * which one the exercise is actually programmed against — and neither is a plan
- * with no target at all. Both are refused rather than silently resolved by
- * preferring one, which would be the validator quietly choosing what the lifter
- * meant.
- *
- * A pair counts as populated only when *both* ends are stated: a half-open
- * range is not a range.
- */
 function oneTargetPairIssue(
   value: Readonly<Record<string, unknown>>,
   repsKeys: readonly [string, string],
@@ -251,7 +155,6 @@ const session = z.object({
   completedAt: timestamp.nullable(),
   status: z.enum(['in_progress', 'completed', 'partial']),
   // Absent on every row written before this existed, and no backfill invents
-  // one (REQ-126).
   bodyweightKg: measure.nullable().default(null),
 });
 
@@ -264,15 +167,6 @@ const exerciseSessionBase = {
   measurement: measurement.default('weight_reps'),
 };
 
-/**
- * The ExerciseSession union, discriminated on `plannedExerciseId` (§14.7).
- *
- * A union rather than one shape with optional targets, mirroring
- * `domain/types.ts`. "Unplanned but carrying planned targets" is not
- * representable in the domain and must not become representable by arriving in
- * a file: the unplanned member forbids the `planned*` keys outright, so a
- * hand-edited document cannot smuggle a contradiction into history.
- */
 const exerciseSession = z.union([
   z.object({
     ...exerciseSessionBase,
@@ -304,7 +198,6 @@ const exerciseSession = z.union([
   }),
   // `looseObject`, not `object`: a plain object strips unknown keys *before*
   // checks run, so the contradiction would be quietly deleted instead of
-  // refused — the precise silent data loss §18 exists to prevent. Keeping the
   // extra keys lets the check see them; the transform then drops the ones that
   // are merely additive, so forward compatibility is unaffected.
   z
@@ -345,7 +238,6 @@ const completedSet = z.object({
   reps: count.nullable(),
   rir: measure,
   // Nullable *and* defaulted: a version-1 document carries none of these and
-  // must not be refused for lacking them (REQ-128).
   durationSeconds: measure.nullable().default(null),
   distance: measure.nullable().default(null),
   distanceUnit: distanceUnit.nullable().default(null),
@@ -353,16 +245,6 @@ const completedSet = z.object({
   completedAt: timestamp,
 });
 
-/**
- * The settings row (§32).
- *
- * Everything after `defaultUnit` is optional, and that is a compatibility rule
- * rather than a shape preference: a backup taken before those settings existed
- * carries the unit alone, and a lifter's only copy of their training must not
- * be refused because the app grew a beep since they exported it. Restore
- * ignores this object entirely (§18) — it is validated so the document is
- * whole, not because anything is written from it.
- */
 const settings = z.object({
   id: z.literal('settings'),
   defaultUnit: unit,
@@ -370,8 +252,6 @@ const settings = z.object({
   timerVibration: z.boolean().optional(),
   timerSound: z.boolean().optional(),
   keepScreenAwake: z.boolean().optional(),
-  // REQ-108, AM-1 — the lifter's bodyweight, exported and never read back.
-  // Restore leaves `settings` alone (§18), so nothing here is written to the
   // device; the figure survives a restore through `Session.bodyweightKg`, which
   // is what `lastRecordedBodyweightKg()` reads. It is carried so the document is
   // a complete record of the device rather than because restore needs it — do
@@ -380,11 +260,6 @@ const settings = z.object({
   lastBackupAt: timestamp.nullable().optional(),
 });
 
-/**
- * The document (§17). `version` is validated in pass 2; here it only has to be
- * a number, so that a newer document reaches the version check rather than
- * dying as a shape error and reporting the wrong reason.
- */
 const backupDocument = z.object({
   version: count,
   exportedAt: timestamp,
@@ -399,26 +274,10 @@ const backupDocument = z.object({
   settings,
 });
 
-// ------------------------------------------------------------------ passes
-
 function toPath(segments: readonly PropertyKey[]): FieldPath {
   return segments.map((segment) => (typeof segment === 'symbol' ? String(segment) : segment));
 }
 
-/**
- * Flattens Zod issues into `{path, message}`, unwrapping unions.
- *
- * A failed `z.union` reports only "Invalid input" at the union's own path and
- * files the real reasons underneath, one set per member. R-4 requires a refusal
- * to name what is wrong and where, and "Invalid input" names neither — so the
- * members' own issues are lifted out and reported instead. That is what turns
- * a rejected ExerciseSession into "an unplanned exercise carries no planned
- * targets, but this one has plannedSets, plannedMinReps, …".
- *
- * Both members' complaints surface, because nothing here can know which one the
- * author meant. Saying too much beats saying "Invalid input" about a file
- * someone is trying to recover their training history from.
- */
 function toStructuralErrors(error: z.ZodError): StructuralError[] {
   const flatten = (issues: readonly z.core.$ZodIssue[], prefix: FieldPath): StructuralError[] =>
     issues.flatMap((issue) => {
@@ -446,20 +305,6 @@ function idsOf(rows: readonly Identified[]): Set<string> {
   return new Set(rows.map((row) => row.id));
 }
 
-/**
- * Pass 4 — every reference resolves inside the document.
- *
- * A backup written by `exportBackup` always passes this. A hand-edited or
- * truncated one may not, and the failure it prevents is the quiet kind: an
- * orphaned CompletedSet is not an error at write time, it is a set that
- * silently disappears from history and from every progression calculation
- * afterwards.
- *
- * Exercise references are the one case that looks outside the document, because
- * catalog Exercises legitimately live in the build rather than in `exercises`.
- * Catalog slugs are permanent (REQ-023: removing or renaming one is
- * prohibited), which is what makes that lookup safe across builds.
- */
 function checkReferences(document: BackupDocument): StructuralError[] {
   const errors: StructuralError[] = [];
 
@@ -513,7 +358,6 @@ function checkReferences(document: BackupDocument): StructuralError[] {
   const exerciseSessions = idsOf(document.exerciseSessions);
   const exercises = idsOf(document.exercises);
 
-  /** Resolvable if the catalog knows it (DEC-007) or the document carries it. */
   const knownExercise = (value: string): boolean =>
     getCatalogExercise(value as ExerciseId) !== undefined || exercises.has(value);
 
@@ -574,13 +418,6 @@ function checkReferences(document: BackupDocument): StructuralError[] {
   return errors;
 }
 
-/**
- * Parses and fully validates a backup document (§18).
- *
- * Pure: no file system, no database, no clock. A caller that receives
- * `{ok: true}` may write the document as-is; a caller that receives
- * `{ok: false}` must write nothing at all.
- */
 export function parseBackup(text: string): ParseBackupResult {
   let json: unknown;
   try {
@@ -592,7 +429,6 @@ export function parseBackup(text: string): ParseBackupResult {
     };
   }
 
-  // §18: a newer document is refused before its shape is read, so the lifter is
   // told the real reason — this build is too old — rather than being handed a
   // list of fields it happens not to recognize.
   const version: unknown = (json as { version?: unknown })?.version;

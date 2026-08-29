@@ -1,22 +1,3 @@
-/**
- * Where a Placement goes (§11.3) — the Move control and the month it opens.
- *
- * Three answers were tried for this one question. A native `<input type="date">`
- * was the first: correct and accessible, and the only control in the product
- * wearing the operating system's face instead of this one, opening a picker
- * that covered the very month the move is relative to. A mode on the calendar's
- * own grid was the second: it read well, but the grid is the top of the screen
- * and the Placement is not, so pressing `Move` moved the lifter before it moved
- * anything else.
- *
- * This is the third. The picker is attached to the button that asked for it,
- * and it is the same month grid the screen already draws — so the day states
- * are visible while choosing, and nothing on the page has to scroll or change
- * mode. shadcn (Radix) supplies the part worth taking: positioning inside the
- * viewport, the portal that stops the card from clipping it, focus returned to
- * the trigger, Escape and outside-press to dismiss.
- */
-
 import { useState } from 'react';
 import { ArrowLeftRight, LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,11 +14,9 @@ interface MoveToPopoverProps {
   readonly placement: Placement;
   readonly name: string;
   readonly today: LocalDate;
-  /** The screen follows the Placement to where it landed. */
   readonly onMoved: (date: LocalDate) => void;
   readonly disabled?: boolean;
 }
-
 export function MoveToPopover({
   placement,
   name,

@@ -1,39 +1,10 @@
-/**
- * Settings (REQ-077, §32).
- *
- * A single row keyed `'settings'`, holding defaults and nothing else. The unit
- * here is only the default applied when a routine file omits one; each Exercise
- * keeps its own (§12, §11.7).
- *
- * **Reads default per field, not per row.** Every install that predates the
- * four later settings has a row on disk carrying `defaultUnit` alone. Treating
- * "a row exists" as "the row is complete" would hand the screens `undefined`
- * for the three booleans — and `undefined` is falsy, so the rest timer would
- * stop buzzing and the screen would stop being held awake for every lifter who
- * has ever chosen a unit. `resolve` is what stops that, and it writes nothing:
- * an old row stays an old row until the lifter changes something.
- *
- * **Writes one field, never the row.** `update` rather than `put`, because a
- * `put` of a freshly-built object is exactly how saving the unit would silently
- * reset the other four.
- */
-
 import { db } from '@/db/database';
 import type { ResolvedSettings, Settings, Timestamp, Unit } from '@/domain/types';
 
 const SETTINGS_ID = 'settings' as const;
 
-/** The default the app starts with before the user ever chooses one. */
 export const DEFAULT_UNIT: Unit = 'kg';
 
-/**
- * What each setting is before anyone touches it.
- *
- * The three booleans are today's behaviour written down: the timer already
- * buzzes and the screen is already held awake, and nobody's gym mode may change
- * because a settings screen appeared. Sound is the one genuinely new thing, so
- * it starts off.
- */
 export const DEFAULT_SETTINGS: ResolvedSettings = {
   id: SETTINGS_ID,
   defaultUnit: DEFAULT_UNIT,
@@ -45,17 +16,15 @@ export const DEFAULT_SETTINGS: ResolvedSettings = {
   bodyweightKg: null,
 };
 
-/** Fills in whatever the stored row does not carry. Never writes. */
+/** Merge defaults per field so rows from older versions remain compatible. */
 function resolve(stored: Settings | undefined): ResolvedSettings {
   return { ...DEFAULT_SETTINGS, ...stored, id: SETTINGS_ID };
 }
 
-/** The settings row, complete, whatever the database holds. */
 export async function getSettings(): Promise<ResolvedSettings> {
   return resolve(await db.settings.get(SETTINGS_ID));
 }
 
-/** The default unit, for `routineFileToDomain` (REQ-034). */
 export async function getDefaultUnit(): Promise<Unit> {
   return (await getSettings()).defaultUnit;
 }
@@ -97,15 +66,11 @@ export async function setKeepScreenAwake(on: boolean): Promise<void> {
   await setSetting('keepScreenAwake', on);
 }
 
-/**
- * The lifter's bodyweight (REQ-108). `null` clears it; nothing already recorded
- * against a past Session is touched.
- */
+/** `null` clears the current bodyweight without changing past Sessions. */
 export async function setBodyweightKg(bodyweightKg: number | null): Promise<void> {
   await setSetting('bodyweightKg', bodyweightKg);
 }
 
-/** Stamped by a successful export, and read by the line that says how long ago. */
 export async function setLastBackupAt(at: Timestamp): Promise<void> {
   await setSetting('lastBackupAt', at);
 }

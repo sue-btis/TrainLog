@@ -1,23 +1,3 @@
-/**
- * What a Session amounted to, read once at the end of it.
- *
- * Finishing a Session used to record it and navigate away without a word, which
- * made the most repeated moment in the product the only one that says nothing.
- * This is the arithmetic behind the screen that replaces that silence: pure,
- * derived, stored nowhere — the same contract progression holds.
- *
- * Almost nothing here is a new measure. `volumeKg` is the `Σ weightKg × reps`
- * of `ExercisePoint`, and a record is `ExercisePoint.isRecord` read for this
- * Session's own point rather than recomputed. Two definitions of "a record"
- * would eventually disagree, and the one on the chart is the one a lifter has
- * already been reading.
- *
- * `effort` is the exception, and the reason for it is that volume cannot answer
- * "how hard was this" for work that is not kilograms. A run, a hold and a carry
- * are all silent in `Σ weightKg × reps`, and a programme that mixes them needs
- * one figure that is not blind to half of itself.
- */
-
 import { compareProgress, exerciseSeries, recordSetOf } from '@/domain/history';
 import type { ExerciseId } from '@/domain/ids';
 import {
@@ -29,15 +9,6 @@ import {
 import type { SessionHistory } from '@/domain/progression';
 import type { CompletedSet } from '@/domain/types';
 
-/**
- * An exercise whose best value in this Session beat every session before it,
- * on that exercise's own axis in that axis's own direction (REQ-115).
- *
- * `value` is an estimated 1RM for the two types that have one and the raw
- * axis — assistance, pace, seconds, metres — for the rest. `axis` travels
- * with it because the number is meaningless without it, and reading the unit
- * off the exercise a second time is exactly the restatement REQ-102 forbids.
- */
 export interface SessionRecord {
   readonly exerciseId: ExerciseId;
   /** The set that did it — what the lifter actually performed. */
@@ -51,11 +22,6 @@ export interface SessionRecord {
 
 export interface SessionSummary {
   readonly setsLogged: number;
-  /**
-   * `Σ weightKg × reps` over the sets whose type produces kilogram-reps, and
-   * only those (REQ-117). A plank and a run are silent here by construction,
-   * not by rounding to zero.
-   */
   readonly volumeKg: number;
   /** Reps done on the bodyweight-rep types. Its own unit, its own number. */
   readonly volumeReps: number;
@@ -154,14 +120,6 @@ export function summarizeSession(
   };
 }
 
-/**
- * The four volume accumulators, each in its own unit and never added to one
- * another (REQ-116, DEC-D). A Session mixing a squat and a run reports
- * kilogram-reps and metres separately, and no figure spans the two.
- *
- * The family comes from the ExerciseSession's snapshotted measurement, never
- * from which fields a set happens to carry.
- */
 function accumulate(detail: SessionHistory): Record<
   'kg_reps' | 'reps' | 'seconds' | 'metres',
   number
@@ -174,7 +132,6 @@ function accumulate(detail: SessionHistory): Record<
       switch (family) {
         case 'kg_reps':
           // A set carrying no rep count contributes nothing rather than NaN
-          // or a silent zero-weight product (REQ-117).
           totals.kg_reps += set.weightKg * (set.reps ?? 0);
           break;
         case 'reps':
@@ -203,41 +160,8 @@ function marginOf(record: SessionRecord): number {
   return Math.abs(record.value - previousValue) / Math.abs(previousValue);
 }
 
-/**
- * RPE 10 is a set taken to failure, so RIR is its complement: `RPE = 10 - RIR`.
- * §30 stores the RIR actually achieved, which makes the conversion a rename
- * rather than an estimate.
- */
 const RPE_AT_FAILURE = 10;
 
-/**
- * Foster's session load — mean RPE times minutes — over one Session's sets.
- *
- * The only figure in the product that means the same thing for a squat and for
- * a run. Volume cannot be: kilogram-reps, seconds and metres do not add up, and
- * any single number claiming to sum them has an invented conversion inside it.
- * RIR is the one value every set carries whatever was being measured, which is
- * what makes it the axis both halves of a hybrid programme can share.
- *
- * `Math.max(0, …)` is not defensive noise. A logged RIR is deliberately not
- * bounded above — `backup/schema.ts` accepts one past `MAX_RIR` and has a test
- * saying so — and a set logged at RIR 12 would otherwise contribute negative
- * effort, pulling the Session's figure down for having been easy.
- *
- * Rounded, because it is an index rather than a measurement: a mean of
- * whole-number ratings times an already-rounded minute count does not have a
- * decimal's worth of precision to report.
- *
- * `null` where there is nothing to compute from. An open Session has no
- * duration and a setless one has no RPE, and in both cases the answer is
- * unknown rather than zero — the same distinction `minutes` already makes.
- *
- * The known ceiling: `minutes` is wall clock, so rest, a phone left on a bench
- * and a conversation between sets are all inside it. That is Foster's own
- * definition rather than a shortcut — the figure is meant to scale with time
- * spent training — but a leisurely session and a dense one of equal length do
- * read alike.
- */
 function effortOf(sets: readonly CompletedSet[], minutes: number | null): number | null {
   if (minutes === null || sets.length === 0) return null;
 

@@ -1,17 +1,3 @@
-/**
- * A routine file that works, shipped inside the build.
- *
- * The app's whole premise is a file the lifter authors by hand, and until now
- * the app documented that file nowhere: `/import` said "pick the .yaml file
- * that declares your programme" and stopped. There is no network at runtime, so
- * there was no in-app reference and no link to one either — someone handed a
- * friend's broken file, standing in a gym, had nothing to repair it against.
- *
- * **This is the §12 example verbatim, and it is parsed by `parse.test.ts`.**
- * That is the point of it living here rather than being retyped into a
- * component: a reference that drifts from the parser is worse than none, and
- * the test fails the moment it does.
- */
 
 export const EXAMPLE_ROUTINE_YAML = `version: 1
 

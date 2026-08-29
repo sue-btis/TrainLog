@@ -1,15 +1,3 @@
-/**
- * History reads (REQ-061, REQ-062, AC-063, §11.8, §11.9, §26).
- *
- * The repository halves of TST-013 and TST-014, plus the Wave 2 proof of
- * PRD §47 flow 2: a Session performed through the real repositories produces a
- * real progression suggestion.
- *
- * Indexes exercised (AC-073): `exerciseSessions.exerciseId`,
- * `exerciseSessions.sessionId`, `completedSets.exerciseSessionId`,
- * `plannedExercises.workoutId`, and `sessions` by primary key.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDatabase } from '@/db/database';
 import { createStartedWorkout, saveFinishedSession } from '@/db/repositories/sessions';
@@ -36,7 +24,6 @@ import { toId } from '@/domain/ids';
 import type { ExerciseId, PlannedExerciseId, RoutineId, SessionId, WorkoutId } from '@/domain/ids';
 import type { PlannedExercise, Routine, Session, SessionStatus, Workout } from '@/domain/types';
 
-/** Every exercise in these fixtures is measured by weight x reps (REQ-105). */
 const measurement = 'weight_reps' as const;
 
 const squat = toId<ExerciseId>('back-squat');
@@ -67,7 +54,6 @@ function plannedExercise(
   };
 }
 
-/** Seeds one Routine with one Workout holding one PlannedExercise for `exerciseId`. */
 async function seedRoutine(
   name: string,
   exerciseId: ExerciseId,
@@ -94,11 +80,6 @@ async function seedRoutine(
   return { routine, workout, planned };
 }
 
-/**
- * Performs one Session end to end through the repositories: start it, snapshot
- * the Workout's planned exercises, log `reps` at `weight` for each, then finish.
- * `status` selects how it ends — `in_progress` leaves it open.
- */
 async function performSession(
   workout: Workout,
   startedAt: number,
@@ -134,9 +115,6 @@ async function performSession(
 
   if (status === 'in_progress') return session.id;
 
-  // DEC-009 — a Session is `partial` when an exercise is still `pending` at
-  // finish. An extra untouched exercise is exactly that, so the status is
-  // derived by `finishSession` here rather than asserted by the test.
   if (status === 'partial') {
     await addExerciseSession(
       startUnplannedExercise({ measurement, sessionId: session.id, exerciseId: bench, order: 99 }),
@@ -166,9 +144,7 @@ describe('TST-014 (repository half) — history by exerciseId across Routines', 
 
     expect(history).toHaveLength(2);
     expect(history.map((entry) => entry.session.startedAt)).toEqual([2_000, 1_000]);
-    // Two different Routines, one history — the §26 continuity guarantee.
     expect(new Set(history.map((entry) => entry.session.routineId)).size).toBe(2);
-    // Two different PlannedExercises behind it; the query used neither.
     expect(
       new Set(
         history.flatMap((entry) =>
@@ -199,7 +175,6 @@ describe('TST-013 (repository half) — partial and in_progress stay in history'
     expect(history.map((entry) => entry.session.status)).toEqual(['in_progress', 'partial']);
     expect(history[1]?.session.completedAt).toBe(4_600);
     expect(history.flatMap((entry) => entry.exercises.flatMap((e) => e.sets))).toHaveLength(8);
-    // REQ-062 — no completed Session, therefore no suggestion, despite max reps.
     expect(suggestLoad(planned, history)).toBeNull();
   });
 });
@@ -238,7 +213,6 @@ describe('PRD §47 flow 2 — perform, persist, read back, progress', () => {
   it('feeds real repository history to suggestLoad and advances the load', async () => {
     const { workout, planned } = await seedRoutine('one', squat);
 
-    // 4 × 4-6 with double progression, all four sets at the top of the range.
     await performSession(workout, 1_000, [6, 6, 6, 6], 100);
 
     const history = await listExerciseHistory(squat);
@@ -248,8 +222,6 @@ describe('PRD §47 flow 2 — perform, persist, read back, progress', () => {
       weight: 102.5,
       unit: 'kg',
       weightKg: 102.5,
-      // The advance is read on the type's progress axis (REQ-119); weight x
-      // reps progresses on load, so `value` is the same number as `weight`.
       axis: 'load',
       value: 102.5,
       targetMet: true,
@@ -280,7 +252,6 @@ describe('performed exercises (§11.11, R-4)', () => {
     const { workout } = await seedRoutine('one', squat);
     const second = await seedRoutine('two', bench);
 
-    // Squat twice, in two Sessions of the same Routine; bench once, in another.
     await performSession(workout, 1_000, [5, 5], 100);
     await performSession(workout, 2_000, [5, 5], 102.5);
     await performSession(second.workout, 3_000, [8], 60);

@@ -1,14 +1,3 @@
-/**
- * The validator's job is to refuse (AC-4, AC-5).
- *
- * These tests are mostly rejections, and that is the point. Restore replaces
- * the only copy of a lifter's history, so a document that is wrong must not
- * reach the database at all — not partially, not with the bad rows dropped.
- * Every case below is a document that must never be written.
- *
- * Fixture rows are named rather than indexed so a test reads as the thing it
- * breaks: `{ ...SET, reps: '6' }`, not `document.completedSets[0]`.
- */
 
 import { describe, expect, it } from 'vitest';
 import { BACKUP_VERSION } from '@/domain/backup/document';
@@ -33,7 +22,6 @@ const WORKOUT = {
 const PLANNED = {
   id: 'pe1',
   workoutId: 'w1',
-  // A catalog slug: it is never in the `exercises` table (DEC-007).
   exerciseId: 'front-squat',
   sets: 4,
   minReps: 5,
@@ -163,7 +151,6 @@ describe('parseBackup', () => {
     expect(document.settings.defaultUnit).toBe('kg');
   });
 
-  // AC-4a — `validDocument` already carries the settings row as it was written
   // before the other four settings existed. Stated as its own test because it
   // is a compatibility promise, not an incidental property of the fixture: a
   // backup a lifter took months ago is the copy they will need.
@@ -185,7 +172,6 @@ describe('parseBackup', () => {
     expect(accept(withKey('settings', full)).settings).toEqual(full);
   });
 
-  // REQ-108, AM-1 — the settings row is the app's only live record of the
   // lifter's bodyweight, and `z.object` strips what the schema does not list.
   // A field left off that list is not a gap in a test, it is the figure being
   // deleted from every export.
@@ -243,7 +229,6 @@ describe('parseBackup', () => {
     ]);
   });
 
-  // AC-4a, TST-116 (REQ-127, AC-143) — §18: a newer document is refused rather
   // than partially read. `z.object` strips unknown keys before any check runs,
   // so a build that read one anyway would drop the fields it does not know and
   // restore a lifter's planks as weight x reps. The gate is the only thing
@@ -256,7 +241,6 @@ describe('parseBackup', () => {
     expect(refusedBecause(newer)).toContain('Update the app before restoring it.');
   });
 
-  // TST-116 — the refusal is about the version, not about the fields a newer
   // document happens to carry: it fires before the shape is read at all.
   it('TST-116 — refuses a newer version before reading the rest of the document', () => {
     const newer = { ...withKey('version', BACKUP_VERSION + 5), routines: 'not a table' };
@@ -271,7 +255,6 @@ describe('parseBackup', () => {
     expect(refusedPaths(without('version'))).toContain('version');
   });
 
-  // AC-4b — a row whose values are the wrong type.
   it('rejects reps written as a string', () => {
     expect(refusedPaths(withKey('completedSets', [{ ...SET, reps: '6' }]))).toEqual([
       'completedSets[0].reps',
@@ -327,7 +310,6 @@ describe('parseBackup', () => {
     }
   });
 
-  // AC-4b — the union must not admit a shape the domain forbids.
   it('rejects an unplanned ExerciseSession carrying planned targets', () => {
     const contradiction = { ...PLANNED_ES, plannedExerciseId: null };
     expect(refusedBecause(withKey('exerciseSessions', [contradiction]))).toContain('plannedSets');
@@ -381,16 +363,6 @@ describe('parseBackup', () => {
   });
 });
 
-/**
- * TST-128, REQ-139, AC-166 — exactly one target pair per planned exercise.
- *
- * The routine-file validator refuses this at import (`validate.test.ts`); this
- * is the second half, and it is the one that matters most. A row with neither
- * pair populated is what a file whose rep range met a duration Exercise
- * produces, and the failure it causes is the worst one this app has: a database
- * that exports a backup its own validator then refuses. `migrations.test.ts`
- * exists because that has happened here before.
- */
 describe('parseBackup target pairs (TST-128)', () => {
   const bothPairs = { ...PLANNED, minTarget: 30, maxTarget: 45 };
   const neitherPair = { ...PLANNED, minReps: null, maxReps: null };
@@ -438,7 +410,6 @@ describe('parseBackup target pairs (TST-128)', () => {
 });
 
 describe('parseBackup referential integrity', () => {
-  // AC-4c — an orphan would vanish from history without a word.
   it('rejects a CompletedSet pointing at no ExerciseSession', () => {
     const orphan = withKey('completedSets', [{ ...SET, exerciseSessionId: 'missing' }]);
     expect(refusedPaths(orphan)).toEqual(['completedSets[0].exerciseSessionId']);
@@ -482,7 +453,6 @@ describe('parseBackup referential integrity', () => {
     expect(refusedPaths(orphan)).toEqual(['exerciseSessions[0].plannedExerciseId']);
   });
 
-  // AC-5 — an exerciseId resolves to the catalog or to the document's own rows.
   it('accepts a catalog exerciseId absent from the exercises table', () => {
     // `front-squat` is a catalog slug and the document never lists it.
     expect(accept(validDocument()).exercises).toHaveLength(1);
@@ -608,7 +578,6 @@ describe('parseBackup numeric bounds', () => {
     expect(paths.join(' ')).toContain('defaultRir');
   });
 
-  // REQ-108 — nobody weighs less than nothing, and a negative bodyweight
   // restored would show up as a real figure on the settings screen.
   it('refuses a negative bodyweight', () => {
     const row = { id: 'settings', defaultUnit: 'kg', bodyweightKg: -1 };
@@ -644,19 +613,6 @@ describe('parseBackup numeric bounds', () => {
     accept(withRow('plannedExercises', { minRir: 0, maxRir: 50 }));
   });
 });
-
-
-// ------------------------------------------------------ measurement, v1 and v2
-
-/**
- * TST-115 (REQ-127, AC-141) — a document written before measurements existed.
- *
- * Written out in full rather than derived from `validDocument()`, because the
- * property under test is an *absence*: not one of the fields this change added
- * appears anywhere below. A helper that patched them out could drift; a literal
- * cannot. This is the file a lifter exported months ago, and the only copy of
- * their training they have.
- */
 function versionOneDocument(): Record<string, unknown> {
   return {
     version: 1,
@@ -763,7 +719,6 @@ describe('TST-115 (REQ-127, AC-141) — a version-1 document still restores', ()
     expect(document.completedSets).toHaveLength(1);
   });
 
-  // REQ-125 — the only measurement provable from a document written before
   // measurements existed is weight x reps. Nothing else is invented.
   it('reads every Exercise and ExerciseSession as weight x reps', () => {
     const document = accept(versionOneDocument());
@@ -772,7 +727,6 @@ describe('TST-115 (REQ-127, AC-141) — a version-1 document still restores', ()
     expect(document.exerciseSessions[1]?.measurement).toBe('weight_reps');
   });
 
-  // REQ-126 — no backfill invents a bodyweight nobody recorded.
   it('reads a Session as having no recorded bodyweight', () => {
     expect(accept(versionOneDocument()).sessions[0]?.bodyweightKg).toBeNull();
   });
@@ -812,7 +766,6 @@ describe('TST-117 (REQ-128, AC-144) — an unreadable measurement is refused', (
     const yoga = withKey('exercises', [{ ...EXERCISE, measurement: 'yoga' }]);
     expect(refusedPaths(yoga)).toEqual(['exercises[0].measurement']);
     // The path names where, and the message names what would have been legal.
-    // Zod does not echo the offending value back, and R-4 does not need it to:
     // the path already points at the exact cell to look at.
     expect(refusedBecause(yoga)).toContain('weight_reps');
   });
