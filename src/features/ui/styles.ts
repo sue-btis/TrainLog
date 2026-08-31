@@ -37,7 +37,6 @@ const BUTTON_DISABLED = 'disabled:bg-well disabled:text-ink-3 disabled:shadow-no
 
 export const BUTTON_VARIANT = {
   primary: `bg-actual-ink text-on-fill shadow-lift hover:bg-actual-deep ${BUTTON_DISABLED}`,
-  /** A dome: solid white, raised, lifting on hover. */
   secondary: `bg-card text-ink shadow-dome hover:shadow-dome-lift hover:-translate-y-0.5 ${BUTTON_DISABLED}`,
   ghost: 'bg-transparent text-planned-ink hover:bg-planned-wash disabled:text-ink-3',
   danger: `bg-missed-ink text-on-fill shadow-lift hover:bg-missed-deep ${BUTTON_DISABLED}`,

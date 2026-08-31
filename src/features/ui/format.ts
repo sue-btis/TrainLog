@@ -15,7 +15,7 @@ import type {
   Weekday,
 } from '@/domain/types';
 
-/** `4–6`, or `4` when both ends agree. Internal: the two lines below read it. */
+/** Displays a closed range, or an em dash when no range was stated. */
 function range(min: number | null, max: number | null): string {
   if (min === null || max === null) return '—';
   return min === max ? String(min) : `${min}–${max}`;
@@ -205,8 +205,8 @@ export function setLine(
   // number reads as the better set rather than the lighter one.
   const signed = weightMeaning === 'assisted' ? `−${weightText}` : weightText;
 
-  // The one composite notation that predates this change and has to survive
-  // it byte for byte.
+  // Keep weight × reps compact; other measurement shapes need their fields
+  // named so the value cannot be mistaken for reps or load.
   if (fields.includes('weight') && fields.includes('reps')) {
     return `${signed} × ${set.reps ?? '—'}`;
   }

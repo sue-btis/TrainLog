@@ -13,6 +13,7 @@ export function newId<T extends Id<string>>(): T {
   return crypto.randomUUID() as T;
 }
 
+// Branding is compile-time only; callers must validate external strings before tagging them.
 export function toId<T extends Id<string>>(value: string): T {
   return value as T;
 }

@@ -35,6 +35,8 @@ export function generatePlacements({
   weeks,
   anchorDate,
 }: GeneratePlacementsOptions): Placement[] {
+  // Week 1 starts on the containing Monday; dates before the anchor are
+  // omitted so importing mid-week never creates past Placements.
   const firstMonday = mondayOfWeek(anchorDate);
   const placements: Placement[] = [];
 
@@ -58,6 +60,8 @@ export function generatePlacements({
 }
 
 export function remainingWeeks(weeks: number, anchorDate: LocalDate, today: LocalDate): number {
+  // The block is Monday-aligned, not anchored to the creation weekday; round
+  // across daylight-saving changes between the two local Monday midnights.
   const week = 7 * 24 * 60 * 60 * 1000;
   const elapsed = Math.round(
     (parseLocalDate(mondayOfWeek(today)).getTime() -
@@ -73,6 +77,8 @@ export function claimantsOfDay(
   workouts: readonly Workout[],
   day: Weekday,
 ): readonly Workout[] {
+  // Callers use the first claimant as the rotation preference, so order it
+  // here instead of trusting the input order.
   return workouts
     .filter((workout) => workout.suggestedDays.includes(day))
     .sort((a, b) => a.order - b.order);
@@ -82,6 +88,8 @@ export function nextWorkoutInRotation(
   workouts: readonly Workout[],
   lastPerformedWorkoutId: WorkoutId | null,
 ): Workout | null {
+  // A missing or last-performed id both resolve to the first Workout after
+  // sorting; the rotation never depends on array order.
   const rotation = [...workouts].sort((a, b) => a.order - b.order);
   if (rotation.length === 0) return null;
 

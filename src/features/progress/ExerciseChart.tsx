@@ -14,7 +14,6 @@ import { plural, shortDate } from '@/features/ui/format';
 
 export type Metric = 'load' | 'e1rm' | 'reps' | 'duration' | 'distance' | 'pace' | 'volume';
 
-/** Whether the type reads `axis` at all — either as its target or its progress axis. */
 function hasAxis(measurement: Measurement, axis: Axis): boolean {
   return targetAxisOf(measurement) === axis || progressAxisOf(measurement) === axis;
 }

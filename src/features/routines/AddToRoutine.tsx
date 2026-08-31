@@ -195,7 +195,6 @@ interface AddPlannedExerciseFormProps {
   readonly defaultUnit: Unit;
 }
 
-/** The tail every empty preview shares. */
 const STILL_ADDED = 'The Workout is still added, and you can train it any day from Today.';
 
 const INITIAL_TARGETS = {

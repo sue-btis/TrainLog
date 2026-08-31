@@ -12,7 +12,6 @@ export interface ExerciseRef {
   readonly exercise: number;
 }
 
-/** Which way `moveExercise` walks the list. */
 export type MoveDirection = -1 | 1;
 
 /**

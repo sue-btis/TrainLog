@@ -24,7 +24,6 @@ export interface SetValues {
   readonly distanceUnit: DistanceUnit;
 }
 
-/** What a set opens on before anything is known about it. */
 export const EMPTY_VALUES: SetValues = {
   weight: 0,
   unit: 'kg',
@@ -81,7 +80,6 @@ export function isComplete(measurement: Measurement, values: SetValues): boolean
   }
 }
 
-/** What the button says while the primary axis is still empty. */
 export function missingAxis(measurement: Measurement): string {
   switch (primaryAxisOf(measurement)) {
     case 'duration':

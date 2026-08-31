@@ -593,7 +593,7 @@ const advances: readonly AdvanceCase[] = [
     expected: { axis: 'load', value: 12.5, weight: 12.5 },
   },
   {
-    // Pace is seconds per metre: 300 s over 100 m is 3, and a second per metre
+    // Equal distances with a nonzero duration make pace the progress axis.
     measurement: 'distance_duration',
     plan: targetPlan(100, 1),
     sets: [
@@ -632,7 +632,6 @@ describe('TST-109 the advance lands on the type own progress axis (REQ-119, AC-1
     ({ measurement: type, plan, sets, expected }) => {
       const suggestion = suggestLoad(planned(plan), [history({ measurement: type, plan, sets })]);
 
-      // Every fixture logs in kg, so `weightKg` is the same number as `weight`.
       expect(suggestion).toEqual({
         weight: expected.weight,
         unit: 'kg',

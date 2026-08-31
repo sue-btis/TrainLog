@@ -18,8 +18,9 @@ export interface ExerciseSummary {
   readonly measurement: Measurement;
   /** How many sessions actually hold sets for this exercise. */
   readonly sessions: number;
+  /** The best set in the most recent completed Session; partial work is visible but not current. */
   readonly workingWeight: CompletedSet | null;
-  /** The heaviest set ever, ties broken by reps — the more work at that load. */
+  /** The best set ever on the measurement's progress axis, with its target axis as the tie-breaker. */
   readonly bestSet: CompletedSet | null;
   readonly heaviest: CompletedSet | null;
   readonly lightest: CompletedSet | null;
@@ -88,6 +89,8 @@ export function compareProgress(
 }
 
 export function measurementOf(history: readonly SessionHistory[]): Measurement {
+  // One exercise's history has one snapshotted measurement; an empty history
+  // uses the legacy default because there is no row from which to read it.
   for (const entry of history) {
     for (const exercise of entry.exercises) {
       return exercise.exerciseSession.measurement;
@@ -100,11 +103,10 @@ export function estimateOneRepMaxKg(
   performed: CompletedSet,
   measurement: Measurement,
 ): number | null {
-  // Defined only for the two types carrying an external or added load with a
+  // Only weight_reps and weighted_bodyweight have a meaningful load estimate.
   if (!hasOneRepMax(measurement)) return null;
-  // `weighted_bodyweight` reads the added weight alone and never folds in
-  // `Session.bodyweightKg`: the stored `weighted-dip` history means added
-  // weight, and folding bodyweight in would silently restate every past
+  // Weighted bodyweight records added weight only; folding in Session.bodyweightKg
+  // would silently reinterpret historical sets when the lifter's weight changes.
   return performed.weightKg * (1 + ((performed.reps ?? 0) + performed.rir) / 30);
 }
 
@@ -184,6 +186,8 @@ export interface ExercisePoint {
 }
 
 export function exerciseSeries(history: readonly SessionHistory[]): ExercisePoint[] {
+  // Sessions with sets contribute regardless of status, so an open Session's
+  // work appears immediately while progression still filters it elsewhere.
   const measurement = measurementOf(history);
   const direction = directionOf(measurement);
   const family = volumeFamilyOf(measurement);

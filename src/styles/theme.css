@@ -52,8 +52,6 @@
                  U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* ── Tokens — the frontmatter of DESIGN.md, declared once ────────────────── */
-
 @theme {
   /* surfaces — four values spread across a real range, not four names for the
      same paint. The old set spanned 1.03–1.13 in contrast, which is why nothing
@@ -71,7 +69,6 @@
      drift with whatever surface it lands on. */
   --color-edge: #5F7E80;
 
-  /* ink */
   --color-ink: #141A2A;            --color-ink-2: #3C465C;
   --color-ink-3: #4E586E;          --color-on-fill: #FFFFFF;
   --color-on-live: #3A2400;
@@ -86,7 +83,6 @@
   --color-live: #F5A524;     --color-live-ink: #8A5200;     --color-live-wash: #FEF2DE;
   --color-live-rail: #FFD489;
 
-  /* radii */
   --radius-line: 2px;     --radius-hair: 6px;      --radius-field: 12px;
   --radius-control: 14px; --radius-card: 20px;     --radius-frame-sm: 22px;
   --radius-frame: 30px;   --radius-cell: 999px;    --radius-chip: 999px;
@@ -108,7 +104,6 @@
   --shadow-edge: 0 0 0 1px rgba(126,158,160,.24);
   --inset-shadow-glass: inset 0 1px 0 rgba(255,255,255,.85);
 
-  /* type families and motion */
   --font-face: Inter, system-ui, sans-serif;
   --font-measure: "Martian Mono", ui-monospace, monospace;
   /* The document default, and not only the default for text that asked.
@@ -267,8 +262,6 @@ details[open]::details-content {
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 }
-
-/* ── Type scale — one utility per named style, properties carried together ── */
 
 @utility type-load {
   font-family: var(--font-face);

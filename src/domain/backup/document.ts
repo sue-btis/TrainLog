@@ -11,6 +11,8 @@ import type {
   Workout,
 } from '@/domain/types';
 
+// File compatibility is independent of the IndexedDB schema; bump this only
+// when the serialized document shape changes.
 export const BACKUP_VERSION = 2;
 
 export interface BackupDocument {
@@ -27,6 +29,7 @@ export interface BackupDocument {
   readonly settings: Settings;
 }
 
+// Restore replaces these tables; settings stays local to the device.
 export const RESTORED_TABLES = [
   'routines',
   'workouts',

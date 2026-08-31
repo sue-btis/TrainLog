@@ -26,12 +26,12 @@ function beep(): void {
     oscillator.stop(context.currentTime + 0.35);
     oscillator.onended = () => void context.close().catch(() => {});
   } catch {
+    // Audio is optional; browser policy or device settings must not interrupt logging.
   }
 }
 
 interface RestTimerProps {
   readonly since: Timestamp;
-  /** The exercise's planned rest, in seconds. */
   readonly seconds: number;
   readonly vibrate: boolean;
   readonly sound: boolean;
@@ -55,12 +55,16 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
    */
   const [leaving, setLeaving] = useState(false);
 
+  // Keep the latest callback without making the exit timeout restart on every
+  // parent render; the countdown re-renders once per second.
   const dismiss = useRef(onSkip);
   useEffect(() => {
     dismiss.current = onSkip;
   }, [onSkip]);
 
   useEffect(() => {
+    // Re-read the wall clock so a suspended tab catches up instead of counting
+    // interval callbacks that never ran.
     const id = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(id);
   }, []);
@@ -81,6 +85,8 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
   }, [remaining, vibrate, sound]);
 
   useEffect(() => {
+    // Delay removal long enough for the drain animation, while cleanup cancels
+    // the pending exit if adding or restarting time makes the rest active again.
     if (remaining > 0 || leaving) return undefined;
     const grace = window.setTimeout(() => setLeaving(true), GRACE_MS);
     return () => window.clearTimeout(grace);

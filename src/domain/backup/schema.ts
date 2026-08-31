@@ -154,7 +154,7 @@ const session = z.object({
   startedAt: timestamp,
   completedAt: timestamp.nullable(),
   status: z.enum(['in_progress', 'completed', 'partial']),
-  // Absent on every row written before this existed, and no backfill invents
+  // Older rows have no weigh-in here, and migrations must not invent one.
   bodyweightKg: measure.nullable().default(null),
 });
 
@@ -196,10 +196,9 @@ const exerciseSession = z.union([
       });
     }
   }),
-  // `looseObject`, not `object`: a plain object strips unknown keys *before*
-  // checks run, so the contradiction would be quietly deleted instead of
-  // extra keys lets the check see them; the transform then drops the ones that
-  // are merely additive, so forward compatibility is unaffected.
+  // `looseObject`, not `object`: a plain object strips unknown keys before
+  // checks, so a planned field on an unplanned row would disappear before the
+  // contradiction is reported. The transform still drops additive fields.
   z
     .looseObject({ ...exerciseSessionBase, plannedExerciseId: z.null() })
     .check((ctx) => {
@@ -237,7 +236,7 @@ const completedSet = z.object({
   weightKg: measure,
   reps: count.nullable(),
   rir: measure,
-  // Nullable *and* defaulted: a version-1 document carries none of these and
+  // Nullable and defaulted: older documents carry none of these axes and
   durationSeconds: measure.nullable().default(null),
   distance: measure.nullable().default(null),
   distanceUnit: distanceUnit.nullable().default(null),
@@ -252,10 +251,10 @@ const settings = z.object({
   timerVibration: z.boolean().optional(),
   timerSound: z.boolean().optional(),
   keepScreenAwake: z.boolean().optional(),
-  // device; the figure survives a restore through `Session.bodyweightKg`, which
-  // is what `lastRecordedBodyweightKg()` reads. It is carried so the document is
-  // a complete record of the device rather than because restore needs it — do
-  // not "fix" that by making restore write settings.
+  // This setting stays device-local; the figure that survives a restore is
+  // `Session.bodyweightKg`, which is what `lastRecordedBodyweightKg()` reads.
+  // Keep exporting the setting for a complete device backup, but do not make
+  // restore write it.
   bodyweightKg: measure.nullable().optional(),
   lastBackupAt: timestamp.nullable().optional(),
 });
@@ -429,8 +428,8 @@ export function parseBackup(text: string): ParseBackupResult {
     };
   }
 
-  // told the real reason — this build is too old — rather than being handed a
-  // list of fields it happens not to recognize.
+  // Reject newer files before schema parsing so an old build reports the real
+  // reason — version incompatibility — instead of misleading unknown fields.
   const version: unknown = (json as { version?: unknown })?.version;
   if (typeof version === 'number' && version > BACKUP_VERSION) {
     return {

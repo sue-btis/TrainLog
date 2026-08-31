@@ -362,7 +362,6 @@ function titleOf(state: WizardState): string {
   if (state.phase === 'accepted') return 'Ready';
   return state.step === 1 ? 'Review the exercises' : 'Days and weeks';
 }
-/** And its four drawings, so the bar shows the step as well as naming it. */
 function iconOf(state: WizardState) {
   if (state.phase === 'choosing') return FileUp;
   if (state.phase === 'accepted') return Check;

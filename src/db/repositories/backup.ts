@@ -74,6 +74,8 @@ export async function restoreSummary(document: BackupDocument): Promise<RestoreS
 }
 
 export async function restoreBackup(document: BackupDocument): Promise<void> {
+  // Replace every restored table in one transaction so a failure cannot leave
+  // a database assembled from old and incoming rows.
   const tables = RESTORED_TABLES.map((table) => db.table(table));
 
   await db.transaction('rw', tables, async () => {

@@ -26,7 +26,7 @@ import type {
 
 export const DATABASE_NAME = 'trainlog';
 
-/** Schema changes require a forward migration. Later versions only backfill fields. */
+/** The database is the local copy of history, so schema changes move forward through migrations. */
 export const SCHEMA_VERSION = 3;
 
 export const SCHEMA_V1 = {

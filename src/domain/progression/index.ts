@@ -18,7 +18,6 @@ import type {
 } from '@/domain/types';
 import { toKg, type Unit } from '@/domain/units';
 
-/** One exercise as performed, with the sets it produced. */
 export interface ExerciseSessionHistory {
   readonly exerciseSession: ExerciseSession;
   readonly sets: readonly CompletedSet[];
@@ -90,6 +89,8 @@ function lastCompletedSets(
   history: readonly SessionHistory[],
   exerciseId: ExerciseId,
 ): readonly CompletedSet[] {
+  // Progression uses the newest completed Session that actually has sets;
+  // partial and setless Sessions must not become the previous performance.
   const candidates = history
     .filter((entry) => entry.session.status === 'completed')
     .sort((a, b) => b.session.startedAt - a.session.startedAt);
@@ -163,6 +164,7 @@ function doubleProgression(
 
   // No load axis, so the load does not move and the advance is on the axis the
   // target itself is stated on — more reps, more seconds, more metres, or a
+  // faster pace.
   const current = axisValue(previous, axis) ?? 0;
   const value =
     direction === 'higher' ? current + increment : Math.max(0, current - increment);

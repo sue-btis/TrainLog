@@ -456,7 +456,6 @@ function Working({ busy, icon: Icon }: { readonly busy: boolean; readonly icon: 
   return <Icon aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />;
 }
 
-/** A section heading with the icon that names it at a glance. */
 function Head({
   children,
   className,

@@ -101,7 +101,6 @@ export function TodayScreen() {
       )}
 
       {missed.length > 0 && (
-        // A whole banner that navigates, and it answered a thumb with nothing.
         <Link className={cn(alert('missed'), PRESS, FOCUS_RING)} to="/calendar">
           <CalendarX aria-hidden="true" className="mt-0.5 shrink-0" size={18} strokeWidth={ICON_STROKE} />
           <div className="flex flex-col gap-1">
@@ -282,8 +281,6 @@ function WorkoutCard({ workout, open, recordedToday, busy, onStart }: WorkoutCar
         </div>
       )}
 
-      {/* The one control on this screen that writes. It sits at the bottom of
-          the card because a lifter reads what they are about to do first. */}
       {open ? (
         <Button asChild size="block" variant="primary">
           <Link to="/session">

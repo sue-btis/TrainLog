@@ -253,12 +253,10 @@ describe('estimateDuration (R-41, §11.4, D2)', () => {
   });
 
   it('sums sets x (rest + work), rounded to five minutes (AC-43)', () => {
-    // 4 x 255s = 1020s, 3 x 195s = 585s, 1605s = 26.75 min -> 25
     expect(estimateDuration([planned(4, 210), planned(3, 150)])).toBe(25);
   });
 
   it('assumes the default rest when an exercise declares none (AC-44)', () => {
-    // 4 x (90 + 45) = 540s = 9 min -> 10
     expect(estimateDuration([planned(4, null)])).toBe(10);
     expect(DEFAULT_REST_SECONDS).toBe(90);
     expect(WORK_SECONDS_PER_SET).toBe(45);
@@ -266,7 +264,6 @@ describe('estimateDuration (R-41, §11.4, D2)', () => {
   });
 
   it('rounds a short Workout to the nearest five minutes, not down to zero', () => {
-    // 2 x (60 + 45) = 210s = 3.5 min -> 5
     expect(estimateDuration([planned(2, 60)])).toBe(5);
   });
 });
@@ -407,7 +404,6 @@ describe('a Workout added to a Routine already running', () => {
     expect(placements.map((p) => p.workoutId)).toEqual(['push', 'pull']);
   });
 
-  // leaves the other deriving as missed, every remaining week.
   it('derives the untrained one as missed on every colliding date', () => {
     const placements = generatePlacements({
       workouts: [push, pull],

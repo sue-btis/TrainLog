@@ -19,7 +19,6 @@ interface FieldFrameProps {
   readonly children: ReactNode;
 }
 
-/** Caption above, control, then the error line the control points at. */
 function FieldFrame({ id, label, error, className, children }: FieldFrameProps) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>

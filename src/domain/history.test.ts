@@ -213,7 +213,6 @@ describe('summarizeExercise (§11.10, R-6)', () => {
       session('completed', 2_000, [set(100, 5, 'lb'), set(50, 5, 'kg')]),
     ]);
 
-    // 100 lb is 45.36 kg — lighter than 50 kg despite the larger number.
     expect(summary.heaviest).toMatchObject({ weight: 50, unit: 'kg' });
     expect(summary.lightest).toMatchObject({ weight: 100, unit: 'lb' });
   });
@@ -302,14 +301,12 @@ describe('exerciseSeries (§11.11, R-1)', () => {
   it('measures in kilograms, so a pound set is not mistaken for a heavy one (AC-3)', () => {
     const series = exerciseSeries([session('completed', 2_000, [set(100, 5, 'lb'), set(50, 5)])]);
 
-    // 100 lb is 45.36 kg — lighter than 50 kg despite the larger number.
     expect(series[0]?.topSetKg).toBe(50);
     expect(series[0]?.volume).toBeCloseTo(50 * 5 + toKg(100, 'lb') * 5, 6);
   });
 });
 
 describe('estimateOneRepMaxKg', () => {
-  // more than its reps alone say, and the app records how short on purpose.
   it.each([
     [100, 5, 0, 116.67],
     [100, 1, 0, 103.33],
@@ -354,8 +351,6 @@ describe('exerciseSeries — estimated 1RM and records', () => {
   });
 
   it('marks a record only when it beats every earlier session', () => {
-    // 100, 105, 105, 103, 110 — the repeat is not a record, the dip is not, and
-    // the opening session has nothing to beat.
     const points = exerciseSeries([
       session('completed', 1, [set(100, 0, 'kg', 0)]),
       session('completed', 2, [set(105, 0, 'kg', 0)]),
@@ -409,7 +404,6 @@ describe('better — the two inverted axes (TST-103, REQ-103, REQ-113)', () => {
   });
 
   it('TST-103: prefers the lower pace for distance_duration', () => {
-    // 1000 m in 300 s is 0.30 s/m; the same kilometre in 360 s is 0.36.
     const faster = covered(1_000, 300);
     const slower = covered(1_000, 360);
 
@@ -445,8 +439,8 @@ describe('better — the two inverted axes (TST-103, REQ-103, REQ-113)', () => {
 
 describe('exerciseSeries — no record for a worse value on an inverted axis (TST-104)', () => {
   it('TST-104: assistance falling then rising records only the fall', () => {
-    // 20 kg of band, then 15, then 25. A running *maximum* would crown the 25 kg
-    // session — the most assisted, which is the worst there has been.
+    // Assistance is inverted: a lower load is better, so the best value is not
+    // a numeric maximum.
     const points = exerciseSeries([
       session('completed', 1, [set(20, 5)], 'assisted_bodyweight'),
       session('completed', 2, [set(15, 5)], 'assisted_bodyweight'),
@@ -510,8 +504,6 @@ describe('estimateOneRepMaxKg — the seven types with none (TST-106, REQ-114, D
 });
 
 describe('estimateOneRepMaxKg — weighted bodyweight is the added weight (TST-126)', () => {
-  // 20 x (1 + (5 + 1) / 30) = 24. The number a stored `weighted-dip` history
-  // already estimates, and this change does not move it.
   const stored = set(20, 5, 'kg', 1);
 
   it('TST-126: estimates the added weight by Epley over reps and RIR', () => {

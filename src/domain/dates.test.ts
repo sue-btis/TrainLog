@@ -59,8 +59,8 @@ describe('mondayOfWeek', () => {
   });
 
   it('crosses a week boundary: Sunday belongs to the week that began six days earlier', () => {
-    expect(mondayOfWeek(toLocalDate('2026-08-23'))).toBe('2026-08-17'); // Sunday
-    expect(mondayOfWeek(toLocalDate('2026-08-24'))).toBe('2026-08-24'); // next Monday
+    expect(mondayOfWeek(toLocalDate('2026-08-23'))).toBe('2026-08-17');
+    expect(mondayOfWeek(toLocalDate('2026-08-24'))).toBe('2026-08-24');
   });
 
   it('crosses a month boundary', () => {

@@ -86,7 +86,6 @@ export function CalendarScreen() {
           </Button>
         )}
 
-        {/* The day a cell contains, inside the card that was pressed. */}
         {!empty && !reading && (
           <DayPlan
             date={selected}

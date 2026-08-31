@@ -29,7 +29,6 @@ interface DayCellProps {
   readonly inMonth: boolean;
   readonly isToday: boolean;
   readonly selected: boolean;
-  /** What is being moved onto this day, while a move is running. */
   readonly moving: string | null;
   readonly origin: boolean;
   readonly onSelect: () => void;

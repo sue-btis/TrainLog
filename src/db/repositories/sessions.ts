@@ -50,6 +50,8 @@ export async function createStartedWorkout(started: {
 }
 
 export async function lastRecordedBodyweightKg(): Promise<number | null> {
+  // A missing weigh-in is unknown, not zero, so scan newest-first until a value
+  // is found rather than treating the newest Session as authoritative.
   let found: number | null = null;
   await db.sessions
     .orderBy('startedAt')

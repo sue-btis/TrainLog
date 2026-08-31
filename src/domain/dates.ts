@@ -1,3 +1,5 @@
+// LocalDate is a calendar value, not an instant; parsing and formatting must
+// use local components so a placement cannot drift across a timezone boundary.
 export type LocalDate = string & { readonly __brand: 'LocalDate' };
 
 export type Timestamp = number;

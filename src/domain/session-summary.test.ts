@@ -104,7 +104,6 @@ describe('summarizeSession', () => {
     const summary = summarizeSession(detail, new Map());
 
     expect(summary.setsLogged).toBe(3);
-    // 100x5 + 100x5 + 50x10 = 1500
     expect(summary.volumeKg).toBe(1_500);
     expect(summary.minutes).toBe(61);
   });
@@ -125,7 +124,6 @@ describe('summarizeSession', () => {
   });
 
   it('reads effort as the mean RPE of the sets times the minutes', () => {
-    // Three sets at RIR 2 are three sets at RPE 8, over 61 minutes.
     const detail = session(2_000, [
       [squat, [set(100, 5), set(100, 5)]],
       [press, [set(50, 10)]],
@@ -135,8 +133,8 @@ describe('summarizeSession', () => {
   });
 
   it('means the RPE across sets rather than taking the hardest one', () => {
-    // RIR 0 and RIR 4 — RPE 10 and 6 — average to the 8 above, so the same
-    // session length yields the same effort. The hardest set would read 610.
+    // Different RIR values make the mean-RPE rule distinguishable from a
+    // hardest-set calculation.
     const detail = session(2_000, [[squat, [set(100, 5, 'kg', 0), set(100, 5, 'kg', 4)]]]);
 
     expect(summarizeSession(detail, new Map()).effort).toBe(8 * 61);
@@ -152,9 +150,8 @@ describe('summarizeSession', () => {
   });
 
   it('rounds, because an index has no decimal of precision to report', () => {
-    // RIR 2 and RIR 3 mean to RPE 7.5 — the only fixture here whose mean is not
-    // a whole number, and so the only one that can tell rounding from its
-    // absence. 7.5 × 61 is 457.5.
+    // A fractional mean makes rounding observable instead of hiding it in an
+    // integer fixture.
     const detail = session(2_000, [[squat, [set(100, 5, 'kg', 2), set(100, 5, 'kg', 3)]]]);
 
     expect(summarizeSession(detail, new Map()).effort).toBe(458);
@@ -215,8 +212,6 @@ describe('summarizeSession', () => {
 
   it('credits the set that produced the estimate, not the heaviest one', () => {
     const earlier = session(1_000, [[squat, [set(100, 3, 'kg', 2)]]]);
-    // 100x3 @ RIR 2 estimates 100 x (1 + 5/30) = 116.7.
-    // 95x8 @ RIR 3 estimates 95 x (1 + 11/30) = 129.8 — lighter, but the record.
     const now = session(2_000, [[squat, [set(100, 3, 'kg', 2), set(95, 8, 'kg', 3)]]]);
 
     const summary = summarizeSession(now, new Map([[squat, [earlier, now]]]));
@@ -275,10 +270,8 @@ describe('summarizeSession', () => {
 
     const summary = summarizeSession(detail, new Map());
 
-    // 100x5 + 100x5 = 1000, the squat alone. The run's 8 km never joins it.
     expect(summary.volumeKg).toBe(1_000);
     expect(summary.volumeMetres).toBe(8_000);
-    // A run measures on `distance`, so its 2400 seconds are not duration volume.
     expect(summary.volumeSeconds).toBe(0);
     expect(summary.volumeReps).toBe(0);
   });
@@ -311,7 +304,6 @@ describe('summarizeSession', () => {
 
     expect(Number.isFinite(summary.volumeKg)).toBe(true);
     expect(summary.volumeKg).not.toBeNaN();
-    // 100x5 + 80x10 = 1300. The repless set contributes nothing at all.
     expect(summary.volumeKg).toBe(1_300);
   });
 

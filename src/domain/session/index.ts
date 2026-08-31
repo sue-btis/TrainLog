@@ -209,6 +209,8 @@ export function moveExerciseSession<T extends ExerciseSession>(
   id: ExerciseSessionId,
   toPosition: number,
 ): readonly T[] {
+  // Reindex after the move because `order` is persisted and must remain a
+  // contiguous, deterministic sequence; positions outside the list clamp.
   const ordered = [...exerciseSessions].sort((a, b) => a.order - b.order);
   const from = ordered.findIndex((it) => it.id === id);
   if (from === -1) return exerciseSessions;
@@ -294,6 +296,8 @@ export function removeSet<T extends ExerciseSession>({
   sets,
   setId,
 }: RemoveSetInput<T>): { readonly sets: readonly CompletedSet[]; readonly exerciseSession: T } {
+  // Survivors close the numbering gap, and an emptied performed exercise is
+  // pending again so the Session cannot finish as if work still existed.
   if (!sets.some((set) => set.id === setId)) return { sets, exerciseSession };
 
   const survivors = [...sets]

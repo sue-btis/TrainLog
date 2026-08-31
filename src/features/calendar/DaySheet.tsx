@@ -25,7 +25,6 @@ import { cn } from '@/lib/utils';
 
 interface DayProps {
   readonly today: LocalDate;
-  /** The day the grid has selected. There is always one. */
   readonly date: LocalDate;
   readonly placements: readonly Placement[];
   readonly sessions: readonly Session[];
