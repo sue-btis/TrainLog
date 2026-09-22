@@ -45,6 +45,8 @@ export {
   type RoutineFileToDomainOptions,
 } from '@/domain/routine-file/to-domain';
 
+export { routineToFile, stringifyRoutineFile } from '@/domain/routine-file/from-domain';
+
 export {
   draftExercise,
   offeredExercises,
