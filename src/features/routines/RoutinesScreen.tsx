@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import {
   Archive,
   ChevronRight,
+  Download,
   FileUp,
   PencilLine,
   Play,
@@ -14,14 +15,17 @@ import {
   activateRoutine,
   archiveRoutine,
   deleteRoutine,
+  exportRoutineFile,
 } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { RoutineId } from '@/domain/ids';
+import { stringifyRoutineFile } from '@/domain/routine-file';
 import type { Routine } from '@/domain/types';
 import { useRoutines, useSessionsByRoutine } from '@/features/data/queries';
 import { ConversionPromptButton } from '@/features/import/ConversionPromptButton';
 import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
+import { download } from '@/features/settings/download';
 import { plural, shortDate } from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
@@ -57,6 +61,11 @@ export function RoutinesScreen() {
       }
       throw error;
     }
+  }
+
+  async function exportRoutine(routine: Routine) {
+    const yaml = stringifyRoutineFile(await exportRoutineFile(routine));
+    download(`${routine.name.replace(/[\\/:*?"<>|]/g, '-')}.yaml`, yaml, 'application/yaml');
   }
 
   return (
@@ -103,6 +112,7 @@ export function RoutinesScreen() {
             onActivate={() => void run(() => activateRoutine(routine.id))}
             onArchive={() => void run(() => archiveRoutine(routine.id))}
             onDelete={() => void run(() => remove(routine))}
+            onExport={() => void run(() => exportRoutine(routine))}
             refusal={refusal?.routineId === routine.id ? refusal.message : null}
             routine={routine}
           />
@@ -120,9 +130,18 @@ interface RoutineRowProps {
   readonly onActivate: () => void;
   readonly onArchive: () => void;
   readonly onDelete: () => void;
+  readonly onExport: () => void;
 }
 
-function RoutineRow({ routine, refusal, busy, onActivate, onArchive, onDelete }: RoutineRowProps) {
+function RoutineRow({
+  routine,
+  refusal,
+  busy,
+  onActivate,
+  onArchive,
+  onDelete,
+  onExport,
+}: RoutineRowProps) {
   const [confirming, setConfirming] = useState(false);
   const active = routine.status === 'active';
 
@@ -170,6 +189,11 @@ function RoutineRow({ routine, refusal, busy, onActivate, onArchive, onDelete }:
             Make active
           </Button>
         )}
+
+        <Button disabled={busy} onClick={onExport} size="compact" type="button" variant="secondary">
+          <Download aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          Export
+        </Button>
 
         <div className="ml-auto flex items-center gap-2">
           {confirming && (

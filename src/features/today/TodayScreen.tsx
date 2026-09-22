@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Activity, CalendarX, CheckCircle2, FileUp, LoaderCircle, Play, Timer } from 'lucide-react';
+import { Activity, CheckCircle2, FileUp, LoaderCircle, Play, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createStartedWorkout } from '@/db';
-import { addDays, formatLocalDate } from '@/domain/dates';
+import { formatLocalDate } from '@/domain/dates';
 import type { ExerciseId, WorkoutId } from '@/domain/ids';
-import { estimateDuration, isMissed, nextWorkoutInRotation } from '@/domain/scheduling';
+import { estimateDuration, nextWorkoutInRotation } from '@/domain/scheduling';
 import { startWorkout } from '@/domain/session';
 import { movesBodyweight, type Measurement } from '@/domain/measurement';
 import type { PlannedExercise, Session, Workout } from '@/domain/types';
@@ -37,10 +37,8 @@ import {
   BUTTON_BASE,
   BUTTON_SIZE,
   BUTTON_VARIANT,
-  FOCUS_RING,
   ICON_STROKE,
   LABEL,
-  PRESS,
   ROW,
   ROW_LIST,
   WELL,
@@ -48,8 +46,6 @@ import {
   chip,
 } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
-
-const MISSED_WINDOW_DAYS = 28;
 
 export function TodayScreen() {
   const navigate = useNavigate();
@@ -59,7 +55,6 @@ export function TodayScreen() {
 
   const workouts = useWorkouts(routineId) ?? [];
   const todaysPlacements = usePlacementsBetween(today, today) ?? [];
-  const recentPlacements = usePlacementsBetween(addDays(today, -MISSED_WINDOW_DAYS), today) ?? [];
   const lastPerformed = useLastPerformedWorkout(routineId) ?? null;
   const open = useInProgressSession();
   const sessions = useSessionsByRoutine(routineId) ?? [];
@@ -80,8 +75,6 @@ export function TodayScreen() {
             formatLocalDate(new Date(session.startedAt)) === today,
         );
 
-  const missed = recentPlacements.filter((placement) => isMissed(placement, sessions, today));
-
   return (
     <>
       {open !== undefined && (
@@ -98,21 +91,6 @@ export function TodayScreen() {
             </Link>
           </div>
         </div>
-      )}
-
-      {missed.length > 0 && (
-        <Link className={cn(alert('missed'), PRESS, FOCUS_RING)} to="/calendar">
-          <CalendarX aria-hidden="true" className="mt-0.5 shrink-0" size={18} strokeWidth={ICON_STROKE} />
-          <div className="flex flex-col gap-1">
-            <p className="type-title">
-              {plural(missed.length, 'planned day')} went untrained
-            </p>
-            <p className="type-body-sm">
-              They are still on the calendar, where you can move them to a day you will
-              train. Nothing is recorded against you for them.
-            </p>
-          </div>
-        </Link>
       )}
 
       <div className="flex flex-col gap-1">

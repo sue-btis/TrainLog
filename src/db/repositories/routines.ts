@@ -1,5 +1,7 @@
 import { db } from '@/db/database';
+import { getExercisesById } from '@/db/repositories/exercises';
 import type { RoutineId } from '@/domain/ids';
+import { routineToFile, type RoutineFile } from '@/domain/routine-file';
 import type { Routine, RoutineStatus } from '@/domain/types';
 
 /** Deletion is refused while Sessions reference the Routine, preserving history. */
@@ -43,6 +45,16 @@ export async function activateRoutine(id: RoutineId): Promise<void> {
     }
     await db.routines.update(id, { status: 'active' });
   });
+}
+
+export async function exportRoutineFile(routine: Routine): Promise<RoutineFile> {
+  const workouts = await db.workouts.where('routineId').equals(routine.id).toArray();
+  const planned = await db.plannedExercises
+    .where('workoutId')
+    .anyOf(workouts.map((workout) => workout.id))
+    .toArray();
+  const exercises = await getExercisesById(planned.map((it) => it.exerciseId));
+  return routineToFile(routine, workouts, planned, exercises);
 }
 
 /** Archive without changing its Sessions. */

@@ -17,6 +17,7 @@ export {
   activateRoutine,
   archiveRoutine,
   deleteRoutine,
+  exportRoutineFile,
   getActiveRoutine,
   getRoutine,
   listRoutines,
