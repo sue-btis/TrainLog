@@ -14,6 +14,7 @@ import {
   measurementLabel,
   programmingLine,
   setLine,
+  setsLine,
   snapshotFigures,
   snapshotLine,
   suggestionLine,
@@ -137,6 +138,26 @@ describe('setLine for a hold', () => {
 
   it('shows the time and never the missing reps', () => {
     expect(setLine(hold, 'duration', true)).toBe('45s');
+  });
+});
+
+describe('setsLine', () => {
+  const set = (weight: number, reps: number, unit = 'kg') =>
+    ({ weight, unit, reps, durationSeconds: null }) as CompletedSet;
+
+  it('states a load once for a run of equal loads', () => {
+    const sets = [set(77.5, 5), set(77.5, 5), set(77.5, 4)];
+    expect(setsLine(sets, 'weight_reps')).toBe('77.5 kg × 5 · 5 · 4');
+  });
+
+  it('states the load again where it changes', () => {
+    const sets = [set(60, 8), set(70, 5), set(70, 5)];
+    expect(setsLine(sets, 'weight_reps')).toBe('60 kg × 8 · 70 kg × 5 · 5');
+  });
+
+  it('lists holds whole', () => {
+    const holds = [45, 40].map((s) => ({ weight: 0, unit: 'kg', reps: null, durationSeconds: s }) as CompletedSet);
+    expect(setsLine(holds, 'duration')).toBe('45s / 40s');
   });
 });
 

@@ -134,7 +134,10 @@ function ExerciseProgress({
     <section className={WELL}>
       <div className="flex flex-wrap items-center gap-2">
         <SetPill label="best" measurement={summary.measurement} set={summary.bestSet} />
-        <Link className="type-body-sm text-ink-2 underline" to={`/exercises/${exerciseId}`}>
+        <Link
+          className="inline-flex min-h-11 items-center type-body-sm text-ink-2 underline"
+          to={`/exercises/${exerciseId}`}
+        >
           Full history
         </Link>
       </div>

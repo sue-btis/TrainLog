@@ -7,7 +7,9 @@ export function Switch({ className, ...props }: ComponentProps<typeof SwitchPrim
   return (
     <SwitchPrimitive.Root
       className={cn(
-        'inline-flex h-7 w-12 shrink-0 items-center rounded-chip bg-well p-0.5',
+        'relative inline-flex h-7 w-12 shrink-0 items-center rounded-chip bg-well p-0.5',
+        // The drawn switch is 28px; the pseudo-element stretches the tap area to 44px.
+        "after:absolute after:-inset-y-2 after:inset-x-0 after:content-['']",
         'ring-1 ring-rule data-[state=checked]:bg-actual-ink data-[state=checked]:ring-transparent',
         PRESS,
         FOCUS_RING,

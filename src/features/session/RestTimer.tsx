@@ -149,7 +149,7 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
           </span>
           <span className={cn(LABEL, 'truncate text-on-fill/80')}>
             {paused ? 'paused' : remaining === 0 ? 'rest is up' : 'rest'}
-            {exerciseName !== null && <span className="text-on-fill/60"> · {exerciseName}</span>}
+            {exerciseName !== null && <span> · {exerciseName}</span>}
           </span>
         </div>
 
@@ -178,7 +178,7 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
         <input
           aria-label="Seconds to add"
           className={cn(
-            'w-11 shrink-0 rounded-field bg-on-fill/15 px-1 py-1.5 text-center type-body-sm text-on-fill',
+            'h-11 w-11 shrink-0 rounded-field bg-on-fill/15 px-1 text-center type-body-sm text-on-fill',
             'outline-none focus-visible:ring-2 focus-visible:ring-on-fill',
           )}
           inputMode="numeric"

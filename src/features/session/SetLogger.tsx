@@ -247,13 +247,13 @@ function UnitPicker<U extends string>({
   readonly onChange: (unit: U) => void;
 }) {
   return (
-    <div aria-label={label} className="flex flex-col justify-center gap-1" role="group">
+    <div aria-label={label} className="flex items-center gap-1" role="group">
       {units.map((unit) => (
         <button
           aria-pressed={unit === value}
           className={cn(
             STEPPER,
-            'h-8 w-12 type-body-sm',
+            'size-11 type-body-sm',
             unit === value ? 'text-ink ring-1 ring-actual' : 'text-ink-3',
           )}
           key={unit}

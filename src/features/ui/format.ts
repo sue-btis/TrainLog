@@ -106,6 +106,11 @@ export function shortDate(date: LocalDate): string {
   });
 }
 
+/** `19 Aug` — short enough to sit under a chart point without wrapping. */
+export function chartDate(date: LocalDate): string {
+  return parseLocalDate(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
 /** `Wednesday, 19 August` — the day named in full, for a screen heading. */
 export function longDate(date: LocalDate): string {
   return parseLocalDate(date).toLocaleDateString(undefined, {
@@ -232,6 +237,28 @@ export function setLine(
     }
   }
   return parts.join(' · ');
+}
+
+/**
+ * Every set of one exercise on one line. Where weight and reps are the shape,
+ * a load is stated once per run of equal loads (`77.5 kg × 5 · 5 · 4`); any
+ * other shape lists each set whole, since its fields cannot be factored.
+ */
+export function setsLine(sets: readonly CompletedSet[], measurement: Measurement): string {
+  const { fields } = shapeOf(measurement);
+  if (!(fields.includes('weight') && fields.includes('reps'))) {
+    return sets.map((set) => setLine(set, measurement, true)).join(' / ');
+  }
+  const runs: string[] = [];
+  let previousLoad = '';
+  for (const set of sets) {
+    const text = setLine(set, measurement, true);
+    const split = text.lastIndexOf(' × ');
+    const load = text.slice(0, split);
+    runs.push(load === previousLoad ? text.slice(split + 3) : text);
+    previousLoad = load;
+  }
+  return runs.join(' · ');
 }
 
 /** A suggestion on the axis it advances: a load reads `52.5 kg`, a hold reads `0:45`. */

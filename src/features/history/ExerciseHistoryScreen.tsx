@@ -8,8 +8,15 @@ import type { SessionHistory } from '@/domain/progression';
 import { useExerciseHistory, useExerciseNames } from '@/features/data/queries';
 import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { Figure } from '@/features/ui/Figure';
-import { load, longDate, plural, sessionStatusLabel, setLine, shortDate } from '@/features/ui/format';
-import { SetPill } from '@/features/ui/SetPill';
+import {
+  load,
+  longDate,
+  plural,
+  sessionStatusLabel,
+  setLine,
+  setsLine,
+  shortDate,
+} from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -41,11 +48,16 @@ export function ExerciseHistoryScreen() {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="type-display">{name ?? 'Exercise'}</h2>
           <p className="type-measure text-ink-3">
-            {summary.sessions === 0
-              ? 'not performed yet'
-              : `${plural(summary.sessions, 'session')} · last ${shortDate(
-                  formatLocalDate(new Date(summary.lastPerformed!)),
-                )}`}
+            {summary.sessions === 0 ? (
+              'not performed yet'
+            ) : (
+              <>
+                {plural(summary.sessions, 'session')} ·{' '}
+                <span className="whitespace-nowrap">
+                  last {shortDate(formatLocalDate(new Date(summary.lastPerformed!)))}
+                </span>
+              </>
+            )}
           </p>
         </div>
       </header>
@@ -97,7 +109,7 @@ function Sessions({ entries }: { readonly entries: readonly SessionHistory[] }) 
 
 function SessionRow({ entry }: { readonly entry: SessionHistory }) {
   const sets = entry.exercises.flatMap((exercise) => exercise.sets);
-  const { heaviest, lightest, measurement } = summarizeExercise([entry]);
+  const { measurement } = summarizeExercise([entry]);
 
   return (
     <details className={cn(WELL, 'group')}>
@@ -119,13 +131,7 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <SetPill label="heaviest" measurement={measurement} set={heaviest} />
-          {/* One set is both, and saying so twice reads as two different sets. */}
-          {sets.length > 1 && (
-            <SetPill label="lightest" measurement={measurement} set={lightest} />
-          )}
-        </div>
+        <p className="type-measure-sm text-ink">{setsLine(sets, measurement)}</p>
       </summary>
 
       <ol className="mt-3 flex flex-col items-start gap-1.5">
