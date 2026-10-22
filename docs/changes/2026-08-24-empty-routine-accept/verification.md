@@ -8,7 +8,7 @@ Reliability: strict
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Declared base | `49efc78` |
 | Audited head / working tree | `49efc78`, dirty — three tracked files in `src/` |
 | Diff range | `git diff 49efc78 -- src/` — 3 files, 38 insertions, 1 deletion |

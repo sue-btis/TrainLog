@@ -5,23 +5,40 @@ import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import { toId, type RoutineId, type WorkoutId } from '@/domain/ids';
 import type { RoutineFile, SemanticIssue } from '@/domain/routine-file';
 import { generatePlacements } from '@/domain/scheduling';
-import type { Weekday, Workout } from '@/domain/types';
+import type { Routine, Weekday, Workout } from '@/domain/types';
 import { describeIssue, fieldId, workoutPath } from '@/features/import/issues';
 import { MAX_WEEKS, MIN_WEEKS } from '@/features/import/state';
 import { SuggestedDays } from '@/features/ui/SuggestedDays';
-import { ICON_STROKE, LABEL, WELL, chip } from '@/features/ui/styles';
+import { FIELD_BASE, ICON_STROKE, LABEL, WELL, chip } from '@/features/ui/styles';
 
 interface ScheduleStepProps {
   readonly file: RoutineFile;
   readonly issues: readonly SemanticIssue[];
   readonly today: LocalDate;
+  readonly startDate: LocalDate;
+  readonly onStartDate: (date: LocalDate) => void;
+  /** The Routine this import will archive, if one is running. */
+  readonly activeRoutine: Routine | null;
+  readonly removeRemaining: boolean;
+  readonly onRemoveRemaining: (remove: boolean) => void;
   readonly onWeeksBy: (delta: number) => void;
   readonly onToggleDay: (workoutIndex: number, day: Weekday) => void;
 }
 
-export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: ScheduleStepProps) {
+export function ScheduleStep({
+  file,
+  issues,
+  today,
+  startDate,
+  onStartDate,
+  activeRoutine,
+  removeRemaining,
+  onRemoveRemaining,
+  onWeeksBy,
+  onToggleDay,
+}: ScheduleStepProps) {
   const weeks = file.routine.weeks;
-  const placements = previewPlacements(file, today);
+  const placements = previewPlacements(file, startDate);
   const first = placements[0]?.date;
   const last = placements[placements.length - 1]?.date;
 
@@ -68,6 +85,43 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
           </div>
         </div>
       </Card>
+
+      <Card>
+        <label className="flex flex-col gap-1.5">
+          <span className={LABEL}>start date</span>
+          <input
+            className={FIELD_BASE}
+            min={today}
+            onChange={(event) => onStartDate(event.target.value as LocalDate)}
+            type="date"
+            value={startDate}
+          />
+        </label>
+        <p className="type-caption text-ink-3">
+          The first day sessions can fall on. The weeks count from here.
+        </p>
+      </Card>
+
+      {activeRoutine !== null && (
+        <Card>
+          <p className="type-body-sm text-ink">
+            <strong>{activeRoutine.name}</strong> is your active Routine. Accepting this one
+            will archive it; its history stays.
+          </p>
+          <label className="flex min-h-11 items-start gap-3">
+            <input
+              checked={removeRemaining}
+              className="mt-1 size-5 shrink-0"
+              onChange={(event) => onRemoveRemaining(event.target.checked)}
+              type="checkbox"
+            />
+            <span className="type-body-sm text-ink">
+              Remove its remaining sessions from the calendar (from today, {longDate(today)}).
+              Days you already trained are kept.
+            </span>
+          </label>
+        </Card>
+      )}
 
       {file.routine.workouts.map((workout, index) => {
         const clash = issues.find(
@@ -135,8 +189,8 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
                 : ''}
             </p>
             <p className="type-caption text-ink-2">
-              Days are placed from today, so this week only carries the ones that have
-              not passed yet.
+              Days are placed from the start date, {weeks} {weeks === 1 ? 'week' : 'weeks'} of
+              seven days each.
             </p>
           </>
         )}
@@ -154,7 +208,7 @@ export function ScheduleStep({ file, issues, today, onWeeksBy, onToggleDay }: Sc
   );
 }
 
-function previewPlacements(file: RoutineFile, today: LocalDate) {
+function previewPlacements(file: RoutineFile, startDate: LocalDate) {
   const workouts: Workout[] = file.routine.workouts.map((workout, index) => ({
     id: toId<WorkoutId>(`preview-${index}`),
     routineId: toId<RoutineId>('preview'),
@@ -163,7 +217,7 @@ function previewPlacements(file: RoutineFile, today: LocalDate) {
     order: index,
   }));
 
-  return generatePlacements({ workouts, weeks: file.routine.weeks, anchorDate: today });
+  return generatePlacements({ workouts, weeks: file.routine.weeks, anchorDate: startDate });
 }
 function longDate(date: LocalDate): string {
   return parseLocalDate(date).toLocaleDateString(undefined, {

@@ -5,6 +5,7 @@ import {
   getExerciseNames,
   getInProgressSession,
   getLastPerformedWorkout,
+  getPlannedExercise,
   getPreviousPerformance,
   getRoutine,
   getSessionDetail,
@@ -12,6 +13,7 @@ import {
   getWorkout,
   listExerciseHistory,
   listPerformedExercises,
+  listPerformedExercisesByRecency,
   listPlacementsBetween,
   listPlacementsByRoutine,
   listPlannedExercisesByWorkout,
@@ -22,7 +24,7 @@ import {
   listWorkoutsByRoutine,
 } from '@/db';
 import type { LocalDate } from '@/domain/dates';
-import type { ExerciseId, RoutineId, SessionId, WorkoutId } from '@/domain/ids';
+import type { ExerciseId, PlannedExerciseId, RoutineId, SessionId, WorkoutId } from '@/domain/ids';
 import type { Workout } from '@/domain/types';
 
 export function useRoutines() {
@@ -162,4 +164,16 @@ export function useUserExercises() {
 
 export function usePerformedExercises() {
   return useLiveQuery(() => listPerformedExercises(), []);
+}
+
+export function usePerformedExercisesByRecency() {
+  return useLiveQuery(() => listPerformedExercisesByRecency(), []);
+}
+
+/** `null` for an unplanned exercise or a Planned Exercise that no longer exists. */
+export function usePlannedExercise(id: PlannedExerciseId | null) {
+  return useLiveQuery(
+    async () => (id === null ? null : ((await getPlannedExercise(id)) ?? null)),
+    [id],
+  );
 }

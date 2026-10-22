@@ -235,7 +235,7 @@ const completedSet = z.object({
   unit,
   weightKg: measure,
   reps: count.nullable(),
-  rir: measure,
+  rir: measure.nullable(),
   // Nullable and defaulted: older documents carry none of these axes and
   durationSeconds: measure.nullable().default(null),
   distance: measure.nullable().default(null),

@@ -29,7 +29,7 @@ function set(
   weight: number,
   reps: number | null,
   unit: Unit = 'kg',
-  rir = 2,
+  rir: number | null = 2,
   extra: Partial<CompletedSet> = {},
 ): CompletedSet {
   counter += 1;
@@ -155,6 +155,24 @@ describe('summarizeSession', () => {
     const detail = session(2_000, [[squat, [set(100, 5, 'kg', 2), set(100, 5, 'kg', 3)]]]);
 
     expect(summarizeSession(detail, new Map()).effort).toBe(458);
+  });
+
+  it('skips sets with no recorded RIR, and reports no effort when none has one', () => {
+    const mixed = session(2_000, [[squat, [set(100, 5, 'kg', 2), set(100, 5, 'kg', null)]]]);
+    const unrecorded = session(2_000, [[squat, [set(100, 5, 'kg', null)]]]);
+
+    expect(summarizeSession(mixed, new Map()).effort).toBe(8 * 61);
+    expect(summarizeSession(unrecorded, new Map()).effort).toBeNull();
+  });
+
+  it('totals every rep of the session across weighted and bodyweight sets', () => {
+    const detail = session(2_000, [
+      [squat, [set(100, 5), set(100, 4)]],
+      [dip, [set(0, 12, 'kg', 2)], 'bodyweight_reps'],
+      [run, [set(0, null)], 'duration'],
+    ]);
+
+    expect(summarizeSession(detail, new Map()).totalReps).toBe(21);
   });
 
   it('reports no effort while the session is open, or when it holds no set', () => {

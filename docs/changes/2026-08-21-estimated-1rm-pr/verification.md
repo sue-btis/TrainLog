@@ -8,7 +8,7 @@ Reliability: strict
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Declared base | `9ec8e9a` at preflight; re-baselined to `45e6314` mid-execution |
 | Audited head / working tree | `45e6314`, dirty on `change/exercise-catalog` |
 | Diff range | `git diff 45e6314` — five tracked files — plus one untracked docs folder |

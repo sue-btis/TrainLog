@@ -6,7 +6,7 @@ Status: **Completed**
 
 | Field | Value |
 |---|---|
-| Repository | `C:\Users\Josue Escobar\Documents\projects\mine\TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/app-shell`, cut from `master` |
 | Planned base | working tree on `change/technical-spine` (as the spec declared) |
 | Actual start commit | `030e9c5` on `master` |

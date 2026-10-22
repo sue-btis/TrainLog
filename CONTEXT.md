@@ -59,8 +59,9 @@ deletable. The only source of truth about when training is intended.
 _Avoid_: Schedule entry, appointment, booking, scheduled workout
 
 **Missed**:
-A Placement whose date has passed with no Session recorded against it. Derived,
-never stored.
+A Placement whose date has passed with no Session of its Workout on that date or
+earlier in the same Monday-week (training a Workout early keeps its Placement).
+Derived, never stored.
 _Avoid_: Skipped, failed, incomplete
 
 ### Execution
@@ -75,7 +76,8 @@ be unplanned.
 _Avoid_: Exercise log, exercise entry
 
 **Completed Set**:
-The atomic unit of history: weight, reps and RIR for one performed set.
+The atomic unit of history: weight, reps and RIR for one performed set. RIR is
+`null` when it was not recorded; that is not the same as 0 (failure).
 _Avoid_: Rep set, entry, record
 
 **Snapshot**:

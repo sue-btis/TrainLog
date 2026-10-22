@@ -247,6 +247,15 @@ describe('parseBackup', () => {
     expect(refusedPaths(newer)).toEqual(['version']);
   });
 
+  it('accepts a set with no recorded RIR', () => {
+    const document = accept(withKey('completedSets', [{ ...SET, rir: null }]));
+    expect(document.completedSets[0]?.rir).toBeNull();
+  });
+
+  it('still accepts a version-2 document, whose sets always carry a RIR', () => {
+    expect(accept(withKey('version', 2)).completedSets[0]?.rir).toBe(2);
+  });
+
   it('accepts a version this build reads', () => {
     expect(accept(withKey('version', BACKUP_VERSION)).version).toBe(BACKUP_VERSION);
   });

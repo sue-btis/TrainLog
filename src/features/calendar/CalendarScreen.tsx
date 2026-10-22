@@ -67,7 +67,7 @@ export function CalendarScreen() {
           }
           month={month}
           onMonthChange={goToMonth}
-          onSelect={setSelected}
+          onSelect={(date) => (sameMonth(date, month) ? setSelected(date) : followMove(date))}
           placements={placements}
           selected={selected}
           sessions={sessions}

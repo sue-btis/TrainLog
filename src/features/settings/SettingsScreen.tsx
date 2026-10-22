@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Bell,
   Database,
@@ -22,7 +22,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   exportBackup,
   listSetsForCsv,
-  restoreBackup,
   restoreSummary,
   setBodyweightKg,
   setDefaultRir,
@@ -46,11 +45,12 @@ import type { ResolvedSettings } from '@/domain/types';
 import { useSettings } from '@/features/data/queries';
 import { formatPath, parseBackup, toCsv } from '@/domain/backup';
 import type { BackupDocument, StructuralError } from '@/domain/backup';
-import { formatLocalDate } from '@/domain/dates';
+import { daysSince, formatLocalDate } from '@/domain/dates';
 import { longDate, plural } from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
+import { restoreWithSafetyBackup } from '@/features/settings/safeRestore';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
   isInstalled,
@@ -127,9 +127,13 @@ export function SettingsScreen() {
 
   async function confirmRestore() {
     if (pending === null) return;
-    await restoreBackup(pending.document);
+    const safetyFile = await restoreWithSafetyBackup(pending.document);
     reset();
-    setDone('Restored. Your calendar and history are what the backup held.');
+    setDone(
+      `Restored. Your calendar and history are what the backup held.${
+        safetyFile === null ? '' : ` The data it replaced was downloaded first as ${safetyFile}.`
+      }`,
+    );
   }
 
   return (
@@ -386,9 +390,17 @@ function Bodyweight({ id, value }: { readonly id: string; readonly value: number
   );
 }
 
+function subscribeToMinutes(notify: () => void): () => void {
+  const timer = setInterval(notify, 60_000);
+  return () => clearInterval(timer);
+}
+
+// Whole minutes keep the snapshot stable between reads, as the store contract needs.
+const currentMinute = () => Math.floor(Date.now() / 60_000) * 60_000;
+
 function BackupAge() {
   const settings = useSettings();
-  const [now] = useState(Date.now);
+  const now = useSyncExternalStore(subscribeToMinutes, currentMinute);
   if (settings === undefined) return null;
 
   const at = settings.lastBackupAt ?? null;
@@ -400,7 +412,7 @@ function BackupAge() {
     );
   }
 
-  const days = Math.floor((now - at) / 86_400_000);
+  const days = daysSince(at, now);
   return (
     <p className={cn('type-body-sm', days >= 14 ? 'text-missed-ink' : 'text-ink-2')}>
       Last backup{' '}

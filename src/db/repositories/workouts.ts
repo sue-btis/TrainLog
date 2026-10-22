@@ -2,7 +2,7 @@ import { db } from '@/db/database';
 import type { LocalDate } from '@/domain/dates';
 import { formatLocalDate } from '@/domain/dates';
 import { newId, type RoutineId, type WorkoutId } from '@/domain/ids';
-import { generatePlacements, remainingWeeks } from '@/domain/scheduling';
+import { blockEnd, generatePlacements, remainingWeeks } from '@/domain/scheduling';
 import type { Weekday, Workout } from '@/domain/types';
 
 export class RoutineNotFoundError extends Error {
@@ -70,14 +70,12 @@ export async function addWorkoutToRoutine(
     };
     await db.workouts.add(workout);
 
+    const blockStart = formatLocalDate(new Date(routine.createdAt));
     const placements = generatePlacements({
       workouts: [workout],
-      weeks: remainingWeeks(
-        routine.weeks,
-        formatLocalDate(new Date(routine.createdAt)),
-        input.today,
-      ),
-      anchorDate: input.today,
+      weeks: remainingWeeks(routine.weeks, blockStart, input.today),
+      anchorDate: input.today > blockStart ? input.today : blockStart,
+      endDate: blockEnd(routine.weeks, blockStart),
     });
     await db.placements.bulkAdd(placements);
 

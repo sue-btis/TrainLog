@@ -3,6 +3,7 @@ import { FileUp, LoaderCircle, PencilLine, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatPath, type StructuralError } from '@/domain/routine-file';
 import { EXAMPLE_ROUTINE_YAML, FIELD_NOTES } from '@/domain/routine-file/example';
+import { exampleRoutineFile } from '@/features/import/ImportRoutineButton';
 import { ICON_STROKE, LABEL, WELL, alert } from '@/features/ui/styles';
 
 interface FileStepProps {
@@ -55,7 +56,7 @@ export function FileStep({
             ))}
             <p className="type-caption text-ink-3">
               Fix the file in your editor and choose it again. A routine file needs
-              <code className="type-measure-sm"> version: 1</code>, a routine name, and a
+              <code className="type-measure-sm"> version: 2</code>, a routine name, and a
               name for every Workout and exercise.
             </p>
           </div>
@@ -116,6 +117,16 @@ export function FileStep({
       >
         <PencilLine aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
         Start from scratch
+      </Button>
+
+      <Button
+        disabled={reading}
+        onClick={() => onFile(exampleRoutineFile())}
+        size="block"
+        type="button"
+        variant="secondary"
+      >
+        Try an example routine
       </Button>
 
       <details className={WELL}>

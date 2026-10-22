@@ -26,7 +26,7 @@ import {
 } from '@/domain/routine-file';
 import { generatePlacements } from '@/domain/scheduling';
 import type { Weekday } from '@/domain/types';
-import { useUserExercises } from '@/features/data/queries';
+import { useActiveRoutine, useUserExercises } from '@/features/data/queries';
 import { ActionBar } from '@/features/import/ActionBar';
 import { takeHandedOffFile } from '@/features/import/ImportRoutineButton';
 import { ExercisesStep } from '@/features/import/ExercisesStep';
@@ -43,6 +43,7 @@ import {
 } from '@/features/import/issues';
 import {
   DEFAULT_WEEKS,
+  createdAtFor,
   INITIAL_STATE,
   reduceWizard,
   type AcceptedSummary,
@@ -74,6 +75,7 @@ export function ImportWizard() {
   const pendingFocus = useRef<string | null>(null);
 
   const userExercises = useUserExercises();
+  const activeRoutine = useActiveRoutine();
 
   const file = state.phase === 'editing' ? state.file : null;
   const issues = useMemo<readonly SemanticIssue[]>(
@@ -120,6 +122,7 @@ export function ImportWizard() {
       type: 'loaded',
       file: blankRoutineFile(DEFAULT_WEEKS),
       defaultUnit: await getDefaultUnit(),
+      startDate: formatLocalDate(new Date()),
       // Nothing has been submitted or typed: see `announceIssues` in `state.ts`.
       announceIssues: false,
     });
@@ -172,6 +175,7 @@ export function ImportWizard() {
       type: 'loaded',
       file: parsed.file,
       defaultUnit: await getDefaultUnit(),
+      startDate: formatLocalDate(new Date()),
       // Choosing the file is the submission; its problems are findings about it.
       announceIssues: true,
     });
@@ -186,18 +190,24 @@ export function ImportWizard() {
         getDefaultUnit(),
         listUserExercises(),
       ]);
+      const now = Date.now();
+      const today = formatLocalDate(new Date(now));
       const draft = routineFileToDomain(state.file, {
         defaultUnit,
         existingExercises,
-        createdAt: Date.now(),
+        createdAt: createdAtFor(state.startDate, today, now),
       });
       const placements = generatePlacements({
         workouts: draft.workouts,
         weeks: draft.routine.weeks,
-        anchorDate: formatLocalDate(new Date()),
+        anchorDate: state.startDate,
       });
 
-      await importRoutine(draft, placements);
+      await importRoutine(
+        draft,
+        placements,
+        state.removeRemaining ? { removePlacementsFrom: today } : {},
+      );
 
       void ensurePersistentStorage();
 
@@ -220,6 +230,7 @@ export function ImportWizard() {
   function goToStep(step: WizardStep) {
     dispatch({ type: 'step', step });
     column.current?.scrollIntoView({ block: 'start' });
+    window.scrollTo(0, 0);
   }
 
   function jumpToIssue(issue: SemanticIssue) {
@@ -320,8 +331,15 @@ export function ImportWizard() {
           <ScheduleStep
             file={state.file}
             issues={issues}
+            activeRoutine={activeRoutine ?? null}
+            onRemoveRemaining={(remove) => dispatch({ type: 'removeRemaining', remove })}
+            onStartDate={(date) =>
+              dispatch({ type: 'startDate', date, today: formatLocalDate(new Date()) })
+            }
             onToggleDay={edit.toggleDay}
             onWeeksBy={edit.weeksBy}
+            removeRemaining={state.removeRemaining}
+            startDate={state.startDate}
             today={formatLocalDate(new Date())}
           />
         )}

@@ -1,11 +1,15 @@
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import {
   MEASUREMENTS,
+  collects,
+  hasOneRepMax,
   shapeOf,
   targetUnitOf,
   targetsReps,
   type Measurement,
 } from '@/domain/measurement';
+import type { LoadSuggestion } from '@/domain/progression';
+import type { SessionRecord } from '@/domain/session-summary';
 import type {
   CompletedSet,
   ExerciseSessionStatus,
@@ -34,7 +38,7 @@ function targetRange(
   return `${text}${targetUnitOf(measurement) === 'seconds' ? 's' : ' m'}`;
 }
 
-/** `4×4–6 · RIR 1–2 · 210s · kg` — the programme as it was written down. */
+/** `4×4–6 · RIR 1–2 · rest 210s · kg` — the programme as it was written down. */
 export function programmingLine(exercise: PlannedExercise, measurement: Measurement): string {
   const parts = [
     `${exercise.sets}×${targetRange(
@@ -46,8 +50,8 @@ export function programmingLine(exercise: PlannedExercise, measurement: Measurem
   if (exercise.minRir !== null && exercise.maxRir !== null) {
     parts.push(`RIR ${range(exercise.minRir, exercise.maxRir)}`);
   }
-  if (exercise.restSeconds !== null) parts.push(`${exercise.restSeconds}s`);
-  parts.push(exercise.unit);
+  if (exercise.restSeconds !== null) parts.push(`rest ${exercise.restSeconds}s`);
+  if (collects(measurement, 'weight')) parts.push(exercise.unit);
   return parts.join(' · ');
 }
 
@@ -102,6 +106,11 @@ export function shortDate(date: LocalDate): string {
     day: 'numeric',
     month: 'short',
   });
+}
+
+/** `19 Aug` — short enough to sit under a chart point without wrapping. */
+export function chartDate(date: LocalDate): string {
+  return parseLocalDate(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 /** `Wednesday, 19 August` — the day named in full, for a screen heading. */
@@ -230,4 +239,72 @@ export function setLine(
     }
   }
   return parts.join(' · ');
+}
+
+/**
+ * Every set of one exercise on one line. Where weight and reps are the shape,
+ * a load is stated once per run of equal loads (`77.5 kg × 5 · 5 · 4`); any
+ * other shape lists each set whole, since its fields cannot be factored.
+ */
+export function setsLine(sets: readonly CompletedSet[], measurement: Measurement): string {
+  const { fields } = shapeOf(measurement);
+  if (!(fields.includes('weight') && fields.includes('reps'))) {
+    return sets.map((set) => setLine(set, measurement, true)).join(' / ');
+  }
+  const runs: string[] = [];
+  let previousLoad = '';
+  for (const set of sets) {
+    const text = setLine(set, measurement, true);
+    const split = text.lastIndexOf(' × ');
+    const load = text.slice(0, split);
+    runs.push(load === previousLoad ? text.slice(split + 3) : text);
+    previousLoad = load;
+  }
+  return runs.join(' · ');
+}
+
+/** A suggestion on the axis it advances: a load reads `52.5 kg`, a hold reads `0:45`. */
+export function suggestionLine(suggestion: LoadSuggestion): string {
+  switch (suggestion.axis) {
+    case 'load':
+      return `${suggestion.weight} ${suggestion.unit}`;
+    case 'reps':
+      return `${suggestion.value} reps`;
+    case 'duration':
+      return seconds(suggestion.value);
+    case 'distance':
+      return `${suggestion.value} m`;
+    case 'pace':
+      return `${seconds(Math.round(suggestion.value * 1000))}/km`;
+  }
+}
+
+const oneDecimal = (value: number): number => Math.round(value * 10) / 10;
+
+function recordValue(record: SessionRecord, value: number): string {
+  switch (record.axis) {
+    case 'load':
+      return `${oneDecimal(value)} kg`;
+    case 'reps':
+      return `${oneDecimal(value)} reps`;
+    case 'duration':
+      return seconds(Math.round(value));
+    case 'distance':
+      return `${oneDecimal(value)} m`;
+    case 'pace':
+      return `${seconds(Math.round(value * 1000))}/km`;
+  }
+}
+
+/**
+ * What a new best beat, stated on the metric it was compared on: a set can tie
+ * the previous best and still be a record, so the set alone does not say why.
+ */
+export function recordClaim(record: SessionRecord): string {
+  const was =
+    record.previousValue === null ? null : `was ${recordValue(record, record.previousValue)}`;
+  // Only the estimated max differs from the set shown beside the claim.
+  if (!hasOneRepMax(record.measurement)) return was ?? '';
+  const now = `estimated max ${recordValue(record, record.value)}`;
+  return was === null ? now : `${now} · ${was}`;
 }

@@ -1,4 +1,5 @@
 import { formatLocalDate, type LocalDate } from '@/domain/dates';
+import type { SessionId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
 import {
   axisValue,
@@ -107,7 +108,7 @@ export function estimateOneRepMaxKg(
   if (!hasOneRepMax(measurement)) return null;
   // Weighted bodyweight records added weight only; folding in Session.bodyweightKg
   // would silently reinterpret historical sets when the lifter's weight changes.
-  return performed.weightKg * (1 + ((performed.reps ?? 0) + performed.rir) / 30);
+  return performed.weightKg * (1 + ((performed.reps ?? 0) + (performed.rir ?? 0)) / 30);
 }
 
 const EMPTY: ExerciseSummary = {
@@ -119,6 +120,13 @@ const EMPTY: ExerciseSummary = {
   lightest: null,
   lastPerformed: null,
 };
+
+export function withoutSession(
+  history: readonly SessionHistory[],
+  sessionId: SessionId,
+): SessionHistory[] {
+  return history.filter((entry) => entry.session.id !== sessionId);
+}
 
 export function summarizeExercise(history: readonly SessionHistory[]): ExerciseSummary {
   const performed = history.filter((entry) => setsOf(entry).length > 0);

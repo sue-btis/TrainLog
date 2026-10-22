@@ -6,7 +6,7 @@ Status: **Completed**
 
 | Field | Value |
 |---|---|
-| Repository | `C:\Users\Josue Escobar\Documents\projects\mine\TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/technical-spine` (created from `master`) |
 | Planned base | `da7a3daa52999e9fbc76110097d9e9460b74ca35` |
 | Current start commit | `da7a3daa52999e9fbc76110097d9e9460b74ca35` |

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import type { LocalDate } from '@/domain/dates';
 import { blankRoutineFile } from '@/domain/routine-file';
-import { INITIAL_STATE, reduceWizard, type WizardState } from '@/features/import/state';
+import {
+  INITIAL_STATE,
+  createdAtFor,
+  reduceWizard,
+  type WizardState,
+} from '@/features/import/state';
 
 const FILE = blankRoutineFile(4);
 
@@ -9,6 +15,7 @@ function editing(announceIssues: boolean): WizardState {
     type: 'loaded',
     file: FILE,
     defaultUnit: 'kg',
+    startDate: '2026-10-22' as LocalDate,
     announceIssues,
   });
   if (state.phase !== 'editing') throw new Error('expected the editing phase');
@@ -37,5 +44,56 @@ describe('announceIssues', () => {
     const forward = reduceWizard(editing(false), { type: 'step', step: 2 });
     const back = reduceWizard(forward, { type: 'step', step: 1 });
     expect(back).toMatchObject({ step: 1, announceIssues: true });
+  });
+});
+
+describe('start date', () => {
+  const today = '2026-10-22' as LocalDate;
+
+  it('opens on the date it was loaded with and keeps the old Routine placements', () => {
+    expect(editing(false)).toMatchObject({ startDate: today, removeRemaining: false });
+  });
+
+  it('takes a later date', () => {
+    const next = reduceWizard(editing(false), {
+      type: 'startDate',
+      date: '2026-10-28' as LocalDate,
+      today,
+    });
+    expect(next).toMatchObject({ startDate: '2026-10-28' });
+  });
+
+  it('falls back to today for a past or cleared date', () => {
+    const past = reduceWizard(editing(false), {
+      type: 'startDate',
+      date: '2026-10-01' as LocalDate,
+      today,
+    });
+    const cleared = reduceWizard(editing(false), {
+      type: 'startDate',
+      date: '' as LocalDate,
+      today,
+    });
+    expect(past).toMatchObject({ startDate: today });
+    expect(cleared).toMatchObject({ startDate: today });
+  });
+
+  it('records the choice to remove the previous placements', () => {
+    const next = reduceWizard(editing(false), { type: 'removeRemaining', remove: true });
+    expect(next).toMatchObject({ removeRemaining: true });
+  });
+});
+
+describe('createdAtFor', () => {
+  const today = '2026-10-22' as LocalDate;
+
+  it('keeps the real moment when the block starts today', () => {
+    expect(createdAtFor(today, today, 1_234)).toBe(1_234);
+  });
+
+  it('is the start day local midnight for a later start', () => {
+    expect(createdAtFor('2026-10-28' as LocalDate, today, 1_234)).toBe(
+      new Date(2026, 9, 28).getTime(),
+    );
   });
 });

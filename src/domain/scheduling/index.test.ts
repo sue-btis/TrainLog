@@ -18,6 +18,7 @@ import {
   generatePlacements,
   isMissed,
   nextWorkoutInRotation,
+  blockEnd,
   placementState,
   remainingWeeks,
   tallyMonth,
@@ -78,7 +79,7 @@ describe('generatePlacements (TST-006, REQ-040, REQ-041)', () => {
 });
 
 describe('generatePlacements anchoring and collisions (TST-007, REQ-041, REQ-042)', () => {
-  it('omits week-1 dates before a mid-week anchor and keeps later weeks intact (AC-042)', () => {
+  it('covers exactly weeks x 7 days from a mid-week anchor (AC-042)', () => {
     const placements = generatePlacements({
       workouts: [workout('push', 0, ['monday', 'thursday'])],
       weeks: 4,
@@ -90,6 +91,7 @@ describe('generatePlacements anchoring and collisions (TST-007, REQ-041, REQ-042
       '2026-09-14', '2026-09-17',
       '2026-09-21', '2026-09-24',
       '2026-09-28', '2026-10-01',
+      '2026-10-05',
     ]);
   });
 
@@ -133,18 +135,18 @@ describe('isMissed (TST-009, REQ-044)', () => {
   });
 
   it('reads a past placement with no session as missed (AC-045)', () => {
-    expect(isMissed(placement('2026-09-07'), [], today)).toBe(true);
+    expect(isMissed(placement('2026-09-07'), [], today, [placement('2026-09-07')])).toBe(true);
   });
 
   it('is not missed when a session for that workout was recorded on that date', () => {
-    expect(isMissed(placement('2026-09-07'), [session('push', noonOn('2026-09-07'))], today)).toBe(false);
+    expect(isMissed(placement('2026-09-07'), [session('push', noonOn('2026-09-07'))], today, [placement('2026-09-07')])).toBe(false);
   });
 
   it('is not missed for today or a future placement, nor for another workout or day', () => {
-    expect(isMissed(placement('2026-09-10'), [], today)).toBe(false);
-    expect(isMissed(placement('2026-09-14'), [], today)).toBe(false);
-    expect(isMissed(placement('2026-09-07'), [session('pull', noonOn('2026-09-07'))], today)).toBe(true);
-    expect(isMissed(placement('2026-09-07'), [session('push', noonOn('2026-09-08'))], today)).toBe(true);
+    expect(isMissed(placement('2026-09-10'), [], today, [placement('2026-09-10')])).toBe(false);
+    expect(isMissed(placement('2026-09-14'), [], today, [placement('2026-09-14')])).toBe(false);
+    expect(isMissed(placement('2026-09-07'), [session('pull', noonOn('2026-09-07'))], today, [placement('2026-09-07')])).toBe(true);
+    expect(isMissed(placement('2026-09-07'), [session('push', noonOn('2026-09-08'))], today, [placement('2026-09-07')])).toBe(true);
   });
 
   it('writes nothing and mutates no input (AC-045)', () => {
@@ -152,7 +154,7 @@ describe('isMissed (TST-009, REQ-044)', () => {
     const sessions = Object.freeze([Object.freeze(session('push', noonOn('2026-09-08')))]);
     const before = JSON.stringify({ target, sessions });
 
-    expect(isMissed(target, sessions, today)).toBe(true);
+    expect(isMissed(target, sessions, today, [target])).toBe(true);
     expect(JSON.stringify({ target, sessions })).toBe(before);
   });
 });
@@ -283,9 +285,11 @@ describe('tallyMonth (§11.3)', () => {
     const ahead = placement('2026-09-15'); // today, and today is not over
     const sessions = [session('push', noonOn('2026-09-07'))];
 
-    expect(placementState(answered, sessions, today)).toBe('kept');
-    expect(placementState(untrained, sessions, today)).toBe('missed');
-    expect(placementState(ahead, sessions, today)).toBe('planned');
+    const all = [answered, untrained, ahead];
+
+    expect(placementState(answered, sessions, today, all)).toBe('kept');
+    expect(placementState(untrained, sessions, today, all)).toBe('missed');
+    expect(placementState(ahead, sessions, today, all)).toBe('planned');
   });
 
   it('counts nothing for a month with nothing in it', () => {
@@ -325,24 +329,22 @@ describe('tallyMonth (§11.3)', () => {
 describe('remainingWeeks', () => {
   const monday = toLocalDate('2026-09-07');
 
-  it('counts whole Monday-aligned weeks elapsed', () => {
+  it('counts a started week as remaining', () => {
     expect(remainingWeeks(8, monday, toLocalDate('2026-09-30'))).toBe(5);
+    expect(remainingWeeks(8, monday, toLocalDate('2026-09-07'))).toBe(8);
   });
 
   it('is zero once the block has run out, never negative', () => {
-    expect(remainingWeeks(4, monday, toLocalDate('2026-10-20'))).toBe(0);
+    expect(remainingWeeks(4, monday, toLocalDate('2026-10-05'))).toBe(0);
     expect(remainingWeeks(4, monday, toLocalDate('2027-01-01'))).toBe(0);
   });
 
-  it('aligns weeks to Monday, not to the anchor day', () => {
-    const wednesday = toLocalDate('2026-08-05');
-
-    // One Monday boundary has been crossed, so one week is gone — even though
-    // only five days separate the two dates.
-    expect(remainingWeeks(4, wednesday, toLocalDate('2026-08-10'))).toBe(3);
-    // Still inside the anchor's own week: nothing elapsed.
-    expect(remainingWeeks(4, wednesday, toLocalDate('2026-08-08'))).toBe(4);
-    // Before the anchor cannot yield more than the block declares.
+  it('follows the start date, not the Monday of its week', () => {
+    const wednesday = toLocalDate('2026-08-05'); // the block ends 2026-09-02
+    expect(remainingWeeks(4, wednesday, toLocalDate('2026-08-10'))).toBe(4);
+    expect(remainingWeeks(4, wednesday, toLocalDate('2026-08-26'))).toBe(1);
+    expect(remainingWeeks(4, wednesday, toLocalDate('2026-09-02'))).toBe(0);
+    // Before the start cannot yield more than the block declares.
     expect(remainingWeeks(4, wednesday, toLocalDate('2026-07-20'))).toBe(4);
   });
 
@@ -351,12 +353,13 @@ describe('remainingWeeks', () => {
     expect(remainingWeeks(-4, monday, toLocalDate('2026-09-07'))).toBe(0);
   });
 
-  it('composes with generatePlacements to an exact span, none before today', () => {
+  it('composes with generatePlacements to an exact span, none before today or after the block', () => {
     const today = toLocalDate('2026-09-30');
     const placements = generatePlacements({
       workouts: [workout('push', 0, ['monday', 'thursday'])],
       weeks: remainingWeeks(8, monday, today),
       anchorDate: today,
+      endDate: blockEnd(8, monday),
     });
 
     expect(placements).toHaveLength(9);
@@ -373,6 +376,89 @@ describe('remainingWeeks', () => {
     expect(
       generatePlacements({ workouts: [workout('push', 0, [])], weeks: 8, anchorDate: anchor }),
     ).toHaveLength(0);
+  });
+});
+
+describe('generatePlacements from a Wednesday start (AC-10)', () => {
+  const every = (
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+  ).map((day, index) => workout(day, index, [day]));
+
+  it('places every weekday exactly weeks times', () => {
+    const placements = generatePlacements({
+      workouts: every,
+      weeks: 3,
+      anchorDate: toLocalDate('2026-09-09'),
+    });
+
+    for (const w of every) {
+      expect(placements.filter((p) => p.workoutId === w.id)).toHaveLength(3);
+    }
+    expect(placements[0]!.date).toBe('2026-09-09');
+    expect(placements[placements.length - 1]!.date).toBe('2026-09-29');
+  });
+
+  it('equals the Monday-aligned output when the start is a Monday', () => {
+    const placements = generatePlacements({
+      workouts: [workout('push', 0, ['monday', 'thursday'])],
+      weeks: 2,
+      anchorDate: toLocalDate('2026-09-07'),
+    });
+    expect(dates(placements)).toEqual(['2026-09-07', '2026-09-10', '2026-09-14', '2026-09-17']);
+  });
+});
+
+describe('done early (R-11, DEC-11)', () => {
+  const placement = (date: string, workoutId: string): Placement => ({
+    id: toId('placement-' + workoutId + '-' + date),
+    routineId,
+    workoutId: toId<WorkoutId>(workoutId),
+    date: toLocalDate(date),
+  });
+  // 2026-09-07 is a Monday; today is the Friday of that week.
+  const today = toLocalDate('2026-09-11');
+
+  it('keeps a Tuesday placement when the Workout was trained on Monday', () => {
+    const upper = placement('2026-09-08', 'upper');
+    const sessions = [session('upper', noonOn('2026-09-07'))];
+
+    expect(placementState(upper, sessions, today, [upper])).toBe('kept');
+    expect(tallyMonth([upper], sessions, today)).toMatchObject({ kept: 1, missed: 0, unplanned: 0 });
+  });
+
+  it('lets an exact-date match claim its session before an earlier placement can', () => {
+    const monday = placement('2026-09-07', 'upper');
+    const thursday = placement('2026-09-10', 'upper');
+    const sessions = [session('upper', noonOn('2026-09-10'))];
+    const both = [monday, thursday];
+
+    expect(placementState(monday, sessions, today, both)).toBe('missed');
+    expect(placementState(thursday, sessions, today, both)).toBe('kept');
+  });
+
+  it('spends one early Session on one placement only', () => {
+    const tuesday = placement('2026-09-08', 'upper');
+    const thursday = placement('2026-09-10', 'upper');
+    const sessions = [session('upper', noonOn('2026-09-07'))];
+    const both = [tuesday, thursday];
+
+    expect(placementState(tuesday, sessions, today, both)).toBe('kept');
+    expect(placementState(thursday, sessions, today, both)).toBe('missed');
+  });
+
+  it('does not let a different Workout, an earlier week or a later day cover it', () => {
+    const upper = placement('2026-09-08', 'upper');
+
+    expect(placementState(upper, [session('lower', noonOn('2026-09-07'))], today, [upper])).toBe('missed');
+    expect(placementState(upper, [session('upper', noonOn('2026-09-06'))], today, [upper])).toBe('missed');
+    expect(placementState(upper, [session('upper', noonOn('2026-09-09'))], today, [upper])).toBe('missed');
+  });
+
+  it('still counts a different Workout as unplanned', () => {
+    const upper = placement('2026-09-08', 'upper');
+    const sessions = [session('lower', noonOn('2026-09-07'))];
+
+    expect(tallyMonth([upper], sessions, today)).toMatchObject({ missed: 1, unplanned: 1 });
   });
 });
 
@@ -413,7 +499,7 @@ describe('a Workout added to a Routine already running', () => {
     const sessions = [session('push', noonOn('2026-09-07'))];
     const today = toLocalDate('2026-09-08');
 
-    const missed = placements.filter((placement) => isMissed(placement, sessions, today));
+    const missed = placements.filter((placement) => isMissed(placement, sessions, today, placements));
 
     expect(missed).toHaveLength(1);
     expect(missed[0]!.workoutId).toBe('pull');

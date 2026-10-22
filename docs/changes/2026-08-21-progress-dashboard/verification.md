@@ -13,7 +13,7 @@ separate origin, rather than accepted on the implementation's word.
 
 | Field | Value |
 |---|---|
-| Repository root | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository root | `<repo>` |
 | Declared implementation base | `fa3e726` |
 | Actual `HEAD` | `fa3e72618b9d01560de50450162af5695ef46b81` — matches |
 | Diff range inspected | `fa3e726` → working tree, plus the two untracked directories |

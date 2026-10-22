@@ -23,6 +23,17 @@ const STATE_STYLE: Record<DayState, string> = {
   rest: 'bg-well text-ink-3',
 };
 
+// Days outside the shown month keep full-strength ink on a lighter fill: fading
+// the whole cell took white-on-green to under 2:1.
+const OUT_OF_MONTH_STYLE: Record<DayState, string> = {
+  planned: 'bg-card text-planned-ink ring-2 ring-planned-wash ring-inset',
+  completed: 'bg-actual-wash text-actual-deep',
+  partial: 'bg-actual-wash text-actual-deep',
+  in_progress: 'bg-live-wash text-live-ink',
+  missed: 'bg-missed-wash text-missed-deep',
+  rest: 'bg-transparent text-ink-3',
+};
+
 interface DayCellProps {
   readonly date: LocalDate;
   readonly state: DayState;
@@ -57,11 +68,10 @@ export function DayCell({
       }
       aria-pressed={moving === null ? selected : undefined}
       className={cn(
-        'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-control',
+        'flex h-11 flex-col items-center justify-center gap-0.5 rounded-control',
         PRESS,
         FOCUS_RING,
-        STATE_STYLE[state],
-        !inMonth && 'opacity-40',
+        inMonth ? STATE_STYLE[state] : OUT_OF_MONTH_STYLE[state],
         isToday && 'ring-2 ring-live ring-offset-1 ring-offset-card',
         selected && moving === null && 'ring-2 ring-planned ring-offset-1 ring-offset-card',
         // A move makes every day pressable, so every day is raised for its

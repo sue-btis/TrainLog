@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/routine-authoring` |
 | Planned base | `master@49efc78` + the landed quick change |
 | Current start commit | `e6f3165` (change record) — on `40e0c02` (quick change) — on `49efc78` |

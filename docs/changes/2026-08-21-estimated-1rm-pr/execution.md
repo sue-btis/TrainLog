@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/exercise-catalog` |
 | Planned base | `9ec8e9a` |
 | Current start commit | `9ec8e9a` at preflight; **`45e6314` by the integration gate** — see Deviations |

@@ -8,7 +8,7 @@ Reliability: strict
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Declared base | `2826894` |
 | Audited head / working tree | `2826894` + uncommitted work on `change/settings` |
 | Diff range | `git diff 2826894` — 14 modified files, 2 new (`src/components/ui/switch.tsx`, `docs/changes/2026-08-21-settings/`) |

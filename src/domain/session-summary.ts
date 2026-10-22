@@ -22,6 +22,8 @@ export interface SessionRecord {
 
 export interface SessionSummary {
   readonly setsLogged: number;
+  /** Every rep of every set in the Session, whatever the measurement. */
+  readonly totalReps: number;
   readonly volumeKg: number;
   /** Reps done on the bodyweight-rep types. Its own unit, its own number. */
   readonly volumeReps: number;
@@ -104,6 +106,7 @@ export function summarizeSession(
 
   return {
     setsLogged: sets.length,
+    totalReps: sets.reduce((total, set) => total + (set.reps ?? 0), 0),
     volumeKg: volume.kg_reps,
     volumeReps: volume.reps,
     volumeSeconds: volume.seconds,
@@ -163,10 +166,14 @@ function marginOf(record: SessionRecord): number {
 const RPE_AT_FAILURE = 10;
 
 function effortOf(sets: readonly CompletedSet[], minutes: number | null): number | null {
-  if (minutes === null || sets.length === 0) return null;
+  // A set with no RIR recorded carries no effort signal; counting it as 0 would
+  // read it as a set taken to failure.
+  const rated = sets.flatMap((set) => (set.rir === null ? [] : [set.rir]));
+  if (minutes === null || rated.length === 0) return null;
 
   const meanRpe =
-    sets.reduce((total, set) => total + Math.max(0, RPE_AT_FAILURE - set.rir), 0) / sets.length;
+    rated.reduce((total, rir) => total + Math.max(0, RPE_AT_FAILURE - rir), 0) /
+    rated.length;
   return Math.round(meanRpe * minutes);
 }
 

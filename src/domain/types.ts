@@ -142,7 +142,7 @@ export interface CompletedSet {
   readonly unit: Unit;
   readonly weightKg: number;
   readonly reps: number | null;
-  readonly rir: number;
+  readonly rir: number | null;
   readonly durationSeconds: number | null;
   readonly distance: number | null;
   readonly distanceUnit: DistanceUnit | null;
