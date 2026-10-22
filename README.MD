@@ -8,6 +8,8 @@ Built for one situation: a phone, in a gym, with unreliable signal. No account,
 no server, no subscription — your data lives in your browser and leaves only when
 you export it.
 
+**[Try it live](https://trainlog.josuee152.workers.dev/)** — open it on your phone and tap *Try an example routine*.
+
 <p align="center">
   <img src="docs/screenshots/today.png" width="200" alt="Today: the workout planned for today">
   <img src="docs/screenshots/import-review.png" width="200" alt="Reviewing an imported routine file">
@@ -86,7 +88,7 @@ estimated 1RM and personal records · progress dashboard · double progression �
 session effort · full backup, restore and CSV export · installable, and fully
 usable offline.
 
-Live demo: _link coming soon_. It deploys automatically from `master` through
+Live demo: <https://trainlog.josuee152.workers.dev/>. It deploys automatically from `master` through
 Cloudflare's Git integration; no workflow in this repo does it.
 
 ## Known limits
