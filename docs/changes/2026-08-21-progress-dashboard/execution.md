@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/progress-dashboard`, cut from `master` |
 | Planned base | `fa3e726` |
 | Current start commit | `fa3e726` — identical |

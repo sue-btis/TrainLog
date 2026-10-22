@@ -8,7 +8,7 @@ Reliability: critical
 
 | Field | Value |
 |---|---|
-| Repository root | `C:\Users\Josue Escobar\Documents\projects\mine\TrainLog` |
+| Repository root | `<repo>` |
 | Branch | `master` |
 | Commit SHA | `da7a3daa52999e9fbc76110097d9e9460b74ca35` |
 | Working tree | Clean (`git status --porcelain` empty) |

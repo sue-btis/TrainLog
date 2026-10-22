@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/broad-jump-reps` |
 | Planned base | `7a8d549` |
 | Current start commit | `7a8d549` |

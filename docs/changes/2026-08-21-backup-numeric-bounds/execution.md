@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/exercise-catalog` |
 | Planned base | `d82392d` |
 | Current start commit | `d82392d` — unchanged throughout |

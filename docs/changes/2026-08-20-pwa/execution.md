@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Branch | `pwa-addition` |
 | Planned base | `4d6ed5d` |
 | Current start commit | `4d6ed5d` |

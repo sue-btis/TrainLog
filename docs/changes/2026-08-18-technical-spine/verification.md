@@ -12,7 +12,7 @@ Remaining limitation: visual rendering is unverified (see Limitations).
 
 | Field | Value |
 |---|---|
-| Repository | `C:\Users\Josue Escobar\Documents\projects\mine\TrainLog` |
+| Repository | `<repo>` |
 | Declared base | `da7a3daa52999e9fbc76110097d9e9460b74ca35` (`master`) |
 | Audited head / working tree | `f5542dc9dc502ecbed158ec70216ee944dc31ab5` on `change/technical-spine`, working tree dirty |
 | Diff range | `master (da7a3da)` → working tree |

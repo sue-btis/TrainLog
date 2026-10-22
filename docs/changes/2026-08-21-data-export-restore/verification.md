@@ -8,7 +8,7 @@ Reliability: critical
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Declared base | `master@31ea5ca` |
 | Audited head | `5329d5a` on `change/data-export-restore` |
 | Working tree | Clean |

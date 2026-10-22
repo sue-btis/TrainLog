@@ -8,7 +8,7 @@ Reliability: critical
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Declared base | `d82392d` |
 | Audited head / working tree | `d82392d`, dirty on `change/exercise-catalog` |
 | Diff range | `git diff d82392d` — two tracked files — plus this change's untracked docs folder |
