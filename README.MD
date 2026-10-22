@@ -8,6 +8,13 @@ Built for one situation: a phone, in a gym, with unreliable signal. No account,
 no server, no subscription — your data lives in your browser and leaves only when
 you export it.
 
+<p align="center">
+  <img src="docs/screenshots/today.png" width="200" alt="Today: the workout planned for today">
+  <img src="docs/screenshots/import-review.png" width="200" alt="Reviewing an imported routine file">
+  <img src="docs/screenshots/progress.png" width="200" alt="Progress: best estimated 1RM and load over time">
+  <img src="docs/screenshots/exercise-history.png" width="200" alt="Front Squat history: working weight and every session">
+</p>
+
 ## The idea
 
 Two things are kept strictly apart:
