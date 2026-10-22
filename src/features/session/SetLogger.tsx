@@ -18,7 +18,7 @@ export interface SetValues {
   readonly weight: number;
   readonly unit: Unit;
   readonly reps: number;
-  readonly rir: number;
+  readonly rir: number | null;
   readonly durationSeconds: number;
   readonly distance: number;
   readonly distanceUnit: DistanceUnit;
@@ -28,7 +28,7 @@ export const EMPTY_VALUES: SetValues = {
   weight: 0,
   unit: 'kg',
   reps: 0,
-  rir: 0,
+  rir: null,
   durationSeconds: 0,
   distance: 0,
   distanceUnit: 'm',
@@ -247,13 +247,13 @@ function UnitPicker<U extends string>({
   readonly onChange: (unit: U) => void;
 }) {
   return (
-    <div aria-label={label} className="flex flex-col justify-center gap-1" role="group">
+    <div aria-label={label} className="flex items-center gap-1" role="group">
       {units.map((unit) => (
         <button
           aria-pressed={unit === value}
           className={cn(
             STEPPER,
-            'h-8 w-12 type-body-sm',
+            'size-11 type-body-sm',
             unit === value ? 'text-ink ring-1 ring-actual' : 'text-ink-3',
           )}
           key={unit}
@@ -310,7 +310,8 @@ export function SetLogger({
 
 interface FieldProps {
   readonly label: string;
-  readonly value: number;
+  /** `null` is "not recorded": it reads "—", `+` opens it at 0 and `-` leaves it. */
+  readonly value: number | null;
   readonly step: number;
   /** The programme's window for this value, or `null` where it stated none. */
   readonly target?: readonly [number, number] | null;
@@ -325,10 +326,15 @@ function Field({ label, value, step, target, onChange }: FieldProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const hintId = useId();
 
-  const off = target !== null && target !== undefined && (value < target[0] || value > target[1]);
+  const off =
+    value !== null && target !== null && target !== undefined && (value < target[0] || value > target[1]);
 
   const shift = (by: number) => {
     setDraft(null);
+    if (value === null) {
+      if (by > 0) onChange(0);
+      return;
+    }
     onChange(Math.max(0, normalize(value + by)));
   };
 
@@ -342,11 +348,11 @@ function Field({ label, value, step, target, onChange }: FieldProps) {
   }
 
   return (
-    <div className="flex flex-1 items-center gap-2">
+    <div className="flex min-w-0 flex-1 items-center gap-2">
       <button
         aria-label={`Decrease ${label}`}
         className={STEPPER}
-        disabled={value === 0}
+        disabled={value === null || value === 0}
         onClick={() => shift(-step)}
         type="button"
       >
@@ -354,14 +360,20 @@ function Field({ label, value, step, target, onChange }: FieldProps) {
       </button>
 
       <label className={cn(READOUT, off && 'ring-1 ring-missed')}>
-        <span className={LABEL}>
+        {/* One line whatever the state: a wrapping label would grow the field and push Complete down. */}
+        <span className={cn(LABEL, 'max-w-full truncate whitespace-nowrap')}>
           {label}
           {off && (
-            <span className="text-missed-ink" id={hintId}>
-              {' · off plan'}
+            <span className="text-missed-ink" aria-hidden="true">
+              {' · off'}
             </span>
           )}
         </span>
+        {off && (
+          <span className="sr-only" id={hintId}>
+            off plan
+          </span>
+        )}
         <input
           aria-describedby={off ? hintId : undefined}
           aria-label={label}
@@ -373,7 +385,7 @@ function Field({ label, value, step, target, onChange }: FieldProps) {
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur();
           }}
-          value={draft ?? String(value)}
+          value={draft ?? (value === null ? '—' : String(value))}
         />
       </label>
 

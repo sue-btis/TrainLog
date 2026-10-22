@@ -1,13 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { toId } from '@/domain/ids';
-import type { ExerciseId, ExerciseSessionId, PlannedExerciseId, SessionId } from '@/domain/ids';
-import type { PlannedExerciseSession } from '@/domain/types';
+import type {
+  ExerciseId,
+  ExerciseSessionId,
+  PlannedExerciseId,
+  SessionId,
+  WorkoutId,
+} from '@/domain/ids';
+import type { CompletedSet, PlannedExercise, PlannedExerciseSession } from '@/domain/types';
 import { MEASUREMENTS } from '@/domain/measurement';
+import type { SessionRecord } from '@/domain/session-summary';
 import {
   MEASUREMENT_OPTIONS,
+  recordClaim,
   measurementLabel,
+  programmingLine,
+  setLine,
+  setsLine,
   snapshotFigures,
   snapshotLine,
+  suggestionLine,
 } from '@/features/ui/format';
 
 const snapshot: PlannedExerciseSession = {
@@ -90,5 +102,100 @@ describe('measurementLabel / MEASUREMENT_OPTIONS', () => {
         label: measurementLabel(measurement),
       })),
     );
+  });
+});
+
+const planned: PlannedExercise = {
+  id: toId<PlannedExerciseId>('pe-1'),
+  workoutId: toId<WorkoutId>('w-1'),
+  exerciseId: toId<ExerciseId>('plank'),
+  sets: 3,
+  minReps: null,
+  maxReps: null,
+  minTarget: 45,
+  maxTarget: 60,
+  minRir: null,
+  maxRir: null,
+  restSeconds: 60,
+  unit: 'kg',
+  focus: null,
+  notes: [],
+  order: 0,
+  progression: { type: 'manual' },
+};
+
+describe('programmingLine', () => {
+  it('names no weight unit for a hold and labels the rest', () => {
+    expect(programmingLine(planned, 'duration')).toBe('3×45–60s · rest 60s');
+  });
+
+  it('keeps the weight unit when the measurement collects weight', () => {
+    const squat = { ...planned, minReps: 4, maxReps: 6, minTarget: null, maxTarget: null };
+    expect(programmingLine(squat, 'weight_reps')).toBe('3×4–6 · rest 60s · kg');
+  });
+});
+
+describe('setLine for a hold', () => {
+  const hold = { weight: 0, unit: 'kg', reps: null, durationSeconds: 45 } as CompletedSet;
+
+  it('shows the time and never the missing reps', () => {
+    expect(setLine(hold, 'duration', true)).toBe('45s');
+  });
+});
+
+describe('setsLine', () => {
+  const set = (weight: number, reps: number, unit = 'kg') =>
+    ({ weight, unit, reps, durationSeconds: null }) as CompletedSet;
+
+  it('states a load once for a run of equal loads', () => {
+    const sets = [set(77.5, 5), set(77.5, 5), set(77.5, 4)];
+    expect(setsLine(sets, 'weight_reps')).toBe('77.5 kg × 5 · 5 · 4');
+  });
+
+  it('states the load again where it changes', () => {
+    const sets = [set(60, 8), set(70, 5), set(70, 5)];
+    expect(setsLine(sets, 'weight_reps')).toBe('60 kg × 8 · 70 kg × 5 · 5');
+  });
+
+  it('lists holds whole', () => {
+    const holds = [45, 40].map((s) => ({ weight: 0, unit: 'kg', reps: null, durationSeconds: s }) as CompletedSet);
+    expect(setsLine(holds, 'duration')).toBe('45s / 40s');
+  });
+});
+
+describe('suggestionLine', () => {
+  const base = { weight: 0, unit: 'kg', weightKg: 0, targetMet: true } as const;
+
+  it('reads a load with its unit and a hold as time', () => {
+    expect(suggestionLine({ ...base, axis: 'load', weight: 52.5, value: 52.5 })).toBe('52.5 kg');
+    expect(suggestionLine({ ...base, axis: 'duration', value: 50 })).toBe('50s');
+  });
+});
+
+describe('recordClaim (AC-5)', () => {
+  const tie: SessionRecord = {
+    exerciseId: toId<ExerciseId>('bench-press'),
+    set: {} as CompletedSet,
+    measurement: 'weight_reps',
+    axis: 'load',
+    value: 102.04,
+    previousValue: 100.02,
+  };
+
+  it('names the estimated max and the value it beat', () => {
+    expect(recordClaim(tie)).toBe('estimated max 102 kg · was 100 kg');
+  });
+
+  it('states only the mark when nothing came before', () => {
+    expect(recordClaim({ ...tie, previousValue: null })).toBe('estimated max 102 kg');
+  });
+
+  it('reads a non-load axis on its own unit', () => {
+    expect(
+      recordClaim({ ...tie, measurement: 'duration', axis: 'duration', value: 75, previousValue: 60 }),
+    ).toBe('was 1:00');
+    expect(
+      recordClaim({ ...tie, measurement: 'bodyweight_reps', axis: 'reps', value: 12, previousValue: 10 }),
+    ).toBe('was 10 reps');
   });
 });

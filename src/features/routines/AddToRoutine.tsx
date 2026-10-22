@@ -13,7 +13,7 @@ import {
 } from '@/domain/routine-file';
 import type { RoutineFile } from '@/domain/routine-file';
 import { targetUnitOf, targetsReps } from '@/domain/measurement';
-import { claimantsOfDay, generatePlacements, remainingWeeks } from '@/domain/scheduling';
+import { blockEnd, claimantsOfDay, generatePlacements, remainingWeeks } from '@/domain/scheduling';
 import type { Exercise, ProgressionRule, Unit, Weekday, Workout } from '@/domain/types';
 import { useUserExercises } from '@/features/data/queries';
 import { NumberField, SelectField, TextField } from '@/features/ui/fields';
@@ -53,20 +53,18 @@ export function AddWorkoutForm({
   const [written, setWritten] = useState<number | null>(null);
   const { busy, failure, run } = useAsyncAction();
 
-  const weeks = remainingWeeks(
-    routineWeeks,
-    formatLocalDate(new Date(routineCreatedAt)),
-    today,
-  );
+  const blockStart = formatLocalDate(new Date(routineCreatedAt));
+  const weeks = remainingWeeks(routineWeeks, blockStart, today);
 
   const preview = useMemo(
     () =>
       generatePlacements({
         workouts: [{ id: PREVIEW_ID, routineId, name, suggestedDays: days, order: 0 }],
         weeks,
-        anchorDate: today,
+        anchorDate: today > blockStart ? today : blockStart,
+        endDate: blockEnd(routineWeeks, blockStart),
       }),
-    [routineId, name, days, weeks, today],
+    [routineId, name, days, weeks, today, routineWeeks, blockStart],
   );
 
   const collisions = days

@@ -13,7 +13,7 @@ behavioural gap.
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Branch | `change/routine-authoring` |
 | Base commit | `16cf1e9` |
 | Waves A, B | committed: `8f979ae`, `8ab1082` (verified separately, diff `40e0c02..8ab1082`) |

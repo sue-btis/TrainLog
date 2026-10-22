@@ -70,6 +70,8 @@ function history(options: {
   readonly measurement?: Measurement;
   /** Anything else about the plan behind the session — set count, either target pair. */
   readonly plan?: Partial<PlannedExercise>;
+  /** The exercise was done with no Planned Exercise behind it. */
+  readonly unplanned?: boolean;
   readonly sets: readonly SetSpec[];
 }): SessionHistory {
   sequence += 1;
@@ -86,16 +88,23 @@ function history(options: {
   };
 
   const exerciseSession = {
-    ...startPlannedExercise({
-      measurement: options.measurement ?? measurement,
-      sessionId: session.id,
-      planned: planned({
-        exerciseId: options.exerciseId ?? squat,
-        progression: options.rule ?? { type: 'double_progression', increment: 2.5 },
-        ...options.plan,
-      }),
-      order: 0,
-    }),
+    ...(options.unplanned === true
+      ? startUnplannedExercise({
+          measurement: options.measurement ?? measurement,
+          sessionId: session.id,
+          exerciseId: options.exerciseId ?? squat,
+          order: 0,
+        })
+      : startPlannedExercise({
+          measurement: options.measurement ?? measurement,
+          sessionId: session.id,
+          planned: planned({
+            exerciseId: options.exerciseId ?? squat,
+            progression: options.rule ?? { type: 'double_progression', increment: 2.5 },
+            ...options.plan,
+          }),
+          order: 0,
+        })),
     id: toId<ExerciseSessionId>(`exercise-session-${String(sequence)}`),
     status: 'performed' as const,
   };
@@ -228,13 +237,71 @@ describe('TST-012 double_progression, first N sets (REQ-064, §29)', () => {
   });
 });
 
-describe('TST-013 only completed sessions feed the engine (REQ-062, AC-064)', () => {
-  it('ignores a partial session that hit max reps', () => {
+describe('TST-013 which sessions feed the engine (§29, DEC-9, DEC-13)', () => {
+  it('advances from a partial session in which the exercise was fully performed', () => {
     const suggestion = suggestLoad(planned(), [
       history({ status: 'partial', sets: [at(80, 6), at(80, 6), at(80, 6), at(80, 6)] }),
     ]);
 
+    expect(suggestion).toMatchObject({ weight: 82.5, targetMet: true });
+  });
+
+  it('ignores a partial session in which the exercise was only partly performed', () => {
+    const suggestion = suggestLoad(planned(), [
+      history({ status: 'partial', sets: [at(80, 6), at(80, 6)] }),
+    ]);
+
     expect(suggestion).toBeNull();
+  });
+
+  it('ignores a partial session whose exercise was skipped', () => {
+    const entry = history({
+      status: 'partial',
+      sets: [at(80, 6), at(80, 6), at(80, 6), at(80, 6)],
+    });
+    const skipped: SessionHistory = {
+      ...entry,
+      exercises: entry.exercises.map((exercise) => ({
+        ...exercise,
+        exerciseSession: { ...exercise.exerciseSession, status: 'skipped' as const },
+      })),
+    };
+
+    expect(suggestLoad(planned(), [skipped])).toBeNull();
+  });
+
+  it('judges the previous session against its own snapshot, one step only', () => {
+    // 4 x 8 met its 4-set plan; the exercise now plans 5 sets and a 6 max.
+    const suggestion = suggestLoad(planned({ sets: 5, maxReps: 6 }), [
+      history({
+        plan: { sets: 4, maxReps: 8 },
+        sets: [at(60, 8), at(60, 8), at(60, 8), at(60, 8)],
+      }),
+    ]);
+
+    expect(suggestion).toMatchObject({ weight: 62.5, targetMet: true });
+  });
+
+  it('takes the increment from the opening exercise, not the snapshot', () => {
+    const suggestion = suggestLoad(
+      planned({ progression: { type: 'double_progression', increment: 5 } }),
+      [
+        history({
+          rule: { type: 'double_progression', increment: 2.5 },
+          sets: [at(60, 6), at(60, 6), at(60, 6), at(60, 6)],
+        }),
+      ],
+    );
+
+    expect(suggestion).toMatchObject({ weight: 65 });
+  });
+
+  it('falls back to the opening target when the previous performance was unplanned', () => {
+    const suggestion = suggestLoad(planned(), [
+      history({ unplanned: true, sets: [at(60, 6), at(60, 6), at(60, 6), at(60, 6)] }),
+    ]);
+
+    expect(suggestion).toMatchObject({ weight: 62.5, targetMet: true });
   });
 
   it('ignores an in_progress session that hit max reps', () => {
@@ -383,7 +450,7 @@ describe('lastCompletedSets — ordering and the walk backwards (REQ-061, REQ-06
     // load advances from 100 kg. Supplied deliberately out of order: if the
     // sort were removed, `sets[0]` would be the 80 kg back-off set and the
     // first N would include it, giving 80 kg and targetMet: false.
-    const entry = history({ sets: [at(100, 6), at(100, 6), at(80, 3)] });
+    const entry = history({ plan: { sets: 2 }, sets: [at(100, 6), at(100, 6), at(80, 3)] });
     const [performed] = entry.exercises;
     if (performed === undefined) throw new Error('fixture built no exercise');
     const [first, second, backOff] = performed.sets;

@@ -192,7 +192,7 @@ describe('exportBackup', () => {
 
   it('stamps the version and the caller‑supplied instant', async () => {
     const document = await exportBackup(EXPORTED_AT);
-    expect(document.version).toBe(2);
+    expect(document.version).toBe(3);
     expect(document.exportedAt).toBe(EXPORTED_AT);
   });
 
@@ -342,6 +342,21 @@ describe('the round trip', () => {
     await restoreBackup(result.document);
 
     expect(await snapshot()).toEqual(before);
+  });
+
+  it('round-trips a set with no recorded RIR', async () => {
+    await seed();
+    await db.completedSets.update(completedSet.id, { rir: null });
+    const before = await snapshot();
+
+    const text = JSON.stringify(await exportBackup(EXPORTED_AT));
+    await resetDatabase();
+    const result = parseBackup(text);
+    if (!result.ok) throw new Error(JSON.stringify(result.errors));
+    await restoreBackup(result.document);
+
+    expect(await snapshot()).toEqual(before);
+    expect((await db.completedSets.get(completedSet.id))?.rir).toBeNull();
   });
 
   it('survives a second round trip', async () => {

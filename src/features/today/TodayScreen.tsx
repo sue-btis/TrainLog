@@ -23,7 +23,7 @@ import {
   useSettings,
   useWorkouts,
 } from '@/features/data/queries';
-import { ImportRoutineButton } from '@/features/import/ImportRoutineButton';
+import { ImportRoutineButton, TryExampleButton } from '@/features/import/ImportRoutineButton';
 import { Reading } from '@/features/ui/Reading';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
@@ -177,6 +177,7 @@ function NoRoutine() {
         Give today a programme to work from — import a routine file, or build one here.
       </p>
       <ImportRoutineButton>Import a routine</ImportRoutineButton>
+      <TryExampleButton />
       <Link
         className={cn(BUTTON_BASE, BUTTON_VARIANT.secondary, BUTTON_SIZE.block)}
         to="/import?new=1"

@@ -9,7 +9,7 @@ Reliability: strict
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Declared base | `8b5074c` |
 | Audited head / working tree | `8b5074c`, dirty on `change/exercise-catalog` (change uncommitted) |
 | Diff range | `git diff 8b5074c` plus two untracked paths: `src/features/exercises/`, `docs/changes/2026-08-21-exercise-catalog/` |

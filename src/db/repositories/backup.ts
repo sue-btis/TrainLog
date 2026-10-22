@@ -19,17 +19,32 @@ export async function exportBackup(exportedAt: Timestamp): Promise<BackupDocumen
     exerciseSessions,
     completedSets,
     settings,
-  ] = await Promise.all([
-    db.routines.toArray(),
-    db.workouts.toArray(),
-    db.plannedExercises.toArray(),
-    db.placements.toArray(),
-    db.exercises.toArray(),
-    db.sessions.toArray(),
-    db.exerciseSessions.toArray(),
-    db.completedSets.toArray(),
-    getSettings(),
-  ]);
+  ] = await db.transaction(
+    'r',
+    [
+      db.routines,
+      db.workouts,
+      db.plannedExercises,
+      db.placements,
+      db.exercises,
+      db.sessions,
+      db.exerciseSessions,
+      db.completedSets,
+      db.settings,
+    ],
+    () =>
+      Promise.all([
+        db.routines.toArray(),
+        db.workouts.toArray(),
+        db.plannedExercises.toArray(),
+        db.placements.toArray(),
+        db.exercises.toArray(),
+        db.sessions.toArray(),
+        db.exerciseSessions.toArray(),
+        db.completedSets.toArray(),
+        getSettings(),
+      ]),
+  );
 
   return {
     version: BACKUP_VERSION,

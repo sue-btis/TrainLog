@@ -58,7 +58,7 @@ export function DayPlan({ today, date, placements, sessions, workouts, onMoved }
               onMoved={onMoved}
               placement={placement}
               today={today}
-              state={placementState(placement, sessions, today)}
+              state={placementState(placement, sessions, today, placements)}
             />
           ))}
         </div>
@@ -151,7 +151,7 @@ function PlacementRow({ placement, name, state, today, onMoved }: PlacementRowPr
             aria-label={
               confirming ? `Confirm deleting the ${name} placement` : `Delete the ${name} placement`
             }
-            className={confirming ? 'shadow-none' : undefined}
+            className={confirming ? 'shadow-none' : 'text-missed-ink'}
             disabled={busy}
             onClick={() => {
               if (confirming) void run(() => deletePlacement(placement.id));
@@ -159,7 +159,7 @@ function PlacementRow({ placement, name, state, today, onMoved }: PlacementRowPr
             }}
             size="compact"
             type="button"
-            variant="danger"
+            variant={confirming ? 'danger' : 'secondary'}
           >
             {busy ? (
               <LoaderCircle aria-hidden="true" className="animate-spin" size={18} strokeWidth={ICON_STROKE} />

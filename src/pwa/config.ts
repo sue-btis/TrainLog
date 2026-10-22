@@ -1,7 +1,7 @@
 import type { VitePWAOptions } from 'vite-plugin-pwa';
 
 export const pwaOptions: Partial<VitePWAOptions> = {
-  registerType: 'autoUpdate',
+  registerType: 'prompt',
   includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon-180x180.png'],
 
   manifest: {
@@ -31,9 +31,6 @@ export const pwaOptions: Partial<VitePWAOptions> = {
     globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 
     navigateFallback: 'index.html',
-
-    skipWaiting: true,
-    clientsClaim: true,
 
     navigationPreload: false,
   },

@@ -13,7 +13,7 @@ import type {
 
 // File compatibility is independent of the IndexedDB schema; bump this only
 // when the serialized document shape changes.
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
 export interface BackupDocument {
   readonly version: number;

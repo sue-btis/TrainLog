@@ -15,6 +15,7 @@ import {
   deriveSessionStatus,
   editSet,
   finishSession,
+  firstUnfinishedIndex,
   logSet,
   moveExerciseSession,
   removeSet,
@@ -192,6 +193,21 @@ describe('TST-011 set logging, deviation and status derivation (REQ-054...REQ-05
       rir: 2,
       completedAt: 5_000,
     });
+  });
+
+  it('stores a null RIR as not recorded and keeps it through an edit (AC-4)', () => {
+    const { set } = logSet({
+      exerciseSession: start(),
+      setNumber: 1,
+      weight: 100,
+      unit: 'kg',
+      reps: 5,
+      rir: null,
+      completedAt: 5_000,
+    });
+
+    expect(set.rir).toBeNull();
+    expect(editSet({ set, weight: 100, unit: 'kg', reps: 6, rir: null }).rir).toBeNull();
   });
 
   it('marks the ExerciseSession performed on the first logged set (AC-058)', () => {
@@ -617,5 +633,34 @@ describe('removeSet (R-4, AC-12, AC-13)', () => {
 
     expect(result.sets.map((it) => it.setNumber)).toEqual([1, 2]);
     expect(result.sets.map((it) => it.reps)).toEqual([5, 4]);
+  });
+});
+
+describe('firstUnfinishedIndex (R-2, AC-2)', () => {
+  const plannedEntry = (status: 'pending' | 'performed' | 'skipped', sets: number) => ({
+    exerciseSession: { ...startPlannedExercise({ measurement, sessionId, planned: plannedExercise(), order: 0 }), status },
+    sets: Array.from({ length: sets }),
+  });
+  const unplannedEntry = (status: 'pending' | 'performed') => ({
+    exerciseSession: { ...startUnplannedExercise({ measurement, sessionId, exerciseId, order: 0 }), status },
+    sets: [],
+  });
+
+  it('lands on the first planned exercise short of its sets', () => {
+    expect(firstUnfinishedIndex([plannedEntry('performed', 4), plannedEntry('performed', 2), plannedEntry('pending', 0)])).toBe(1);
+  });
+
+  it('passes over skipped exercises', () => {
+    expect(firstUnfinishedIndex([plannedEntry('skipped', 0), plannedEntry('pending', 0)])).toBe(1);
+  });
+
+  it('lands on an unplanned exercise that is still pending', () => {
+    expect(firstUnfinishedIndex([plannedEntry('performed', 4), unplannedEntry('pending')])).toBe(1);
+    expect(firstUnfinishedIndex([plannedEntry('performed', 4), unplannedEntry('performed')])).toBe(1);
+  });
+
+  it('lands on the last exercise when everything is finished', () => {
+    expect(firstUnfinishedIndex([plannedEntry('performed', 4), plannedEntry('skipped', 0)])).toBe(1);
+    expect(firstUnfinishedIndex([])).toBe(0);
   });
 });

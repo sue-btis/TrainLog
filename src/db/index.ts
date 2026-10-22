@@ -114,4 +114,6 @@ export {
   getSessionDetail,
   listExerciseHistory,
   listPerformedExercises,
+  listPerformedExercisesByRecency,
+  type PerformedExercise,
 } from '@/db/repositories/history';

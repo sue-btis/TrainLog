@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  daysSince,
   formatLocalDate,
   isLocalDate,
   mondayOfWeek,
@@ -71,5 +72,18 @@ describe('mondayOfWeek', () => {
   it('crosses a year boundary', () => {
     // 2027-01-01 is a Friday; its Monday is 2026-12-28.
     expect(mondayOfWeek(toLocalDate('2027-01-01'))).toBe('2026-12-28');
+  });
+});
+
+describe('daysSince', () => {
+  const DAY = 86_400_000;
+
+  it('counts whole days', () => {
+    expect(daysSince(0, 2 * DAY + 5)).toBe(2);
+    expect(daysSince(0, DAY - 1)).toBe(0);
+  });
+
+  it('is never negative when the stamp is ahead of the clock', () => {
+    expect(daysSince(10_000, 5_000)).toBe(0);
   });
 });

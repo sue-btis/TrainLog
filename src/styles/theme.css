@@ -377,7 +377,7 @@ details[open]::details-content {
 
 @utility type-label {
   font-family: var(--font-measure);
-  font-size: .625rem;
+  font-size: .6875rem;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: .12em;

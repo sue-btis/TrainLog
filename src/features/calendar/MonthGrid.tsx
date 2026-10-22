@@ -67,7 +67,7 @@ export function MonthGrid({
         </Button>
       </div>
 
-      <div aria-hidden="true" className="grid grid-cols-7 gap-1.5">
+      <div aria-hidden="true" className="grid grid-cols-7 gap-0.5">
         {WEEKDAY_INITIALS.map((day) => (
           <span className="type-micro text-center text-ink-3" key={day}>
             {day}
@@ -78,7 +78,7 @@ export function MonthGrid({
       {/* Each day is an independent button, so this is a labeled group rather than a keyboard grid. */}
       <div
         aria-label={monthName(month)}
-        className="arrive grid grid-cols-7 gap-1.5"
+        className="arrive grid grid-cols-7 gap-0.5"
         key={month}
         role="group"
       >

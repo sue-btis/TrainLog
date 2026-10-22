@@ -85,25 +85,53 @@ function measurementFor(
   return 'plannedExerciseId' in exercise ? exercise.measurement : measurementOf(history);
 }
 
-function lastCompletedSets(
+interface PreviousPerformance {
+  readonly sets: readonly CompletedSet[];
+  /** The plan the Session was performed under; `null` where the exercise was unplanned there. */
+  readonly snapshot: ProgressionTarget | null;
+}
+
+/**
+ * A Session feeds progression for an exercise when it is `completed`, or
+ * `partial` but this exercise was fully performed in it: stopping the
+ * Session early says nothing about an exercise already finished.
+ */
+function isEligible(
+  session: Session,
+  exercise: ExerciseSessionHistory,
+  snapshot: ProgressionTarget | null,
+): boolean {
+  if (exercise.sets.length === 0) return false;
+  if (session.status === 'completed') return true;
+  if (session.status === 'in_progress') return false;
+  return (
+    exercise.exerciseSession.status === 'performed' &&
+    (snapshot === null || exercise.sets.length >= snapshot.plannedSets)
+  );
+}
+
+function previousPerformance(
   history: readonly SessionHistory[],
   exerciseId: ExerciseId,
-): readonly CompletedSet[] {
-  // Progression uses the newest completed Session that actually has sets;
-  // partial and setless Sessions must not become the previous performance.
-  const candidates = history
-    .filter((entry) => entry.session.status === 'completed')
-    .sort((a, b) => b.session.startedAt - a.session.startedAt);
+  measurement: Measurement,
+): PreviousPerformance | null {
+  const newestFirst = [...history].sort((a, b) => b.session.startedAt - a.session.startedAt);
 
-  for (const entry of candidates) {
-    const sets = entry.exercises
-      .filter((exercise) => exercise.exerciseSession.exerciseId === exerciseId)
+  for (const entry of newestFirst) {
+    const exercises = entry.exercises.filter(
+      (exercise) => exercise.exerciseSession.exerciseId === exerciseId,
+    );
+    const anchor = exercises.find((exercise) => exercise.exerciseSession.plannedExerciseId !== null);
+    const snapshot =
+      anchor === undefined ? null : targetOf(anchor.exerciseSession, measurement);
+    const sets = exercises
+      .filter((exercise) => isEligible(entry.session, exercise, snapshot))
       .flatMap((exercise) => exercise.sets)
       .sort((a, b) => a.setNumber - b.setNumber);
-    if (sets.length > 0) return sets;
+    if (sets.length > 0) return { sets, snapshot };
   }
 
-  return [];
+  return null;
 }
 
 /**
@@ -211,21 +239,26 @@ export function suggestLoad(
   const target = targetOf(exercise, measurement);
   if (target === null) return null;
 
-  const sets = lastCompletedSets(history, target.exerciseId);
-  const previous = sets[0];
-  if (previous === undefined) return null;
+  const found = previousPerformance(history, target.exerciseId, measurement);
+  const previous = found?.sets[0];
+  if (found === null || previous === undefined) return null;
+  const { sets } = found;
+  // Judge the previous Session against the plan it was performed under; an
+  // unplanned exercise there has no plan to judge against, so the opening
+  // exercise's target stands in.
+  const judged = found.snapshot ?? target;
 
   switch (target.rule.type) {
     case 'manual':
       return repeat(previous, measurement);
 
     case 'double_progression':
-      if (target.targetMax === null) return repeat(previous, measurement);
+      if (judged.targetMax === null) return repeat(previous, measurement);
       return doubleProgression(
         previous,
         sets,
-        target.plannedSets,
-        target.targetMax,
+        judged.plannedSets,
+        judged.targetMax,
         target.rule.increment,
         measurement,
       );

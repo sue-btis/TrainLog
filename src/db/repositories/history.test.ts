@@ -10,6 +10,7 @@ import {
   getPreviousPerformance,
   listExerciseHistory,
   listPerformedExercises,
+  listPerformedExercisesByRecency,
 } from '@/db/repositories/history';
 import { listPlannedExercisesByWorkout } from '@/db/repositories/plannedExercises';
 import { suggestLoad } from '@/domain/progression';
@@ -164,7 +165,7 @@ describe('TST-014 (repository half) — history by exerciseId across Routines', 
 });
 
 describe('TST-013 (repository half) — partial and in_progress stay in history', () => {
-  it('returns them; the engine filters them, not the repository', async () => {
+  it('returns them; the engine reads the fully performed partial one and skips the open one', async () => {
     const { workout, planned } = await seedRoutine('one', squat);
 
     await performSession(workout, 1_000, [6, 6, 6, 6], 100, 'partial');
@@ -175,7 +176,7 @@ describe('TST-013 (repository half) — partial and in_progress stay in history'
     expect(history.map((entry) => entry.session.status)).toEqual(['in_progress', 'partial']);
     expect(history[1]?.session.completedAt).toBe(4_600);
     expect(history.flatMap((entry) => entry.exercises.flatMap((e) => e.sets))).toHaveLength(8);
-    expect(suggestLoad(planned, history)).toBeNull();
+    expect(suggestLoad(planned, history)).toMatchObject({ weight: 102.5, targetMet: true });
   });
 });
 
@@ -257,5 +258,19 @@ describe('performed exercises (§11.11, R-4)', () => {
     await performSession(second.workout, 3_000, [8], 60);
 
     expect([...(await listPerformedExercises())].sort()).toEqual([bench, squat].sort());
+  });
+
+  it('orders them most recently trained first, with the date of that training', async () => {
+    const { workout } = await seedRoutine('one', squat);
+    const second = await seedRoutine('two', bench);
+
+    await performSession(workout, 1_000, [5, 5], 100);
+    await performSession(second.workout, 2_000, [8], 60);
+    await performSession(workout, 3_000, [5, 5], 102.5);
+
+    expect(await listPerformedExercisesByRecency()).toEqual([
+      { exerciseId: squat, lastPerformed: 3_000 },
+      { exerciseId: bench, lastPerformed: 2_000 },
+    ]);
   });
 });

@@ -20,7 +20,7 @@ entries and IndexedDB contents.
 
 | Field | Value |
 |---|---|
-| Repository | `C:\Users\Josue Escobar\Documents\projects\mine\TrainLog` |
+| Repository | `<repo>` |
 | Base | `8df1bd6` (`change/technical-spine`) |
 | Diff range | `8df1bd6` → working tree |
 | Spec | `docs/changes/2026-08-19-import-wizard/spec.md` |

@@ -8,7 +8,7 @@ Reliability: strict
 
 | Field | Value |
 |---|---|
-| Repository root | `C:\Users\Josue Escobar\Documents\projects\mine\TrainLog` |
+| Repository root | `<repo>` |
 | Branch | `master` |
 | Commit SHA | `49efc786e2955b36dbd277e4d3ffcababb21d66d` |
 | Working tree | Dirty — two untracked paths, both unrelated to source |

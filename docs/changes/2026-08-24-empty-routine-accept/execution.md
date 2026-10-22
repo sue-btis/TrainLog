@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Repository | `C:/Users/Josue Escobar/Documents/projects/mine/TrainLog` |
+| Repository | `<repo>` |
 | Base | `master` at `49efc78` |
 | Working tree at start | Clean in `src/`; untracked `docs/PRD-DMS.md` and two change folders |
 | Date | 2026-08-24 |

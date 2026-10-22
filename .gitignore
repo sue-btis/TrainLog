@@ -18,3 +18,6 @@ Thumbs.db
 # Mutation testing
 .stryker-tmp/
 reports/
+
+# impeccable live-mode session (pid, port, token)
+.impeccable/live/
