@@ -40,6 +40,126 @@ routine:
             increment: 2.5
 `;
 
+/** What "Try an example routine" imports: a full week across several measurement types, kept apart from the §12 reference above. */
+export const DEMO_ROUTINE_YAML = `version: 2
+
+routine:
+  name: "Hybrid Strength - Demo"
+  weeks: 4
+
+  workouts:
+    - name: "Push - Squat + Press"
+      suggested_days: [monday]
+      exercises:
+        - name: "Front Squat"
+          exercise_id: "front-squat"
+          unit: "kg"
+          sets: 4
+          reps: { min: 4, max: 6 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 210
+          focus: "Strength"
+          notes: ["Upright torso", "Stop before technical failure"]
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Overhead Press"
+          exercise_id: "overhead-press"
+          unit: "kg"
+          sets: 3
+          reps: { min: 6, max: 8 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 150
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Push Up"
+          exercise_id: "push-up"
+          sets: 3
+          reps: { min: 12, max: 20 }
+          rir: { min: 1, max: 3 }
+          rest_seconds: 90
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Plank"
+          exercise_id: "plank"
+          sets: 3
+          target: { min: 45, max: 60 }
+          rest_seconds: 60
+          progression: { type: "double_progression", increment: 5 }
+
+    - name: "Pull - Hinge + Back"
+      suggested_days: [wednesday]
+      exercises:
+        - name: "Romanian Deadlift"
+          exercise_id: "romanian-deadlift"
+          unit: "kg"
+          sets: 3
+          reps: { min: 6, max: 8 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 180
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Pull Up"
+          exercise_id: "pull-up"
+          sets: 4
+          reps: { min: 5, max: 10 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 150
+          progression: { type: "double_progression", increment: 1 }
+
+        - name: "Barbell Row"
+          exercise_id: "barbell-row"
+          unit: "kg"
+          sets: 3
+          reps: { min: 8, max: 10 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Dead Hang"
+          exercise_id: "dead-hang"
+          sets: 2
+          target: { min: 30, max: 60 }
+          rest_seconds: 90
+          progression: { type: "manual" }
+
+    - name: "Carry + Core"
+      suggested_days: [friday]
+      exercises:
+        - name: "Farmers Walk"
+          exercise_id: "farmers-walk"
+          unit: "kg"
+          sets: 3
+          target: { min: 30, max: 40 }
+          rest_seconds: 120
+          notes: ["Distance in metres; the load is what progresses"]
+          progression: { type: "double_progression", increment: 4 }
+
+        - name: "Assisted Dip"
+          exercise_id: "assisted-dip"
+          unit: "kg"
+          sets: 3
+          reps: { min: 8, max: 12 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          notes: ["The number is the machine's help: less is better"]
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Hanging Leg Raise"
+          exercise_id: "hanging-leg-raise"
+          sets: 3
+          reps: { min: 8, max: 12 }
+          rir: { min: 1, max: 3 }
+          rest_seconds: 90
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Side Plank"
+          exercise_id: "side-plank"
+          sets: 2
+          target: { min: 30, max: 45 }
+          rest_seconds: 60
+          progression: { type: "double_progression", increment: 5 }
+`;
+
 /** One row of the field reference the import wizard renders beside the example. */
 export interface FieldNote {
   readonly name: string;

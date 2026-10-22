@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
-import { EXAMPLE_ROUTINE_YAML } from '@/domain/routine-file/example';
+import { DEMO_ROUTINE_YAML } from '@/domain/routine-file/example';
 
 /** The file chosen on the way in, waiting for the wizard to mount and take it. */
 let handed: File | null = null;
@@ -15,7 +15,7 @@ export function takeHandedOffFile(): File | null {
 
 /** The bundled example, shaped like a file the lifter picked, so it takes the same road. */
 export function exampleRoutineFile(): File {
-  return new File([EXAMPLE_ROUTINE_YAML], 'example-routine.yaml', { type: 'application/yaml' });
+  return new File([DEMO_ROUTINE_YAML], 'example-routine.yaml', { type: 'application/yaml' });
 }
 
 export function TryExampleButton() {
