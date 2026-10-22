@@ -2446,7 +2446,7 @@ Al cerrar un cambio en `docs/changes/`, actualizar esta tabla en el mismo commit
 | Workout | Rest timer | ✅ | `RestTimer.tsx`, `useWakeLock.ts` + vibración; las notificaciones que faltan son las que §11.6 declara fuera del MVP |
 | Workout | Previous results | ✅ | `PreviousPanel.tsx` |
 | Workout | Finish session | ✅ | `finishSession`, `deriveSessionStatus` |
-| History | Sessions | ✅ | `listAllSessions` → `features/history/SessionHistoryScreen.tsx`, `SessionDetailScreen.tsx`; rutas `/sessions` y `/sessions/:sessionId` |
+| History | Sessions | ✅ | el historial vive en el Calendario: `features/calendar/DaySheet.tsx` lista las sesiones de cada día y enlaza a `SessionDetailScreen.tsx` (ruta `/sessions/:sessionId`); no hay lista `/sessions` |
 | History | Exercise history | ✅ | `features/history/ExerciseHistoryScreen.tsx` |
 | Progression | Manual | ✅ | `suggestLoad` → `ExerciseView.tsx` |
 | Progression | Double progression | ✅ | `domain/progression/index.ts` (§29) |

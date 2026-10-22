@@ -22,7 +22,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   exportBackup,
   listSetsForCsv,
-  restoreBackup,
   restoreSummary,
   setBodyweightKg,
   setDefaultRir,
@@ -51,6 +50,7 @@ import { longDate, plural } from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
+import { restoreWithSafetyBackup } from '@/features/settings/safeRestore';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
   isInstalled,
@@ -127,9 +127,11 @@ export function SettingsScreen() {
 
   async function confirmRestore() {
     if (pending === null) return;
-    await restoreBackup(pending.document);
+    await restoreWithSafetyBackup(pending.document);
     reset();
-    setDone('Restored. Your calendar and history are what the backup held.');
+    setDone(
+      'Restored. Your calendar and history are what the backup held. The data it replaced was downloaded first as trainlog-before-restore.',
+    );
   }
 
   return (

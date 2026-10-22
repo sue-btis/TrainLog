@@ -86,12 +86,13 @@ estimated 1RM and personal records · progress dashboard · double progression �
 session effort · full backup, restore and CSV export · installable, and fully
 usable offline.
 
-Live demo: _link coming soon_.
+Live demo: _link coming soon_. It deploys automatically from `master` through
+Cloudflare's Git integration; no workflow in this repo does it.
 
 ## Known limits
 
-- There is no list of past sessions; a session is reached from the calendar or
-  from an exercise's history.
+- Session history lives in the Calendar: tap a day to see its sessions. There is
+  no separate list of past sessions.
 - There is no way to delete a single session or to clear all data from inside the
   app. Restoring a backup replaces everything.
 - Exercises cannot be created, renamed or deleted from the catalog screen yet
