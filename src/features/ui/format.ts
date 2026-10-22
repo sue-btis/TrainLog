@@ -2,12 +2,14 @@ import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import {
   MEASUREMENTS,
   collects,
+  hasOneRepMax,
   shapeOf,
   targetUnitOf,
   targetsReps,
   type Measurement,
 } from '@/domain/measurement';
 import type { LoadSuggestion } from '@/domain/progression';
+import type { SessionRecord } from '@/domain/session-summary';
 import type {
   CompletedSet,
   ExerciseSessionStatus,
@@ -275,4 +277,34 @@ export function suggestionLine(suggestion: LoadSuggestion): string {
     case 'pace':
       return `${seconds(Math.round(suggestion.value * 1000))}/km`;
   }
+}
+
+const oneDecimal = (value: number): number => Math.round(value * 10) / 10;
+
+function recordValue(record: SessionRecord, value: number): string {
+  switch (record.axis) {
+    case 'load':
+      return `${oneDecimal(value)} kg`;
+    case 'reps':
+      return `${oneDecimal(value)} reps`;
+    case 'duration':
+      return seconds(Math.round(value));
+    case 'distance':
+      return `${oneDecimal(value)} m`;
+    case 'pace':
+      return `${seconds(Math.round(value * 1000))}/km`;
+  }
+}
+
+/**
+ * What a new best beat, stated on the metric it was compared on: a set can tie
+ * the previous best and still be a record, so the set alone does not say why.
+ */
+export function recordClaim(record: SessionRecord): string {
+  const was =
+    record.previousValue === null ? null : `was ${recordValue(record, record.previousValue)}`;
+  // Only the estimated max differs from the set shown beside the claim.
+  if (!hasOneRepMax(record.measurement)) return was ?? '';
+  const now = `estimated max ${recordValue(record, record.value)}`;
+  return was === null ? now : `${now} · ${was}`;
 }

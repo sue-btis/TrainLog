@@ -42,3 +42,10 @@ export function mondayOfWeek(date: LocalDate): LocalDate {
   const daysSinceMonday = (dayOfWeek + 6) % 7;
   return addDays(date, -daysSinceMonday);
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole days since `at`; a clock that reads earlier than `at` gives 0, never a negative age. */
+export function daysSince(at: Timestamp, now: Timestamp): number {
+  return Math.max(0, Math.floor((now - at) / DAY_MS));
+}

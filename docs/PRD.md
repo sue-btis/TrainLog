@@ -536,6 +536,11 @@ de semanas.
 
 El usuario puede editar ambos antes de aceptar.
 
+Permite elegir una fecha de inicio (por defecto hoy; nunca en el pasado): las
+`Placements` cubren exactamente `weeks × 7` días desde esa fecha. Si ya hay una
+Routine activa, el paso avisa que se archivará y ofrece, sin marcar de
+antemano, quitar sus `Placements` restantes (desde hoy, sin `Session` ese día).
+
 Al aceptar se generan las `Placements` correspondientes.
 
 ## Validation
@@ -665,6 +670,14 @@ rest           día sin Placement
 
 `missed` es derivado - fecha pasada sin `Session` - y nunca se almacena. No
 existe un proceso que marque días automáticamente.
+
+Una `Placement` pasada cuenta como cumplida si existe una `Session` de su
+`Workout` en su misma fecha, o bien en una fecha anterior de la misma semana
+(lunes a domingo) que ninguna otra `Placement` de esa fecha haya consumido: entrenar
+un `Workout` antes de lo planeado cumple su `Placement`. Cada `Session` cubre a
+lo sumo una `Placement`; las coincidencias de fecha exacta se asignan primero y
+las `Session` adelantadas cubren las restantes en orden. Una `Session` así no se
+cuenta como no planificada.
 
 Una `Placement` pasada sin `Session` permanece en su lugar. No se desplaza ni se
 arrastra hacia adelante.
@@ -945,8 +958,13 @@ El historial se consulta por `exerciseId`, no por `plannedExerciseId`.
 Cada importación crea `PlannedExercise` nuevos; consultar por plantilla
 reiniciaría la progresión cada vez que se corrige un archivo.
 
-Solo las sesiones `completed` alimentan el motor. Las parciales son visibles en
-el historial pero se ignoran.
+Alimenta el motor la `Session` más reciente que sea `completed`, o `partial`
+cuando ese ejercicio quedó `performed` con al menos las series de su snapshot.
+Una sesión `in_progress` nunca lo alimenta. Esa sesión previa se juzga contra el
+plan con el que se realizó (su snapshot: series y máximo); la regla y el
+incremento salen del ejercicio que se abre. Si el ejercicio previo no era
+planificado, se usa el objetivo del ejercicio actual. El avance es de un solo
+paso.
 
 Un ejercicio no planificado no recibe sugerencia.
 
@@ -1290,7 +1308,8 @@ status
 createdAt
 ```
 
-No tiene fecha de inicio ni de fin. `weeks` es la duración prevista y determina
+No tiene fecha de fin. `createdAt` guarda la fecha de inicio elegida en el
+asistente (hoy por defecto). `weeks` es la duración prevista y determina
 cuántas `Placements` se generan al aceptar la importación.
 
 ---

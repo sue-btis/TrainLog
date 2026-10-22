@@ -1,4 +1,4 @@
-import type { LocalDate } from '@/domain/dates';
+import { parseLocalDate, type LocalDate, type Timestamp } from '@/domain/dates';
 import {
   setWeeks,
   toggleSuggestedDay,
@@ -36,6 +36,10 @@ export type WizardState =
       readonly file: RoutineFile;
       readonly defaultUnit: Unit;
       readonly step: WizardStep;
+      /** Where the first Placement can fall; never before today. */
+      readonly startDate: LocalDate;
+      /** Whether Accept also drops the previous active Routine's remaining Placements. */
+      readonly removeRemaining: boolean;
       readonly accepting: boolean;
       readonly failure: string | null;
       readonly announceIssues: boolean;
@@ -54,8 +58,11 @@ export type WizardAction =
       readonly type: 'loaded';
       readonly file: RoutineFile;
       readonly defaultUnit: Unit;
+      readonly startDate: LocalDate;
       readonly announceIssues: boolean;
     }
+  | { readonly type: 'startDate'; readonly date: LocalDate; readonly today: LocalDate }
+  | { readonly type: 'removeRemaining'; readonly remove: boolean }
   | { readonly type: 'edited'; readonly file: RoutineFile }
   | { readonly type: 'weeksBy'; readonly delta: number }
   | { readonly type: 'toggleDay'; readonly workout: number; readonly day: Weekday }
@@ -98,10 +105,21 @@ export function reduceWizard(state: WizardState, action: WizardAction): WizardSt
         file: action.file,
         defaultUnit: action.defaultUnit,
         step: 1,
+        startDate: action.startDate,
+        removeRemaining: false,
         accepting: false,
         failure: null,
         announceIssues: action.announceIssues,
       };
+
+    case 'startDate':
+      // A cleared or past date falls back to today: the input's `min` only guards typing.
+      return state.phase === 'editing'
+        ? { ...state, startDate: action.date < action.today ? action.today : action.date }
+        : state;
+
+    case 'removeRemaining':
+      return state.phase === 'editing' ? { ...state, removeRemaining: action.remove } : state;
 
     case 'edited':
       return state.phase === 'editing'
@@ -146,4 +164,13 @@ export function reduceWizard(state: WizardState, action: WizardAction): WizardSt
 }
 function clamp(weeks: number): number {
   return Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, weeks));
+}
+
+/**
+ * The new Routine's `createdAt`. Starting today keeps the real moment, so
+ * nothing changes for an import that begins now; a later start is that
+ * day's local midnight, which is what the block's start is read back from.
+ */
+export function createdAtFor(startDate: LocalDate, today: LocalDate, now: Timestamp): Timestamp {
+  return startDate === today ? now : parseLocalDate(startDate).getTime();
 }

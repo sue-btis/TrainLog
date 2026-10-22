@@ -1,6 +1,6 @@
 import { ChevronRight, History } from 'lucide-react';
 import { Link } from 'react-router';
-import { summarizeExercise } from '@/domain/history';
+import { summarizeExercise, withoutSession } from '@/domain/history';
 import { suggestLoad } from '@/domain/progression';
 import type { ExerciseSession } from '@/domain/types';
 import { useExerciseHistory } from '@/features/data/queries';
@@ -10,10 +10,13 @@ import { FOCUS_RING, ICON_STROKE, LABEL, PANEL_CARD, PRESS, WELL } from '@/featu
 import { cn } from '@/lib/utils';
 
 export function PreviousPanel({ exerciseSession }: { readonly exerciseSession: ExerciseSession }) {
-  const history = useExerciseHistory(exerciseSession.exerciseId);
+  const all = useExerciseHistory(exerciseSession.exerciseId);
 
-  if (history === undefined) return null;
+  if (all === undefined) return null;
 
+  // The Session in progress is not "previous": its own sets would make a first
+  // time look like a repeat.
+  const history = withoutSession(all, exerciseSession.sessionId);
   const summary = summarizeExercise(history);
 
   const suggestion = suggestLoad(exerciseSession, history);

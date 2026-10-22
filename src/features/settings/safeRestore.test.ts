@@ -38,9 +38,10 @@ describe('restoreWithSafetyBackup', () => {
       );
     });
 
-    await restoreWithSafetyBackup(document);
+    const fileName = await restoreWithSafetyBackup(document);
 
     expect(vi.mocked(download).mock.calls[0]?.[0]).toMatch(/^trainlog-before-restore-.*\.json$/);
+    expect(fileName).toBe(vi.mocked(download).mock.calls[0]?.[0]);
     expect(idsAtDownload).toEqual(['old']);
     expect(await routineIds()).toEqual(['new']);
   });
@@ -60,7 +61,7 @@ describe('restoreWithSafetyBackup', () => {
   it('skips the download when there is nothing to lose', async () => {
     const document = { ...(await exportBackup(2)), routines: [incoming] };
 
-    await restoreWithSafetyBackup(document);
+    expect(await restoreWithSafetyBackup(document)).toBeNull();
 
     expect(download).not.toHaveBeenCalled();
     expect(await routineIds()).toEqual(['new']);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { TrendingUp } from 'lucide-react';
+import { Search, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -9,10 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { normalizeExerciseName } from '@/domain/catalog';
 import { exerciseSeries, summarizeExercise, type ExercisePoint } from '@/domain/history';
 import type { ExerciseId } from '@/domain/ids';
-import { useExerciseHistory, useExerciseNames, usePerformedExercises } from '@/features/data/queries';
+import {
+  useExerciseHistory,
+  useExerciseNames,
+  usePerformedExercisesByRecency,
+} from '@/features/data/queries';
 import { ExerciseChart, metricsFor, round, type Metric } from '@/features/progress/ExerciseChart';
 import { shortDate } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
@@ -20,8 +26,9 @@ import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, WELL } from '@/features/ui/styles';
 
 export function ProgressScreen() {
-  const performed = usePerformedExercises();
-  const names = useExerciseNames(performed ?? []);
+  const performed = usePerformedExercisesByRecency();
+  const names = useExerciseNames(performed?.map((entry) => entry.exerciseId) ?? []);
+  const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<ExerciseId | null>(null);
   const [metric, setMetric] = useState<Metric>('load');
 
@@ -44,32 +51,58 @@ export function ProgressScreen() {
     );
   }
 
-  // Alphabetical, and the first is where the screen opens. Sorting by whichever
-  // was trained most recently would read better and costs a second query; it is
-  // not worth one until the list is long enough to scroll.
-  const options = [...performed]
-    .map((id) => ({ id, name: names.get(id) ?? 'Exercise' }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Most recently trained first, and the first is where the screen opens.
+  const options = performed.map(({ exerciseId }) => ({
+    id: exerciseId,
+    name: names.get(exerciseId) ?? 'Exercise',
+  }));
   const selected = picked ?? options[0]!.id;
+
+  // The selected option stays listed whatever is typed, or the trigger would
+  // go blank while the chart still shows it.
+  const needle = normalizeExerciseName(query);
+  const shown = options.filter(
+    (option) => option.id === selected || normalizeExerciseName(option.name).includes(needle),
+  );
 
   return (
     <>
       <section className={WELL}>
+        <label className="flex flex-col gap-1.5">
+          <span className={LABEL}>
+            <Search aria-hidden="true" className="mr-1.5 inline" size={13} strokeWidth={ICON_STROKE} />
+            search
+          </span>
+          <Input
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Squat, bench, row…"
+            value={query}
+          />
+        </label>
         <label className={LABEL} htmlFor="progress-exercise">
           exercise
         </label>
-        <Select onValueChange={(next) => setPicked(next as ExerciseId)} value={selected}>
+        <Select
+          onValueChange={(next) => {
+            setPicked(next as ExerciseId);
+            setQuery('');
+          }}
+          value={selected}
+        >
           <SelectTrigger id="progress-exercise">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {options.map((option) => (
+            {shown.map((option) => (
               <SelectItem key={option.id} value={option.id}>
                 {option.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {shown.length === 1 && needle !== '' && (
+          <p className="type-body-sm text-ink-2">No other exercise matches “{query}”.</p>
+        )}
       </section>
 
       <ExerciseProgress
@@ -162,7 +195,7 @@ function ExerciseProgress({
         </TabsList>
 
         <TabsContent value={shown}>
-          <ExerciseChart metric={shown} name={name} points={points} />
+          <ExerciseChart key={`${exerciseId}:${shown}`} metric={shown} name={name} points={points} />
         </TabsContent>
       </Tabs>
     </section>

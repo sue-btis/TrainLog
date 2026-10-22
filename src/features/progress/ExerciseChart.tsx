@@ -166,7 +166,10 @@ export function niceDomain(values: readonly number[]): { lo: number; hi: number;
 
   const raw = (paddedHi - paddedLo) / 3;
   const magnitude = 10 ** Math.floor(Math.log10(raw));
-  const step = (STEPS.find((candidate) => candidate * magnitude >= raw) ?? 10) * magnitude;
+  const fitted = (STEPS.find((candidate) => candidate * magnitude >= raw) ?? 10) * magnitude;
+  // A flat series has no spread to space ticks by; whole numbers read better
+  // than quarter steps around a value like 12 reps.
+  const step = min === max && Number.isInteger(max) ? Math.max(fitted, 1) : fitted;
 
   const lo = Math.floor(paddedLo / step) * step;
   const hi = Math.ceil(paddedHi / step) * step;
@@ -200,7 +203,8 @@ export function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-const PLOT_MARGIN = { top: 28, right: 24, bottom: 4, left: 0 };
+// The left margin keeps the first date label, centred on the first point, inside the plot.
+const PLOT_MARGIN = { top: 28, right: 24, bottom: 4, left: 20 };
 const X_AXIS_HEIGHT = 28;
 const POINT_WIDTH_REM = 3.5;
 
@@ -236,8 +240,14 @@ export function ExerciseChart({
   useLayoutEffect(() => {
     const strip = scroller.current;
     if (strip === null) return;
-    strip.scrollLeft = strip.scrollWidth;
-    setHiddenBefore(strip.scrollLeft > 1);
+    const toLatest = () => {
+      strip.scrollLeft = strip.scrollWidth;
+      setHiddenBefore(strip.scrollLeft > 1);
+    };
+    toLatest();
+    // The first measure can precede the container's final width.
+    const frame = requestAnimationFrame(toLatest);
+    return () => cancelAnimationFrame(frame);
   }, [data.length, metric]);
 
   return (

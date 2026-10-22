@@ -9,7 +9,7 @@ export interface CsvRow {
   readonly weight: number;
   readonly unit: Unit;
   readonly reps: number | null;
-  readonly rir: number;
+  readonly rir: number | null;
   readonly measurement: Measurement;
   readonly durationSeconds: number | null;
   readonly distance: number | null;
@@ -39,7 +39,7 @@ export function toCsv(rows: readonly CsvRow[]): string {
       // A field the row's type does not carry is written empty, never as a
       // zero: an absent rep count is not a set of no reps.
       row.reps ?? '',
-      row.rir,
+      row.rir ?? '',
       row.measurement,
       row.durationSeconds ?? '',
       row.distance ?? '',

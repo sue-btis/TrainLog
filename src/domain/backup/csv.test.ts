@@ -61,6 +61,12 @@ describe('toCsv', () => {
     expect(lines([aRow({ weight: 72.5 })])[1]).toContain(',72.5,');
   });
 
+  it('writes an unrecorded RIR empty', () => {
+    expect(lines([aRow({ rir: null })])[1]).toBe(
+      '2026-08-18,Front Squat,1,75,kg,6,,weight_reps,,,',
+    );
+  });
+
   it('writes a zero RIR rather than treating it as absent', () => {
     // 0 RIR is failure, the most informative value in the column.
     expect(lines([aRow({ rir: 0 })])[1]).toBe(

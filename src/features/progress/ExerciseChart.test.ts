@@ -16,6 +16,11 @@ describe('niceDomain', () => {
     expect(hi).toBeGreaterThan(10);
   });
 
+  it('gives a flat whole-number series whole-number ticks', () => {
+    expect(niceDomain([12, 12, 12]).ticks).toEqual([11, 12, 13]);
+    expect(niceDomain([0, 0]).ticks).toEqual([0, 1]);
+  });
+
   it('never dips below zero for a series that cannot go negative', () => {
     expect(niceDomain([1, 2, 3]).lo).toBe(0);
   });

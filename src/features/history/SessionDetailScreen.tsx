@@ -16,6 +16,7 @@ import {
   exerciseStatusLabel,
   longDate,
   plural,
+  recordClaim,
   seconds,
   sessionStatusLabel,
   setLine,
@@ -83,7 +84,7 @@ export function SessionDetailScreen() {
             )}`}
           {` · ${plural(performed, 'exercise')}`}
         </p>
-        {session.status !== 'completed' && (
+        {session.status !== 'completed' && !justFinished && (
           <span className={chip(session.status === 'partial' ? 'missed' : 'neutral', 'self-start')}>
             {sessionStatusLabel(session.status)}
           </span>
@@ -135,7 +136,9 @@ function FinishSummary({
                   {names?.get(record.exerciseId) ?? 'Exercise'}
                 </span>
                 <span className="type-measure text-ink-2">
-                  {setLine(record.set, record.measurement, true)} · beats everything before it
+                  {[setLine(record.set, record.measurement, true), recordClaim(record)]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
               </div>
             </div>
@@ -154,12 +157,8 @@ function FinishSummary({
               value={`${Math.round(summary.volumeKg).toLocaleString()} kg`}
             />
           )}
-          {summary.volumeReps > 0 && (
-            <Figure
-              label="reps"
-              tone="progress"
-              value={summary.volumeReps.toLocaleString()}
-            />
+          {summary.totalReps > 0 && (
+            <Figure label="reps" tone="progress" value={summary.totalReps.toLocaleString()} />
           )}
           {summary.volumeSeconds > 0 && (
             <Figure label="time under load" tone="progress" value={seconds(summary.volumeSeconds)} />
@@ -173,7 +172,12 @@ function FinishSummary({
           )}
           {summary.minutes !== null && <Figure label="min" value={String(summary.minutes)} />}
           {summary.effort !== null && (
-            <Figure label="effort" tone="progress" value={String(summary.effort)} />
+            <Figure
+              hint="average effort × minutes"
+              label="effort"
+              tone="progress"
+              value={String(summary.effort)}
+            />
           )}
           <Figure
             label="exercises"
@@ -192,18 +196,24 @@ function FinishSummary({
 function Figure({
   label,
   value,
+  hint,
   tone = 'neutral',
 }: {
   readonly label: string;
   readonly value: string;
+  readonly hint?: string;
   readonly tone?: 'neutral' | 'progress';
 }) {
   return (
-    <div className="flex min-w-24 flex-1 flex-col gap-0.5 rounded-field bg-panel px-3 py-2">
-      <span className={cn('type-readout', tone === 'progress' ? 'text-progress-ink' : 'text-ink')}>
+    <div className="flex min-w-0 flex-1 basis-28 flex-col gap-0.5 rounded-field bg-panel px-3 py-2">
+      <span
+        className={cn('type-readout truncate', tone === 'progress' ? 'text-progress-ink' : 'text-ink')}
+        style={{ fontSize: 'clamp(1.25rem, 6vw, 1.875rem)' }}
+      >
         {value}
       </span>
       <span className={LABEL}>{label}</span>
+      {hint !== undefined && <span className="type-micro text-ink-3">{hint}</span>}
     </div>
   );
 }
@@ -211,7 +221,7 @@ function Figure({
 function outcome(session: Session, summary: SessionSummary): string {
   if (session.status === 'partial') {
     const left = summary.pending + summary.skipped;
-    return `Recorded, with ${plural(left, 'exercise')} left undone. It stays in your history and is left out of progression.`;
+    return `Recorded, with ${plural(left, 'exercise')} left undone. It stays in your history; an exercise you finished in it still feeds progression.`;
   }
   if (summary.setsLogged === 0) return 'Recorded. No sets were logged in it.';
   return 'Recorded in full. Every set here feeds the next load this exercise suggests.';
@@ -254,7 +264,7 @@ function ExerciseCard({
                 <span className="text-ink">
                   {setLine(set, exerciseSession.measurement, true)}
                 </span>
-                <span className="text-ink-3">RIR {set.rir}</span>
+                <span className="text-ink-3">RIR {set.rir ?? '—'}</span>
               </li>
             ))}
           </ol>

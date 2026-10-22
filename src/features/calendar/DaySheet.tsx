@@ -58,7 +58,7 @@ export function DayPlan({ today, date, placements, sessions, workouts, onMoved }
               onMoved={onMoved}
               placement={placement}
               today={today}
-              state={placementState(placement, sessions, today)}
+              state={placementState(placement, sessions, today, placements)}
             />
           ))}
         </div>

@@ -70,6 +70,27 @@ describe('addWorkoutToRoutine', () => {
     expect(mine.every((p) => p.date >= today)).toBe(true);
   });
 
+  it('places a Workout added before a future start inside the block, not before it', async () => {
+    const start = toLocalDate('2026-10-28');
+    const routineId = await importFixture(4, parseLocalDate(start).getTime());
+
+    const added = await addWorkoutToRoutine(routineId, {
+      name: 'Pull',
+      suggestedDays: ['tuesday'],
+      today: toLocalDate('2026-10-22'),
+    });
+
+    const mine = (await listPlacementsByRoutine(routineId)).filter(
+      (p) => p.workoutId === added.workoutId,
+    );
+    expect(mine.map((p) => p.date).sort()).toEqual([
+      '2026-11-03',
+      '2026-11-10',
+      '2026-11-17',
+      '2026-11-24',
+    ]);
+  });
+
   it('still adds the Workout when the block has run out, with no Placements', async () => {
     const routineId = await importFixture(4);
 

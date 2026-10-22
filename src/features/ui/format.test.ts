@@ -9,8 +9,10 @@ import type {
 } from '@/domain/ids';
 import type { CompletedSet, PlannedExercise, PlannedExerciseSession } from '@/domain/types';
 import { MEASUREMENTS } from '@/domain/measurement';
+import type { SessionRecord } from '@/domain/session-summary';
 import {
   MEASUREMENT_OPTIONS,
+  recordClaim,
   measurementLabel,
   programmingLine,
   setLine,
@@ -167,5 +169,33 @@ describe('suggestionLine', () => {
   it('reads a load with its unit and a hold as time', () => {
     expect(suggestionLine({ ...base, axis: 'load', weight: 52.5, value: 52.5 })).toBe('52.5 kg');
     expect(suggestionLine({ ...base, axis: 'duration', value: 50 })).toBe('50s');
+  });
+});
+
+describe('recordClaim (AC-5)', () => {
+  const tie: SessionRecord = {
+    exerciseId: toId<ExerciseId>('bench-press'),
+    set: {} as CompletedSet,
+    measurement: 'weight_reps',
+    axis: 'load',
+    value: 102.04,
+    previousValue: 100.02,
+  };
+
+  it('names the estimated max and the value it beat', () => {
+    expect(recordClaim(tie)).toBe('estimated max 102 kg · was 100 kg');
+  });
+
+  it('states only the mark when nothing came before', () => {
+    expect(recordClaim({ ...tie, previousValue: null })).toBe('estimated max 102 kg');
+  });
+
+  it('reads a non-load axis on its own unit', () => {
+    expect(
+      recordClaim({ ...tie, measurement: 'duration', axis: 'duration', value: 75, previousValue: 60 }),
+    ).toBe('was 1:00');
+    expect(
+      recordClaim({ ...tie, measurement: 'bodyweight_reps', axis: 'reps', value: 12, previousValue: 10 }),
+    ).toBe('was 10 reps');
   });
 });

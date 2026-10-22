@@ -15,7 +15,7 @@ import {
 import { generatePlacements } from '@/domain/scheduling';
 import { toLocalDate } from '@/domain/dates';
 import type { RoutineFile } from '@/domain/routine-file';
-import type { Placement } from '@/domain/types';
+import type { Placement, Session } from '@/domain/types';
 
 const ANCHOR = toLocalDate('2026-09-07');
 const CREATED_AT = 1_757_200_000_000;
@@ -224,5 +224,70 @@ describe('accepting a from-scratch routine', () => {
 
     const names = (await listUserExercises()).map((e) => e.name);
     expect(names).toContain('Zercher Good Morning');
+  });
+});
+
+describe('importRoutine — removing the archived Routine placements still ahead (AC-10)', () => {
+  const TODAY = toLocalDate('2026-09-14');
+  const noonOn = (date: string): number => new Date(`${date}T12:00:00`).getTime();
+
+  async function seedPreviousRoutine() {
+    const first = draftOf(catalogOnlyFile());
+    await importRoutine(first, placementsOf(first));
+    const [workout] = first.workouts;
+    if (workout === undefined) throw new Error('fixture must hold a workout');
+    const trained: Session = {
+      id: 'session-1' as Session['id'],
+      routineId: first.routine.id,
+      workoutId: workout.id,
+      startedAt: noonOn('2026-09-14'),
+      completedAt: noonOn('2026-09-14') + 3_600_000,
+      status: 'completed',
+      bodyweightKg: null,
+    };
+    await db.sessions.add(trained);
+    return first;
+  }
+
+  it('deletes only future, Session-less placements of the archived Routine', async () => {
+    const first = await seedPreviousRoutine();
+    const before = await db.placements.toArray();
+    const answered = before.find((placement) => placement.date === '2026-09-14');
+    const past = before.filter((placement) => placement.date < TODAY);
+
+    const second = draftOf(catalogOnlyFile());
+    await importRoutine(second, [], { removePlacementsFrom: TODAY });
+
+    const left = await db.placements.where('routineId').equals(first.routine.id).toArray();
+    expect(left.some((placement) => placement.date > TODAY)).toBe(false);
+    expect(left.map((placement) => placement.id)).toEqual(
+      expect.arrayContaining([...past, ...(answered ? [answered] : [])].map((p) => p.id)),
+    );
+    expect(await db.sessions.count()).toBe(1);
+  });
+
+  it('leaves them when the option is absent', async () => {
+    const first = await seedPreviousRoutine();
+    const count = await db.placements.where('routineId').equals(first.routine.id).count();
+
+    const second = draftOf(catalogOnlyFile());
+    await importRoutine(second, []);
+
+    expect(await db.placements.where('routineId').equals(first.routine.id).count()).toBe(count);
+  });
+
+  it('removes nothing when the import fails', async () => {
+    const first = await seedPreviousRoutine();
+    const count = await db.placements.where('routineId').equals(first.routine.id).count();
+
+    const second = draftOf(catalogOnlyFile());
+    const placements = placementsOf(second);
+    const head = placements[0];
+    if (!head) throw new Error('fixture must generate at least one placement');
+    await expect(
+      importRoutine(second, [...placements, { ...head }], { removePlacementsFrom: TODAY }),
+    ).rejects.toMatchObject({ name: 'BulkError' });
+
+    expect(await db.placements.where('routineId').equals(first.routine.id).count()).toBe(count);
   });
 });

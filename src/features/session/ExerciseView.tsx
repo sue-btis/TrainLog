@@ -2,24 +2,18 @@ import { useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CompletedSetId } from '@/domain/ids';
-import { collects, targetUnitOf, targetsReps, type Measurement } from '@/domain/measurement';
+import { collects, type Measurement } from '@/domain/measurement';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
-import type { LoadSuggestion } from '@/domain/progression';
 import { suggestLoad } from '@/domain/progression';
 import type { Unit } from '@/domain/units';
 import { SetEditor } from '@/features/session/SetEditor';
-import {
-  EMPTY_VALUES,
-  SetLogger,
-  targetsOf,
-  valuesOf,
-  type SetValues,
-} from '@/features/session/SetLogger';
-import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
+import { openingValues, targetsWithSuggestion } from '@/features/session/opening';
+import { SetLogger, type SetValues } from '@/features/session/SetLogger';
+import { useExerciseHistory, usePlannedExercise, usePreviousPerformance } from '@/features/data/queries';
 import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { Figure } from '@/features/ui/Figure';
 import { setLine, snapshotFigures } from '@/features/ui/format';
-import { ICON_STROKE, RULED, chip, dome } from '@/features/ui/styles';
+import { ICON_STROKE, LABEL, RULED, chip, dome } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
 const DEFAULT_STEP = 2.5;
@@ -53,6 +47,7 @@ export function ExerciseView({
 }: ExerciseViewProps) {
   const planned = exerciseSession.plannedExerciseId === null ? null : exerciseSession;
   const history = useExerciseHistory(exerciseSession.exerciseId);
+  const plan = usePlannedExercise(exerciseSession.plannedExerciseId) ?? null;
   const previous = usePreviousPerformance(exerciseSession.exerciseId, exerciseSession.sessionId);
 
   const suggestion = history === undefined ? null : suggestLoad(exerciseSession, history);
@@ -70,7 +65,7 @@ export function ExerciseView({
   const [editing, setEditing] = useState<CompletedSetId | null>(null);
   const editedSet = sets.find((set) => set.id === editing) ?? null;
 
-  const targets = targetsOf(exerciseSession);
+  const targets = targetsWithSuggestion(exerciseSession, suggestion);
 
   const opening = openingValues(exerciseSession, sets, suggestion, previousSets, defaultRir, unit);
   const current = values ?? opening;
@@ -103,6 +98,24 @@ export function ExerciseView({
             {snapshotFigures(planned).map((figure) => (
               <Figure compact key={figure.label} label={figure.label} value={figure.value} />
             ))}
+          </div>
+        )}
+
+        {plan !== null && (plan.focus !== null || plan.notes.length > 0) && (
+          <div className="flex flex-col gap-1.5 rounded-field bg-panel px-3 py-2">
+            {plan.focus !== null && (
+              <p className="type-body-sm text-ink">
+                <span className={LABEL}>focus </span>
+                {plan.focus}
+              </p>
+            )}
+            {plan.notes.length > 0 && (
+              <ul className="flex list-disc flex-col gap-0.5 pl-4 type-body-sm text-ink-2">
+                {plan.notes.map((note, index) => (
+                  <li key={index}>{note}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </header>
@@ -212,7 +225,7 @@ function DomeStrip({
           return (
             <Cell before={before} key={set.id} measurement={measurement}>
               <button
-                aria-label={`Edit set ${number}, ${setLine(set, measurement, true)} at RIR ${set.rir}${ghostLabel(before, measurement)}`}
+                aria-label={`Edit set ${number}, ${setLine(set, measurement, true)} at RIR ${set.rir ?? '—'}${ghostLabel(before, measurement)}`}
                 className={dome(
                   'logged',
                   'compact',
@@ -242,13 +255,13 @@ function DomeStrip({
                     <>
                       <span>{set.weight}</span>
                       <span className="type-label opacity-80">
-                        {set.reps}·{set.rir}
+                        {set.reps}·{set.rir ?? '—'}
                       </span>
                     </>
                   ) : (
                     <>
                       <span>{setLine(set, measurement)}</span>
-                      <span className="type-label opacity-80">RIR {set.rir}</span>
+                      <span className="type-label opacity-80">RIR {set.rir ?? '—'}</span>
                     </>
                   )}
                 </span>
@@ -348,48 +361,3 @@ function stepOf(exerciseSession: ExerciseSession): number {
   return rule.type === 'double_progression' ? rule.increment : DEFAULT_STEP;
 }
 
-function openingValues(
-  exerciseSession: ExerciseSession,
-  sets: readonly CompletedSet[],
-  suggestion: LoadSuggestion | null,
-  previousSets: readonly CompletedSet[],
-  defaultRir: number | null,
-  unit: Unit,
-): SetValues {
-  const planned = exerciseSession.plannedExerciseId === null ? null : exerciseSession;
-  const rir = planned?.plannedMinRir ?? previousSets[0]?.rir ?? defaultRir ?? 0;
-
-  // The last set of this exercise, in this Session, is the strongest opening
-  // there is: it is what the lifter just did, on every axis at once.
-  const lastLogged = sets.at(-1);
-  if (lastLogged !== undefined) return valuesOf(lastLogged);
-
-  // Otherwise the previous session's first set carries every axis the type
-  // collects, and the plan's own target overrides the one axis it states.
-  const previous = previousSets[0];
-  // `unit` overrides whatever last session's set carried: the chain above is
-  // the one statement of which unit an exercise opens in, and a stale set must
-  // not quietly outrank the snapshot it already lost to there.
-  const base: SetValues =
-    previous === undefined
-      ? { ...EMPTY_VALUES, rir, unit }
-      : { ...valuesOf(previous), rir, unit };
-
-  const opening = targetsReps(exerciseSession.measurement)
-    ? { ...base, reps: planned?.plannedMaxReps ?? base.reps }
-    : { ...base, ...targetOpening(exerciseSession, planned?.plannedMaxTarget ?? null, base) };
-
-  return suggestion === null ? opening : { ...opening, weight: suggestion.weight };
-}
-
-function targetOpening(
-  exerciseSession: ExerciseSession,
-  plannedMaxTarget: number | null,
-  base: SetValues,
-): Partial<SetValues> {
-  if (plannedMaxTarget === null) return {};
-  if (targetUnitOf(exerciseSession.measurement) === 'seconds') {
-    return { durationSeconds: plannedMaxTarget };
-  }
-  return base.distanceUnit === 'm' ? { distance: plannedMaxTarget } : {};
-}

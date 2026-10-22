@@ -4,7 +4,7 @@ import { groupCompletedSetsByExerciseSession } from '@/db/repositories/completed
 import { listExerciseSessionsBySession } from '@/db/repositories/exerciseSessions';
 import type { ExerciseId, SessionId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
-import type { ExerciseSession } from '@/domain/types';
+import type { ExerciseSession, Timestamp } from '@/domain/types';
 
 async function assemble(
   exerciseSessions: readonly ExerciseSession[],
@@ -48,6 +48,36 @@ export async function listExerciseHistory(exerciseId: ExerciseId): Promise<Sessi
 export async function listPerformedExercises(): Promise<ExerciseId[]> {
   const ids = await db.exerciseSessions.orderBy('exerciseId').uniqueKeys();
   return ids as ExerciseId[];
+}
+
+export interface PerformedExercise {
+  readonly exerciseId: ExerciseId;
+  /** Start of the newest Session that logged a set of it; `null` if none did. */
+  readonly lastPerformed: Timestamp | null;
+}
+
+/** Every exercise that has an Exercise Session, most recently trained first. */
+export async function listPerformedExercisesByRecency(): Promise<PerformedExercise[]> {
+  const exerciseSessions = await db.exerciseSessions.toArray();
+  const sets = await groupCompletedSetsByExerciseSession(exerciseSessions.map((e) => e.id));
+  const sessions = await db.sessions.bulkGet([...new Set(exerciseSessions.map((e) => e.sessionId))]);
+  const startedAt = new Map(
+    sessions.flatMap((session) => (session === undefined ? [] : [[session.id, session.startedAt] as const])),
+  );
+
+  const last = new Map<ExerciseId, Timestamp | null>();
+  for (const exercise of exerciseSessions) {
+    const started = (sets.get(exercise.id)?.length ?? 0) > 0 ? startedAt.get(exercise.sessionId) : undefined;
+    const seen = last.get(exercise.exerciseId) ?? null;
+    last.set(
+      exercise.exerciseId,
+      started === undefined ? seen : Math.max(seen ?? started, started),
+    );
+  }
+
+  return [...last]
+    .map(([exerciseId, lastPerformed]) => ({ exerciseId, lastPerformed }))
+    .sort((a, b) => (b.lastPerformed ?? -1) - (a.lastPerformed ?? -1));
 }
 
 export async function getSessionDetail(

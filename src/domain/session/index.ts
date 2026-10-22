@@ -108,7 +108,7 @@ export interface LogSetInput<T extends ExerciseSession> {
   readonly weight: number;
   readonly unit: Unit;
   readonly reps: number | null;
-  readonly rir: number;
+  readonly rir: number | null;
   readonly durationSeconds?: number | null;
   readonly distance?: number | null;
   readonly distanceUnit?: DistanceUnit | null;
@@ -250,7 +250,7 @@ export interface EditSetInput {
   readonly weight: number;
   readonly unit: Unit;
   readonly reps: number | null;
-  readonly rir: number;
+  readonly rir: number | null;
   readonly durationSeconds?: number | null;
   readonly distance?: number | null;
   readonly distanceUnit?: DistanceUnit | null;
@@ -313,4 +313,20 @@ export function removeSet<T extends ExerciseSession>({
     sets: survivors,
     exerciseSession: emptied ? { ...exerciseSession, status: 'pending' } : exerciseSession,
   };
+}
+
+/**
+ * Where an in-progress Session reopens: the first exercise still to be done —
+ * a planned one short of its sets and not skipped, an unplanned one still
+ * pending — or the last when everything is finished.
+ */
+export function firstUnfinishedIndex(
+  entries: readonly { readonly exerciseSession: ExerciseSession; readonly sets: readonly unknown[] }[],
+): number {
+  const index = entries.findIndex(({ exerciseSession, sets }) =>
+    exerciseSession.plannedExerciseId === null
+      ? exerciseSession.status === 'pending'
+      : exerciseSession.status !== 'skipped' && sets.length < exerciseSession.plannedSets,
+  );
+  return index === -1 ? Math.max(0, entries.length - 1) : index;
 }

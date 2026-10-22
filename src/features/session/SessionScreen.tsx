@@ -31,10 +31,11 @@ import {
   saveFinishedSession,
   saveLoggedSet,
 } from '@/db';
-import type { ExerciseId, ExerciseSessionId } from '@/domain/ids';
+import type { ExerciseId, ExerciseSessionId, SessionId } from '@/domain/ids';
 import {
   editSet,
   finishSession,
+  firstUnfinishedIndex,
   logSet,
   moveExerciseSession,
   removeSet,
@@ -72,6 +73,8 @@ export function SessionScreen() {
   const names = useExerciseNames(entries.map((entry) => entry.exerciseSession.exerciseId));
 
   const [index, setIndex] = useState(0);
+  /** The Session whose opening position was already chosen; paging after that is the lifter's. */
+  const [landedOn, setLandedOn] = useState<SessionId | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   /** The rest a lifter dismissed, remembered by the set that started it. */
@@ -81,6 +84,11 @@ export function SessionScreen() {
   const [returnTo, setReturnTo] = useState<ExerciseSessionId | null>(null);
 
   useWakeLock(session !== undefined && (settings?.keepScreenAwake ?? true));
+
+  if (session !== undefined && entries.length > 0 && landedOn !== session.id) {
+    setLandedOn(session.id);
+    setIndex(firstUnfinishedIndex(entries));
+  }
 
   const rest = pendingRest(entries, skippedRest);
 

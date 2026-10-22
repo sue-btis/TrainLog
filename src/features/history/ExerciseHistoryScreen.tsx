@@ -139,7 +139,7 @@ function SessionRow({ entry }: { readonly entry: SessionHistory }) {
           <li className={chip('neutral')} key={set.id}>
             <span className="text-ink-3">{index + 1}</span>
             <span className="text-ink">{setLine(set, measurement, true)}</span>
-            <span className="text-ink-3">RIR {set.rir}</span>
+            <span className="text-ink-3">RIR {set.rir ?? '—'}</span>
           </li>
         ))}
       </ol>

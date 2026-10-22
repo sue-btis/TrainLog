@@ -7,6 +7,7 @@ import {
   measurementOf,
   recordSetOf,
   summarizeExercise,
+  withoutSession,
 } from '@/domain/history';
 import {
   toId,
@@ -38,7 +39,7 @@ function set(
   weight: number,
   reps: number | null,
   unit: Unit = 'kg',
-  rir = 2,
+  rir: number | null = 2,
   values: Partial<
     Pick<CompletedSet, 'durationSeconds' | 'distance' | 'distanceUnit' | 'distanceM'>
   > = {},
@@ -121,6 +122,18 @@ function session(
     ],
   };
 }
+
+describe('withoutSession', () => {
+  it('drops the in-progress session so its own sets are not "previous"', () => {
+    const current = session('in_progress', 2_000, [set(100, 5)]);
+    const earlier = session('completed', 1_000, [set(90, 8)]);
+
+    const rest = withoutSession([current, earlier], current.session.id);
+
+    expect(rest).toEqual([earlier]);
+    expect(summarizeExercise(withoutSession([current], current.session.id)).sessions).toBe(0);
+  });
+});
 
 describe('summarizeExercise (§11.10, R-6)', () => {
   it('reports nothing for an exercise never performed (AC-19)', () => {
@@ -317,6 +330,10 @@ describe('estimateOneRepMaxKg', () => {
       expected,
       2,
     );
+  });
+
+  it('reads an unrecorded RIR as 0', () => {
+    expect(estimateOneRepMaxKg(set(100, 5, 'kg', null), 'weight_reps')).toBeCloseTo(116.67, 2);
   });
 
   it('reads weightKg, so a pound set is not estimated from its own number', () => {

@@ -63,14 +63,17 @@ the past. See [ADR 0002](./docs/adr/0002-snapshot-planned-targets-on-session-sta
 
 **Progression is derived.** A pure function over history, recomputed on demand,
 with nothing stored. It reads by `exerciseId`, never `plannedExerciseId`, so
-re-importing a corrected file preserves a lifter's history. Only `completed`
-sessions feed it. `double_progression` judges the first N sets where N is the
-planned count (§29). Unplanned exercises get no suggestion.
+re-importing a corrected file preserves a lifter's history. The newest
+`completed` Session feeds it, or a `partial` one in which that exercise was
+fully performed (at least its snapshot's planned sets); `in_progress` never does.
+`double_progression` judges the first N sets, where N and the rep ceiling come
+from the previous Session's own snapshot and the rule and increment from the
+exercise being opened, one step at a time (§29). Unplanned exercises get no suggestion.
 
 **Placements and Sessions are independent.** A `Placement` is intent and can be
 moved or deleted; a `Session` is what happened. Neither references the other. A
-missed day is derived at query time — a past `Placement` with no `Session` —
-and is never written down. See [ADR 0001](./docs/adr/0001-dateless-workouts-with-user-owned-placements.md).
+missed day is derived at query time — a past `Placement` with no `Session` of its
+Workout on its date or earlier in its Monday-week — and is never written down. See [ADR 0001](./docs/adr/0001-dateless-workouts-with-user-owned-placements.md).
 
 **Weight carries its unit.** Store the entered `weight` and `unit` plus a derived
 `weightKg`. Every comparison, chart and progression step reads `weightKg`. The
