@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CompletedSetId } from '@/domain/ids';
-import { targetUnitOf, targetsReps } from '@/domain/measurement';
+import { collects, targetUnitOf, targetsReps, type Measurement } from '@/domain/measurement';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import type { LoadSuggestion } from '@/domain/progression';
 import { suggestLoad } from '@/domain/progression';
@@ -18,7 +18,7 @@ import {
 import { useExerciseHistory, usePreviousPerformance } from '@/features/data/queries';
 import { ExerciseArt } from '@/features/exercises/ExerciseArt';
 import { Figure } from '@/features/ui/Figure';
-import { snapshotFigures } from '@/features/ui/format';
+import { setLine, snapshotFigures } from '@/features/ui/format';
 import { ICON_STROKE, RULED, chip, dome } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -113,6 +113,7 @@ export function ExerciseView({
         onAddSet={() => setAddingExtra(true)}
         onEdit={(set) => setEditing(set.id)}
         plannedSets={planned?.plannedSets ?? 0}
+        measurement={exerciseSession.measurement}
         previousSets={previousSets}
         sets={sets}
       />
@@ -170,6 +171,7 @@ export function ExerciseView({
 }
 
 function DomeStrip({
+  measurement,
   plannedSets,
   sets,
   previousSets,
@@ -178,6 +180,7 @@ function DomeStrip({
   onEdit,
   onAddSet,
 }: {
+  readonly measurement: Measurement;
   readonly plannedSets: number;
   readonly sets: readonly CompletedSet[];
   readonly previousSets: readonly CompletedSet[];
@@ -207,9 +210,9 @@ function DomeStrip({
 
         if (set !== undefined) {
           return (
-            <Cell before={before} key={set.id}>
+            <Cell before={before} key={set.id} measurement={measurement}>
               <button
-                aria-label={`Edit set ${number}, ${set.weight} ${set.unit} for ${set.reps} reps at RIR ${set.rir}${ghostLabel(before)}`}
+                aria-label={`Edit set ${number}, ${setLine(set, measurement, true)} at RIR ${set.rir}${ghostLabel(before, measurement)}`}
                 className={dome(
                   'logged',
                   'compact',
@@ -235,10 +238,19 @@ function DomeStrip({
                     opened.has(set.id) ? undefined : 'dome-value',
                   )}
                 >
-                  <span>{set.weight}</span>
-                  <span className="type-label opacity-80">
-                    {set.reps}·{set.rir}
-                  </span>
+                  {collects(measurement, 'weight') && collects(measurement, 'reps') ? (
+                    <>
+                      <span>{set.weight}</span>
+                      <span className="type-label opacity-80">
+                        {set.reps}·{set.rir}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{setLine(set, measurement)}</span>
+                      <span className="type-label opacity-80">RIR {set.rir}</span>
+                    </>
+                  )}
                 </span>
               </button>
             </Cell>
@@ -248,9 +260,9 @@ function DomeStrip({
         const live = entering && number === liveNumber;
         const igniting = live && number !== liveOnOpen;
         return (
-          <Cell before={before} key={number}>
+          <Cell before={before} key={number} measurement={measurement}>
             <div
-              aria-label={`Set ${number}, ${live ? 'in progress' : 'planned'}${ghostLabel(before)}`}
+              aria-label={`Set ${number}, ${live ? 'in progress' : 'planned'}${ghostLabel(before, measurement)}`}
               className={dome(
                 live ? 'live' : 'planned',
                 live ? 'default' : 'compact',
@@ -273,7 +285,7 @@ function DomeStrip({
       })}
 
       {canAdd && (
-        <Cell before={undefined}>
+        <Cell before={undefined} measurement={measurement}>
           <button
             aria-label={`Add set ${liveNumber}`}
             className={dome('add', 'compact')}
@@ -307,25 +319,27 @@ function DomeGoo() {
 
 function Cell({
   before,
+  measurement,
   children,
 }: {
   readonly before: CompletedSet | undefined;
+  readonly measurement: Measurement;
   readonly children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
       {children}
       <span className="type-micro text-ink-3 tabular-nums">
-        {before === undefined ? ' ' : `${before.weight}×${before.reps}`}
+        {before === undefined ? ' ' : setLine(before, measurement)}
       </span>
     </div>
   );
 }
 
 /** The ghost value, spoken. A dome with nothing before it says nothing extra. */
-function ghostLabel(before: CompletedSet | undefined): string {
+function ghostLabel(before: CompletedSet | undefined, measurement: Measurement): string {
   if (before === undefined) return '';
-  return `. Last time ${before.weight} ${before.unit} for ${before.reps} reps`;
+  return `. Last time ${setLine(before, measurement, true)}`;
 }
 
 function stepOf(exerciseSession: ExerciseSession): number {

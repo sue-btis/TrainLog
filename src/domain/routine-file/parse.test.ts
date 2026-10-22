@@ -29,7 +29,7 @@ describe('parseRoutineFile — structural validation (TST-002)', () => {
   it('accepts the §12 example', () => {
     const result = parseRoutineFile(EXAMPLE_YAML);
     if (!result.ok) throw new Error(JSON.stringify(result.errors));
-    expect(result.file.version).toBe(1);
+    expect(result.file.version).toBe(2);
     expect(result.file.routine.name).toBe('Hybrid Strength - September');
   });
 
@@ -47,7 +47,7 @@ describe('parseRoutineFile — structural validation (TST-002)', () => {
   });
 
   it('rejects an unknown version', () => {
-    expect(expectRejected(exampleWith('version: 1', 'version: 3'))).toContain(
+    expect(expectRejected(exampleWith('version: 2', 'version: 3'))).toContain(
       'version',
     );
   });

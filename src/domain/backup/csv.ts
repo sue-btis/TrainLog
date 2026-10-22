@@ -19,7 +19,11 @@ export interface CsvRow {
 export const CSV_HEADER =
   'date,exercise,set,weight,unit,reps,rir,measurement,duration_s,distance,distance_unit';
 
-function escape(value: string): string {
+// A spreadsheet runs a cell that starts with one of these as a formula.
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+function escape(raw: string): string {
+  const value = FORMULA_START.test(raw) ? `'${raw}` : raw;
   const needsQuotes = /[",\n\r]/.test(value) || value.trim() !== value;
   return needsQuotes ? `"${value.replaceAll('"', '""')}"` : value;
 }

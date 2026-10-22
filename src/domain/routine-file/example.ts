@@ -1,5 +1,5 @@
 
-export const EXAMPLE_ROUTINE_YAML = `version: 1
+export const EXAMPLE_ROUTINE_YAML = `version: 2
 
 routine:
   name: "Hybrid Strength - September"
@@ -58,7 +58,7 @@ export const FIELD_NOTES: readonly FieldNote[] = [
   {
     name: 'version',
     required: true,
-    note: '1 or 2. A version 1 file means every exercise is weight × reps; version 2 may declare a measurement per exercise. Anything else is refused.',
+    note: '2, or 1 for older files. A version 1 file means every exercise is weight × reps; version 2 may declare a measurement per exercise. Anything else is refused.',
   },
   { name: 'routine.name', required: true, note: 'What the routine is called.' },
   { name: 'routine.weeks', required: true, note: 'How many weeks the block runs. A whole number, 1 or more.' },

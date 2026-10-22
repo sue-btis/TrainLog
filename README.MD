@@ -86,6 +86,17 @@ estimated 1RM and personal records · progress dashboard · double progression �
 session effort · full backup, restore and CSV export · installable, and fully
 usable offline.
 
+Live demo: _link coming soon_.
+
+## Known limits
+
+- There is no list of past sessions; a session is reached from the calendar or
+  from an exercise's history.
+- There is no way to delete a single session or to clear all data from inside the
+  app. Restoring a backup replaces everything.
+- Exercises cannot be created, renamed or deleted from the catalog screen yet
+  (exercise management is still pending in the PRD).
+
 Deliberately out of scope: accounts, cloud sync, social features, nutrition,
 wearables, and AI coaching.
 

@@ -162,4 +162,10 @@ describe('TST-119 — the seven original columns keep their positions', () => {
     expect(fields[9]).toBe('2.4');
     expect(fields[10]).toBe('km');
   });
+
+  it('defuses an exercise name a spreadsheet would run as a formula', () => {
+    for (const name of ['=SUM(A1)', '+1', '-1', '@cmd']) {
+      expect(columns(aRow({ exercise: name }))[1]).toBe(`'${name}`);
+    }
+  });
 });

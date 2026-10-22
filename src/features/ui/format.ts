@@ -1,11 +1,13 @@
 import { parseLocalDate, type LocalDate } from '@/domain/dates';
 import {
   MEASUREMENTS,
+  collects,
   shapeOf,
   targetUnitOf,
   targetsReps,
   type Measurement,
 } from '@/domain/measurement';
+import type { LoadSuggestion } from '@/domain/progression';
 import type {
   CompletedSet,
   ExerciseSessionStatus,
@@ -34,7 +36,7 @@ function targetRange(
   return `${text}${targetUnitOf(measurement) === 'seconds' ? 's' : ' m'}`;
 }
 
-/** `4×4–6 · RIR 1–2 · 210s · kg` — the programme as it was written down. */
+/** `4×4–6 · RIR 1–2 · rest 210s · kg` — the programme as it was written down. */
 export function programmingLine(exercise: PlannedExercise, measurement: Measurement): string {
   const parts = [
     `${exercise.sets}×${targetRange(
@@ -46,8 +48,8 @@ export function programmingLine(exercise: PlannedExercise, measurement: Measurem
   if (exercise.minRir !== null && exercise.maxRir !== null) {
     parts.push(`RIR ${range(exercise.minRir, exercise.maxRir)}`);
   }
-  if (exercise.restSeconds !== null) parts.push(`${exercise.restSeconds}s`);
-  parts.push(exercise.unit);
+  if (exercise.restSeconds !== null) parts.push(`rest ${exercise.restSeconds}s`);
+  if (collects(measurement, 'weight')) parts.push(exercise.unit);
   return parts.join(' · ');
 }
 
@@ -230,4 +232,20 @@ export function setLine(
     }
   }
   return parts.join(' · ');
+}
+
+/** A suggestion on the axis it advances: a load reads `52.5 kg`, a hold reads `0:45`. */
+export function suggestionLine(suggestion: LoadSuggestion): string {
+  switch (suggestion.axis) {
+    case 'load':
+      return `${suggestion.weight} ${suggestion.unit}`;
+    case 'reps':
+      return `${suggestion.value} reps`;
+    case 'duration':
+      return seconds(suggestion.value);
+    case 'distance':
+      return `${suggestion.value} m`;
+    case 'pace':
+      return `${seconds(Math.round(suggestion.value * 1000))}/km`;
+  }
 }
