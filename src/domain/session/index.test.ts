@@ -16,11 +16,13 @@ import {
   editSet,
   finishSession,
   firstUnfinishedIndex,
+  holdCuesReached,
   logSet,
   moveExerciseSession,
   removeSet,
   restRemaining,
   skipExercise,
+  stopwatchElapsed,
   startPlannedExercise,
   startSession,
   startUnplannedExercise,
@@ -523,6 +525,37 @@ describe('restRemaining (R-7, AC-13, AC-14)', () => {
   });
 });
 
+
+describe('stopwatchElapsed', () => {
+  it('counts whole seconds up from the start instant', () => {
+    expect(stopwatchElapsed({ since: 1_000, now: 1_000 })).toBe(0);
+    expect(stopwatchElapsed({ since: 1_000, now: 31_999 })).toBe(30);
+  });
+
+  it('catches up after the clock jumps, as when the phone was locked', () => {
+    expect(stopwatchElapsed({ since: 1_000, now: 601_000 })).toBe(600);
+  });
+
+  it('never reads negative if the clock is behind the start', () => {
+    expect(stopwatchElapsed({ since: 5_000, now: 1_000 })).toBe(0);
+  });
+});
+
+describe('holdCuesReached', () => {
+  it('reaches the minimum, then the maximum', () => {
+    expect(holdCuesReached(14, [15, 30])).toBe(0);
+    expect(holdCuesReached(15, [15, 30])).toBe(1);
+    expect(holdCuesReached(30, [15, 30])).toBe(2);
+  });
+
+  it('cues once for a window whose ends coincide', () => {
+    expect(holdCuesReached(60, [60, 60])).toBe(1);
+  });
+
+  it('has nothing to cue without a target', () => {
+    expect(holdCuesReached(90, null)).toBe(0);
+  });
+});
 
 function loggedSets(count: number): CompletedSet[] {
   let exercise: PlannedExerciseSession = startPlannedExercise({

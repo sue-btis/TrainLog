@@ -1,0 +1,582 @@
+# Bloque C - Estética Híbrida (semanas 1-4)
+#
+# Torso/pierna dos veces por semana. Énfasis en pecho, brazos y las tres
+# cabezas del hombro; pierna general; espalda en mantenimiento (~9 series).
+#
+# Cada sesión sigue el orden de la plantilla de Hybrid Bodybuilding:
+# pliometría -> (habilidades) -> potencia -> fuerza -> hipertrofia -> movilidad.
+# Lo que necesita el sistema nervioso fresco va primero.
+#
+# Cardio: la caminadora inclinada cierra las dos sesiones de pierna, y el HIIT
+# del sábado es su propio Workout — una serie por ronda, `rest_seconds` como el
+# descanso. Miércoles caminata suave (fuera del archivo). Domingo descanso.
+#
+# Sin descarga programada: si las cargas caen dos sesiones seguidas, baja 10%.
+#
+# Pogo Jumps y Bayesian Curl no llevan `exercise_id`: el import los empareja
+# por nombre con los que crearon los bloques A y B, así que conservan su
+# historial. Escríbelos igual si los editas.
+#
+# `measurement` sólo se declara en lo que el import crea: Medicine Ball Chest
+# Pass, Box Jump, los cuatro de movilidad y los dos de cardio.
+
+version: 2
+
+routine:
+  name: "Bloque C - Estética Híbrida (Sem 1-4)"
+  weeks: 4
+
+  workouts:
+    # ------------------------------------------------------------------ lunes
+    - name: "Torso A - Pecho y Hombro"
+      suggested_days: [monday]
+      exercises:
+        - name: "Pogo Jumps"
+          category: "calves"
+          measurement: "bodyweight_reps"
+          sets: 2
+          reps: { min: 10, max: 10 }
+          rest_seconds: 60
+          focus: "Pliometría de calentamiento"
+          notes:
+            - "Contacto corto, rodilla casi recta"
+          progression: { type: "manual" }
+
+        - name: "Planche Lean"
+          exercise_id: "planche-lean"
+          category: "shoulders"
+          sets: 3
+          target: { min: 15, max: 30 }
+          rest_seconds: 90
+          focus: "Habilidad (mantenimiento)"
+          notes:
+            - "Escápulas protraídas, cadera abierta"
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Handstand Hold"
+          exercise_id: "handstand-hold"
+          category: "shoulders"
+          sets: 3
+          target: { min: 20, max: 40 }
+          rest_seconds: 90
+          focus: "Habilidad (mantenimiento)"
+          notes:
+            - "Hombros elevados, core firme"
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Medicine Ball Chest Pass"
+          category: "chest"
+          measurement: "weight_reps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 5, max: 5 }
+          rest_seconds: 90
+          focus: "Potencia de empuje"
+          notes:
+            - "Máxima intención en cada pase"
+            - "Sin balón en el gym: Explosive Push Up"
+          progression: { type: "manual" }
+
+        - name: "Overhead Press"
+          exercise_id: "overhead-press"
+          category: "shoulders"
+          unit: "kg"
+          sets: 3
+          reps: { min: 3, max: 5 }
+          rir: { min: 2, max: 2 }
+          rest_seconds: 210
+          focus: "Fuerza de hombro"
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Incline Dumbbell Press"
+          exercise_id: "incline-dumbbell-press"
+          category: "chest"
+          unit: "kg"
+          sets: 3
+          reps: { min: 6, max: 10 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          notes:
+            - "Inclinación 20-30 grados"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Weighted Dip"
+          exercise_id: "weighted-dip"
+          category: "chest"
+          unit: "kg"
+          sets: 3
+          reps: { min: 6, max: 10 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 150
+          notes:
+            - "Torso inclinado al frente para el pecho"
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Pec Deck"
+          exercise_id: "pec-deck"
+          category: "chest"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Cable Lateral Raise"
+          exercise_id: "cable-lateral-raise"
+          category: "shoulders"
+          unit: "kg"
+          sets: 4
+          reps: { min: 12, max: 20 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          focus: "Deltoide lateral"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Weighted Pull Up"
+          exercise_id: "weighted-pull-up"
+          category: "back"
+          unit: "kg"
+          sets: 3
+          reps: { min: 6, max: 8 }
+          rir: { min: 2, max: 2 }
+          rest_seconds: 150
+          focus: "Espalda en mantenimiento"
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Overhead Triceps Extension"
+          exercise_id: "overhead-triceps-extension"
+          category: "triceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          notes:
+            - "Estiramiento de la cabeza larga"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Bayesian Curl"
+          category: "biceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          notes:
+            - "Codo por detrás del torso"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Windmill"
+          category: "core"
+          measurement: "bodyweight_reps"
+          sets: 2
+          reps: { min: 5, max: 5 }
+          rest_seconds: 30
+          focus: "Movilidad: rotación"
+          notes:
+            - "Por lado. Kettlebell ligera o sin carga"
+          progression: { type: "manual" }
+
+    # ----------------------------------------------------------------- martes
+    - name: "Pierna A - Cuádriceps"
+      suggested_days: [tuesday]
+      exercises:
+        - name: "Pogo Jumps"
+          category: "calves"
+          measurement: "bodyweight_reps"
+          sets: 2
+          reps: { min: 10, max: 10 }
+          rest_seconds: 60
+          focus: "Pliometría de calentamiento"
+          progression: { type: "manual" }
+
+        - name: "Broad Jump"
+          exercise_id: "broad-jump"
+          category: "quadriceps"
+          sets: 3
+          reps: { min: 3, max: 3 }
+          rest_seconds: 120
+          focus: "Potencia horizontal"
+          notes:
+            - "Máxima distancia, aterrizaje absorbido"
+            - "Si la distancia cae respecto al primer salto, para"
+          progression: { type: "manual" }
+
+        - name: "Front Squat"
+          exercise_id: "front-squat"
+          category: "quadriceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 3, max: 5 }
+          rir: { min: 2, max: 2 }
+          rest_seconds: 210
+          focus: "Fuerza de cuádriceps"
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Bulgarian Split Squat"
+          exercise_id: "bulgarian-split-squat"
+          category: "quadriceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 8, max: 10 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          notes:
+            - "Por pierna"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Leg Extension"
+          exercise_id: "leg-extension"
+          category: "quadriceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 12, max: 15 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Seated Leg Curl"
+          exercise_id: "seated-leg-curl"
+          category: "hamstrings"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 90
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Cable Lateral Raise"
+          exercise_id: "cable-lateral-raise"
+          category: "shoulders"
+          unit: "kg"
+          sets: 3
+          reps: { min: 15, max: 20 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 60
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Seated Calf Raise"
+          exercise_id: "seated-calf-raise"
+          category: "calves"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 75
+          notes:
+            - "Pausa abajo y arriba"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Cable Crunch"
+          exercise_id: "cable-crunch"
+          category: "core"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 60
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "90/90 Hold"
+          category: "glutes"
+          measurement: "duration"
+          sets: 2
+          target: { min: 60, max: 60 }
+          rest_seconds: 30
+          focus: "Movilidad: rotación de cadera"
+          notes:
+            - "Por lado"
+          progression: { type: "manual" }
+
+        - name: "Incline Treadmill Walk"
+          category: "full-body"
+          measurement: "duration"
+          sets: 1
+          target: { min: 600, max: 900 }
+          focus: "Cardio suave"
+          notes:
+            - "Inclinación 12, 5 km/h"
+          progression: { type: "manual" }
+
+    # ----------------------------------------------------------------- jueves
+    - name: "Torso B - Brazos y Deltoide Posterior"
+      suggested_days: [thursday]
+      exercises:
+        - name: "Pogo Jumps"
+          category: "calves"
+          measurement: "bodyweight_reps"
+          sets: 2
+          reps: { min: 10, max: 10 }
+          rest_seconds: 60
+          focus: "Pliometría de calentamiento"
+          progression: { type: "manual" }
+
+        - name: "Tuck Planche Hold"
+          exercise_id: "tuck-planche-hold"
+          category: "shoulders"
+          sets: 3
+          target: { min: 10, max: 20 }
+          rest_seconds: 120
+          focus: "Habilidad (mantenimiento)"
+          notes:
+            - "Avanza a advanced tuck con 3 x 20 s limpios"
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Explosive Push Up"
+          exercise_id: "explosive-push-up"
+          category: "chest"
+          sets: 3
+          reps: { min: 5, max: 5 }
+          rest_seconds: 90
+          focus: "Potencia de empuje"
+          notes:
+            - "Despegue de manos en cada rep; nunca lento"
+          progression: { type: "manual" }
+
+        - name: "Close Grip Bench Press"
+          exercise_id: "close-grip-bench-press"
+          category: "triceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 4, max: 6 }
+          rir: { min: 2, max: 2 }
+          rest_seconds: 180
+          focus: "Fuerza de tríceps"
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Dumbbell Bench Press"
+          exercise_id: "dumbbell-bench-press"
+          category: "chest"
+          unit: "kg"
+          sets: 3
+          reps: { min: 8, max: 12 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Barbell Row"
+          exercise_id: "barbell-row"
+          category: "back"
+          unit: "kg"
+          sets: 3
+          reps: { min: 6, max: 10 }
+          rir: { min: 2, max: 2 }
+          rest_seconds: 150
+          focus: "Espalda en mantenimiento"
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "T Bar Row"
+          exercise_id: "t-bar-row"
+          category: "back"
+          unit: "kg"
+          sets: 3
+          reps: { min: 8, max: 12 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          progression: { type: "double_progression", increment: 2.5 }
+
+        - name: "Reverse Pec Deck"
+          exercise_id: "reverse-pec-deck"
+          category: "shoulders"
+          unit: "kg"
+          sets: 4
+          reps: { min: 12, max: 20 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          focus: "Deltoide posterior"
+          notes:
+            - "Pausa de 1 s atrás"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Cable Lateral Raise"
+          exercise_id: "cable-lateral-raise"
+          category: "shoulders"
+          unit: "kg"
+          sets: 3
+          reps: { min: 15, max: 20 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 60
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Triceps Pushdown"
+          exercise_id: "triceps-pushdown"
+          category: "triceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Incline Dumbbell Curl"
+          exercise_id: "incline-dumbbell-curl"
+          category: "biceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 12 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          notes:
+            - "Bíceps alargado; sin balanceo"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Hammer Curl"
+          exercise_id: "hammer-curl"
+          category: "biceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 75
+          focus: "Braquial y braquiorradial"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Thoracic Rotation"
+          category: "back"
+          measurement: "bodyweight_reps"
+          sets: 2
+          reps: { min: 8, max: 8 }
+          rest_seconds: 30
+          focus: "Movilidad: rotación torácica"
+          notes:
+            - "Por lado, lento y al rango final"
+          progression: { type: "manual" }
+
+    # ---------------------------------------------------------------- viernes
+    - name: "Pierna B - Cadena Posterior"
+      suggested_days: [friday]
+      exercises:
+        - name: "Pogo Jumps"
+          category: "calves"
+          measurement: "bodyweight_reps"
+          sets: 2
+          reps: { min: 10, max: 10 }
+          rest_seconds: 60
+          focus: "Pliometría de calentamiento"
+          progression: { type: "manual" }
+
+        - name: "Box Jump"
+          category: "quadriceps"
+          measurement: "bodyweight_reps"
+          sets: 3
+          reps: { min: 3, max: 3 }
+          rest_seconds: 120
+          focus: "Potencia vertical"
+          notes:
+            - "Baja del cajón caminando, no saltando"
+            - "Sube la altura del cajón, no las reps"
+          progression: { type: "manual" }
+
+        - name: "Romanian Deadlift"
+          exercise_id: "romanian-deadlift"
+          category: "hamstrings"
+          unit: "kg"
+          sets: 3
+          reps: { min: 4, max: 6 }
+          rir: { min: 2, max: 2 }
+          rest_seconds: 180
+          focus: "Fuerza de cadena posterior"
+          notes:
+            - "Cadera atrás, espalda neutra; para donde el femoral tira"
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Hip Thrust"
+          exercise_id: "hip-thrust"
+          category: "glutes"
+          unit: "kg"
+          sets: 3
+          reps: { min: 8, max: 12 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          notes:
+            - "Bloqueo completo arriba, costillas abajo"
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Leg Press"
+          exercise_id: "leg-press"
+          category: "quadriceps"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 120
+          progression: { type: "double_progression", increment: 5 }
+
+        - name: "Seated Leg Curl"
+          exercise_id: "seated-leg-curl"
+          category: "hamstrings"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 90
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Cable Lateral Raise"
+          exercise_id: "cable-lateral-raise"
+          category: "shoulders"
+          unit: "kg"
+          sets: 3
+          reps: { min: 15, max: 20 }
+          rir: { min: 1, max: 1 }
+          rest_seconds: 60
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Seated Calf Raise"
+          exercise_id: "seated-calf-raise"
+          category: "calves"
+          unit: "kg"
+          sets: 3
+          reps: { min: 10, max: 15 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 75
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Weighted Hanging Leg Raise"
+          exercise_id: "weighted-hanging-leg-raise"
+          category: "core"
+          unit: "kg"
+          sets: 3
+          reps: { min: 6, max: 10 }
+          rir: { min: 1, max: 2 }
+          rest_seconds: 90
+          notes:
+            - "El peso es el lastre entre los pies; sin lastre son 0 kg"
+          progression: { type: "double_progression", increment: 2 }
+
+        - name: "Horse Stance Hold"
+          category: "quadriceps"
+          measurement: "duration"
+          sets: 2
+          target: { min: 30, max: 60 }
+          rest_seconds: 30
+          focus: "Movilidad: aductores y cadera"
+          progression: { type: "manual" }
+
+        - name: "Incline Treadmill Walk"
+          category: "full-body"
+          measurement: "duration"
+          sets: 1
+          target: { min: 600, max: 900 }
+          focus: "Cardio suave"
+          notes:
+            - "Inclinación 12, 5 km/h"
+          progression: { type: "manual" }
+
+    # ----------------------------------------------------------------- sábado
+    - name: "Cardio HIIT"
+      suggested_days: [saturday]
+      exercises:
+        - name: "Treadmill Sprint"
+          category: "full-body"
+          measurement: "duration"
+          sets: 6
+          target: { min: 30, max: 30 }
+          rest_seconds: 90
+          focus: "Intervalos: 30 s fuerte / 90 s suave"
+          notes:
+            - "Cada serie es una ronda: el cronómetro avisa a los 30 s"
+            - "El descanso arranca solo al completar la serie; camina suave"
+            - "Haz 4 rondas si el lunes vienes cargado"
+          progression: { type: "manual" }
