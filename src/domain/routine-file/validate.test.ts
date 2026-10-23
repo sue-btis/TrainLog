@@ -303,7 +303,7 @@ describe('validateRoutineFile — target axis mismatch (TST-129, REQ-139, AC-166
 });
 
 /**
- * The regression that matters: the three files the lifter actually imports.
+ * The regression that matters: the files the lifter actually imports.
  * They are read from disk the way `to-domain.test.ts` reads them, rather than
  * restated here — a copy would keep passing after the originals rotted.
  */
@@ -311,6 +311,7 @@ describe('the shipped files validate clean with the axis check on (TST-129, REQ-
   it.each([
     'bloque-a-acumulacion.yaml',
     'bloque-b-intensificacion.yaml',
+    'bloque-c-estetica-hibrida.yaml',
     'examples/hibrido-v2.yaml',
   ])('%s', (name) => {
     const text = readFileSync(

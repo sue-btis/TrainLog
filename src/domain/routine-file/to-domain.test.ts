@@ -395,7 +395,11 @@ describe('the file format states how an exercise is measured (TST-120)', () => {
 });
 
 
-const BLOCK_FILES = ['bloque-a-acumulacion.yaml', 'bloque-b-intensificacion.yaml'];
+const BLOCK_FILES = [
+  'bloque-a-acumulacion.yaml',
+  'bloque-b-intensificacion.yaml',
+  'bloque-c-estetica-hibrida.yaml',
+];
 
 /**
  * The worked example of the v2 format, which teaches by being read. A file
