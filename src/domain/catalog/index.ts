@@ -14,6 +14,11 @@ export const CATALOG: readonly CatalogExercise[] = CATALOG_ROWS.map(
   }),
 );
 
+/** The muscle categories the catalog uses, in the order it first lists them. */
+export const CATEGORIES: readonly string[] = [
+  ...new Set(CATALOG.map((entry) => entry.category).filter((category) => category !== null)),
+];
+
 export function normalizeExerciseName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }

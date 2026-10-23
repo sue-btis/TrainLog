@@ -2,9 +2,15 @@
 import { db } from '@/db/database';
 import { groupCompletedSetsByExerciseSession } from '@/db/repositories/completedSets';
 import { listExerciseSessionsBySession } from '@/db/repositories/exerciseSessions';
-import type { ExerciseId, SessionId } from '@/domain/ids';
+import { getExercisesById } from '@/db/repositories/exercises';
+import { listPlacementsBetween } from '@/db/repositories/placements';
+import { listPlannedExercisesByWorkout } from '@/db/repositories/plannedExercises';
+import { listSessionsBetween } from '@/db/repositories/sessions';
+import type { LocalDate } from '@/domain/dates';
+import type { ExerciseId, RoutineId, SessionId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
 import type { ExerciseSession, Timestamp } from '@/domain/types';
+import type { VolumeEntry } from '@/domain/volume';
 
 async function assemble(
   exerciseSessions: readonly ExerciseSession[],
@@ -111,4 +117,50 @@ export async function getPreviousPerformance(
       entry.session.id !== excludeSessionId &&
       entry.exercises.some((exercise) => exercise.sets.length > 0),
   );
+}
+
+/**
+ * The week's planned and logged sets, one entry per exercise row. Planned reads
+ * the active Routine's Placements in the range; logged reads every Session
+ * started in it, whatever Routine it belongs to.
+ */
+export async function listWeekVolume(
+  routineId: RoutineId | null,
+  from: LocalDate,
+  to: LocalDate,
+): Promise<{ readonly planned: VolumeEntry[]; readonly performed: VolumeEntry[] }> {
+  const placements =
+    routineId === null
+      ? []
+      : (await listPlacementsBetween(from, to)).filter((placement) => placement.routineId === routineId);
+  const plannedRows = (
+    await Promise.all(placements.map((placement) => listPlannedExercisesByWorkout(placement.workoutId)))
+  ).flat();
+
+  const sessions = await listSessionsBetween(from, to);
+  const exerciseSessions = (
+    await Promise.all(sessions.map((session) => listExerciseSessionsBySession(session.id)))
+  ).flat();
+  const sets = await groupCompletedSetsByExerciseSession(exerciseSessions.map((exercise) => exercise.id));
+
+  const exercises = await getExercisesById([
+    ...plannedRows.map((row) => row.exerciseId),
+    ...exerciseSessions.map((exercise) => exercise.exerciseId),
+  ]);
+  const entry = (exerciseId: ExerciseId, count: number): VolumeEntry => {
+    const exercise = exercises.get(exerciseId);
+    return {
+      exerciseId,
+      name: exercise?.name ?? 'Exercise',
+      category: exercise?.category ?? null,
+      sets: count,
+    };
+  };
+
+  return {
+    planned: plannedRows.map((row) => entry(row.exerciseId, row.sets)),
+    performed: exerciseSessions
+      .map((exercise) => entry(exercise.exerciseId, sets.get(exercise.id)?.length ?? 0))
+      .filter((performed) => performed.sets > 0),
+  };
 }
