@@ -11,6 +11,7 @@ import {
 } from '@/domain/measurement';
 import type { CompletedSet, ExerciseSession } from '@/domain/types';
 import { DISTANCE_UNITS, UNITS, type DistanceUnit, type Unit } from '@/domain/units';
+import { HoldStopwatch } from '@/features/session/HoldStopwatch';
 import { ICON_STROKE, LABEL, READOUT, READOUT_INPUT, STEPPER } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -293,6 +294,14 @@ export function SetLogger({
         values={values}
         weightStep={weightStep}
       />
+
+      {shapeOf(measurement).fields.includes('durationSeconds') && (
+        <HoldStopwatch
+          key={setNumber}
+          onStop={(durationSeconds) => onChange({ ...values, durationSeconds })}
+          target={primaryAxisOf(measurement) === 'duration' ? targets.primary : null}
+        />
+      )}
 
       <Button
         disabled={busy || !complete}

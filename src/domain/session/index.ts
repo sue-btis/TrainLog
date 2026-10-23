@@ -245,6 +245,24 @@ export function restRemaining({
   return Math.max(0, Math.ceil(remaining / 1_000));
 }
 
+/**
+ * Whole seconds a hold has run, read against the wall clock rather than counted
+ * ticks, so a locked phone or a suspended tab cannot lose time (§11.6).
+ */
+export function stopwatchElapsed({ since, now }: { readonly since: Timestamp; readonly now: Timestamp }): number {
+  return Math.max(0, Math.floor((now - since) / 1_000));
+}
+
+/**
+ * How many of the target's thresholds a hold has reached: 0, 1 at the minimum,
+ * 2 at the maximum. A window whose ends coincide has a single threshold.
+ */
+export function holdCuesReached(elapsed: number, target: readonly [number, number] | null): number {
+  if (target === null) return 0;
+  const thresholds = target[0] === target[1] ? [target[0]] : [target[0], target[1]];
+  return thresholds.filter((threshold) => threshold > 0 && elapsed >= threshold).length;
+}
+
 export interface EditSetInput {
   readonly set: CompletedSet;
   readonly weight: number;

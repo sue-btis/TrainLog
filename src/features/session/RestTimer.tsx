@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
 import type { Timestamp } from '@/domain/dates';
 import { restRemaining } from '@/domain/session';
+import { cue } from '@/features/session/cue';
 import { ICON_STROKE, LABEL, PRESS, TIMER_RAIL, TIMER_SHELL, TIMER_TRACK } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
 
@@ -10,25 +11,6 @@ const DEFAULT_BUMP = 30;
 const EXIT_MS = 360;
 
 const GRACE_MS = 2_000;
-
-function beep(): void {
-  try {
-    const context = new AudioContext();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-
-    oscillator.frequency.value = 880;
-    gain.gain.setValueAtTime(0.15, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35);
-
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.35);
-    oscillator.onended = () => void context.close().catch(() => {});
-  } catch {
-    // Audio is optional; browser policy or device settings must not interrupt logging.
-  }
-}
 
 interface RestTimerProps {
   readonly since: Timestamp;
@@ -80,8 +62,7 @@ export function RestTimer({ since, seconds, vibrate, sound, onSkip, exerciseName
   useEffect(() => {
     if (remaining > 0 || buzzed.current) return;
     buzzed.current = true;
-    if (vibrate) navigator.vibrate?.([220, 120, 220]);
-    if (sound) beep();
+    cue({ vibrate, sound });
   }, [remaining, vibrate, sound]);
 
   useEffect(() => {
