@@ -372,6 +372,19 @@ describe('parseBackup', () => {
   });
 });
 
+describe('parseBackup — renamed exercises (AC-4)', () => {
+  it("keeps a renamed exercise's former names", () => {
+    const document = accept(
+      withKey('exercises', [{ ...EXERCISE, name: 'Reverse Hyper Machine', previousNames: ['Reverse Hyper'] }]),
+    );
+    expect(document.exercises[0]?.previousNames).toEqual(['Reverse Hyper']);
+  });
+
+  it('still accepts an exercise written before renames existed', () => {
+    expect(accept(validDocument()).exercises[0]?.previousNames).toBeUndefined();
+  });
+});
+
 describe('parseBackup target pairs (TST-128)', () => {
   const bothPairs = { ...PLANNED, minTarget: 30, maxTarget: 45 };
   const neitherPair = { ...PLANNED, minReps: null, maxReps: null };

@@ -57,7 +57,16 @@ export function resolveTypedName(name: string, offers: readonly Offer[]): Offer 
   const match =
     needle === ''
       ? undefined
-      : offers.find((offer) => normalizeExerciseName(offerName(offer)) === needle);
+      : (offers.find((offer) => normalizeExerciseName(offerName(offer)) === needle) ??
+        // A former name of a renamed exercise binds to it on import, so the
+        // picker must not call it new.
+        offers.find(
+          (offer) =>
+            offer.kind === 'user' &&
+            (offer.exercise.previousNames ?? []).some(
+              (former) => normalizeExerciseName(former) === needle,
+            ),
+        ));
 
   return match ?? { kind: 'new', name: name.trim() };
 }
