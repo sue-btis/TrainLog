@@ -6,6 +6,7 @@ import {
   exerciseSeries,
   measurementOf,
   recordSetOf,
+  routineBlocks,
   summarizeExercise,
   withoutSession,
 } from '@/domain/history';
@@ -602,5 +603,61 @@ describe('exerciseSeries — volume never leaves its own family (REQ-116, DEC-D)
 
     expect(point?.volumeFamily).toBe('kg_reps');
     expect(point?.volume).toBe(800);
+  });
+});
+
+/** `session()` moved to another Routine, optionally with a different prescription. */
+function under(
+  routine: string,
+  entry: SessionHistory,
+  prescription: Partial<{ plannedMinReps: number; plannedMaxReps: number; plannedMinRir: number; plannedMaxRir: number }> = {},
+): SessionHistory {
+  return {
+    session: { ...entry.session, routineId: toId<RoutineId>(routine) },
+    exercises: entry.exercises.map((exercise) => ({
+      ...exercise,
+      exerciseSession: { ...exercise.exerciseSession, ...prescription } as typeof exercise.exerciseSession,
+    })),
+  };
+}
+
+describe('routineBlocks', () => {
+  const DAY = 86_400_000;
+
+  it('groups by Routine, oldest first, with date span and session count', () => {
+    const history = [
+      under('bloque-b', session('completed', 40 * DAY, [set(100, 4)])),
+      under('bloque-a', session('completed', 1 * DAY, [set(80, 8)])),
+      under('bloque-a', session('completed', 8 * DAY, [set(85, 8)])),
+    ];
+
+    const blocks = routineBlocks(history);
+
+    expect(blocks.map((block) => block.routineId)).toEqual(['bloque-a', 'bloque-b']);
+    expect(blocks[0]!.sessions).toBe(2);
+    expect(blocks[0]!.firstDate < blocks[0]!.lastDate).toBe(true);
+    expect(blocks[0]!.bestSet.weight).toBe(85);
+    expect(blocks[1]!.bestSet.weight).toBe(100);
+  });
+
+  it('lists each distinct prescription of a Routine once', () => {
+    const history = [
+      under('bloque-a', session('completed', 1 * DAY, [set(80, 6)]), { plannedMinRir: 3, plannedMaxRir: 3 }),
+      under('bloque-a', session('completed', 4 * DAY, [set(90, 5)]), { plannedMinRir: 2, plannedMaxRir: 2 }),
+      under('bloque-a', session('completed', 8 * DAY, [set(82, 6)]), { plannedMinRir: 3, plannedMaxRir: 3 }),
+    ];
+
+    const [block] = routineBlocks(history);
+
+    expect(block!.plans.map((plan) => plan.plannedMinRir)).toEqual([3, 2]);
+  });
+
+  it('ignores Sessions that hold no sets for the exercise', () => {
+    const history = [
+      under('bloque-a', session('completed', 1 * DAY, [set(80, 8)])),
+      under('bloque-b', session('completed', 9 * DAY, [])),
+    ];
+
+    expect(routineBlocks(history).map((block) => block.routineId)).toEqual(['bloque-a']);
   });
 });

@@ -1,5 +1,5 @@
 import { formatLocalDate, type LocalDate } from '@/domain/dates';
-import type { SessionId } from '@/domain/ids';
+import type { RoutineId, SessionId } from '@/domain/ids';
 import type { SessionHistory } from '@/domain/progression';
 import {
   axisValue,
@@ -13,7 +13,7 @@ import {
   type Measurement,
   type VolumeFamily,
 } from '@/domain/measurement';
-import type { CompletedSet, Timestamp } from '@/domain/types';
+import type { CompletedSet, PlannedExerciseSession, Timestamp } from '@/domain/types';
 
 export interface ExerciseSummary {
   readonly measurement: Measurement;
@@ -156,6 +156,66 @@ export function summarizeExercise(history: readonly SessionHistory[]): ExerciseS
       0,
     ),
   };
+}
+
+export interface RoutineBlock {
+  readonly routineId: RoutineId;
+  readonly firstDate: LocalDate;
+  readonly lastDate: LocalDate;
+  /** Sessions under this Routine that hold sets for the exercise. */
+  readonly sessions: number;
+  /** Each distinct prescription the snapshots recorded, in the order first met. */
+  readonly plans: readonly PlannedExerciseSession[];
+  readonly bestSet: CompletedSet;
+}
+
+function prescriptionKey(planned: PlannedExerciseSession): string {
+  return [
+    planned.plannedSets,
+    planned.plannedMinReps,
+    planned.plannedMaxReps,
+    planned.plannedMinTarget,
+    planned.plannedMaxTarget,
+    planned.plannedMinRir,
+    planned.plannedMaxRir,
+    planned.plannedRestSeconds,
+  ].join('|');
+}
+
+/**
+ * One block per Routine the exercise was trained under, oldest first. Plans
+ * come from Session snapshots (ADR 0002), so a later template edit cannot
+ * rewrite what a past block prescribed.
+ */
+export function routineBlocks(history: readonly SessionHistory[]): RoutineBlock[] {
+  const measurement = measurementOf(history);
+  const performed = history
+    .filter((entry) => setsOf(entry).length > 0)
+    .sort((a, b) => a.session.startedAt - b.session.startedAt);
+
+  const grouped = new Map<RoutineId, SessionHistory[]>();
+  for (const entry of performed) {
+    const group = grouped.get(entry.session.routineId) ?? [];
+    group.push(entry);
+    grouped.set(entry.session.routineId, group);
+  }
+
+  return [...grouped].map(([routineId, entries]) => {
+    const plans = new Map<string, PlannedExerciseSession>();
+    for (const { exerciseSession } of entries.flatMap((entry) => entry.exercises)) {
+      if (exerciseSession.plannedExerciseId === null) continue;
+      const key = prescriptionKey(exerciseSession);
+      if (!plans.has(key)) plans.set(key, exerciseSession);
+    }
+    return {
+      routineId,
+      firstDate: formatLocalDate(new Date(entries[0]!.session.startedAt)),
+      lastDate: formatLocalDate(new Date(entries.at(-1)!.session.startedAt)),
+      sessions: entries.length,
+      plans: [...plans.values()],
+      bestSet: recordSetOf(entries.flatMap(setsOf), measurement),
+    };
+  });
 }
 
 export interface ExercisePoint {

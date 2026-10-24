@@ -13,21 +13,29 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizeExerciseName } from '@/domain/catalog';
 import { addDays, formatLocalDate, mondayOfWeek } from '@/domain/dates';
-import { exerciseSeries, summarizeExercise, type ExercisePoint } from '@/domain/history';
+import {
+  exerciseSeries,
+  routineBlocks,
+  summarizeExercise,
+  type ExercisePoint,
+  type RoutineBlock,
+} from '@/domain/history';
 import { weeklyVolume, type VolumeRow } from '@/domain/volume';
 import type { ExerciseId } from '@/domain/ids';
+import type { Measurement } from '@/domain/measurement';
 import {
   useActiveRoutine,
   useExerciseHistory,
   useExerciseNames,
   usePerformedExercisesByRecency,
+  useRoutines,
   useWeekVolume,
 } from '@/features/data/queries';
 import { ExerciseChart, metricsFor, round, type Metric } from '@/features/progress/ExerciseChart';
-import { shortDate } from '@/features/ui/format';
+import { shortDate, snapshotLine } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
 import { Reading } from '@/features/ui/Reading';
-import { ICON_STROKE, LABEL, ROW_LIST, WELL } from '@/features/ui/styles';
+import { ICON_STROKE, LABEL, ROW, ROW_LIST, RULED, WELL } from '@/features/ui/styles';
 
 type View = 'exercises' | 'week';
 
@@ -157,6 +165,7 @@ function ExerciseProgress({
   readonly onMetric: (metric: Metric) => void;
 }) {
   const history = useExerciseHistory(exerciseId);
+  const routines = useRoutines();
 
   if (history === undefined) {
     return <Reading>history</Reading>;
@@ -180,6 +189,7 @@ function ExerciseProgress({
   }
 
   const summary = summarizeExercise(history);
+  const blocks = routineBlocks(history);
 
   const best = points.reduce<{ point: ExercisePoint; estimate: number } | null>(
     (found, point) =>
@@ -228,6 +238,22 @@ function ExerciseProgress({
           <ExerciseChart key={`${exerciseId}:${shown}`} metric={shown} name={name} points={points} />
         </TabsContent>
       </Tabs>
+
+      {blocks.length > 1 && (
+        <div className={RULED}>
+          <span className={LABEL}>by routine</span>
+          <ul className={ROW_LIST}>
+            {blocks.map((block) => (
+              <RoutineRow
+                block={block}
+                key={block.routineId}
+                measurement={summary.measurement}
+                name={routines?.find((routine) => routine.id === block.routineId)?.name ?? 'Routine'}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -316,6 +342,35 @@ function VolumeBar({
         <span className="text-ink-3">/</span>
         <span className="text-planned-ink">{row.planned}</span>
       </span>
+    </li>
+  );
+}
+
+function RoutineRow({
+  block,
+  name,
+  measurement,
+}: {
+  readonly block: RoutineBlock;
+  readonly name: string;
+  readonly measurement: Measurement;
+}) {
+  return (
+    <li className={ROW}>
+      <span className="type-title">{name}</span>
+      <span className="type-measure text-ink-3">
+        {shortDate(block.firstDate)}
+        {block.lastDate !== block.firstDate && ` – ${shortDate(block.lastDate)}`} · {block.sessions}{' '}
+        {block.sessions === 1 ? 'session' : 'sessions'}
+      </span>
+      {block.plans.map((plan) => (
+        <span className="type-measure text-planned-ink" key={plan.id}>
+          {snapshotLine(plan)}
+        </span>
+      ))}
+      <div>
+        <SetPill label="best" measurement={measurement} set={block.bestSet} />
+      </div>
     </li>
   );
 }

@@ -25,4 +25,4 @@ Progress now has a full-width two-segment bar, `Exercises` (the previous screen,
 - Mobility holds and cardio count as sets of their category (Horse Stance as quadriceps, treadmill as full body); there is no notion of "not hypertrophy work" yet.
 - A row counts toward its own category only; presses do not add fractional sets to triceps.
 - Only the current week; no history.
-- `feat/block-comparison/Josue` also edits `ProgressScreen.tsx` imports; merging the second of the two will need a small conflict resolution.
+- Merged `origin/development` (with block comparison) into this branch; the `ProgressScreen.tsx` conflict kept both features. After the merge: typecheck pass, lint 0 errors, 972 tests pass, build pass, and both "by routine" and "this week" checked in the dev server.
