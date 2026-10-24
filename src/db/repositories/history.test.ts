@@ -11,6 +11,7 @@ import {
   listExerciseHistory,
   listPerformedExercises,
   listPerformedExercisesByRecency,
+  listWeekVolume,
 } from '@/db/repositories/history';
 import { listPlannedExercisesByWorkout } from '@/db/repositories/plannedExercises';
 import { suggestLoad } from '@/domain/progression';
@@ -21,8 +22,9 @@ import {
   startSession,
   startUnplannedExercise,
 } from '@/domain/session';
+import { parseLocalDate, toLocalDate } from '@/domain/dates';
 import { toId } from '@/domain/ids';
-import type { ExerciseId, PlannedExerciseId, RoutineId, SessionId, WorkoutId } from '@/domain/ids';
+import type { ExerciseId, PlacementId, PlannedExerciseId, RoutineId, SessionId, WorkoutId } from '@/domain/ids';
 import type { PlannedExercise, Routine, Session, SessionStatus, Workout } from '@/domain/types';
 
 const measurement = 'weight_reps' as const;
@@ -272,5 +274,30 @@ describe('performed exercises (§11.11, R-4)', () => {
       { exerciseId: squat, lastPerformed: 3_000 },
       { exerciseId: bench, lastPerformed: 2_000 },
     ]);
+  });
+});
+
+describe('listWeekVolume', () => {
+  const monday = toLocalDate('2026-10-19');
+  const sunday = toLocalDate('2026-10-25');
+
+  it("plans from the active Routine's Placements in the week and logs from its Sessions", async () => {
+    const { routine, workout } = await seedRoutine('one', squat);
+    const other = await seedRoutine('two', squat);
+    await db.placements.bulkAdd([
+      { id: toId<PlacementId>('p-1'), routineId: routine.id, workoutId: workout.id, date: monday },
+      { id: toId<PlacementId>('p-2'), routineId: routine.id, workoutId: workout.id, date: toLocalDate('2026-10-22') },
+      { id: toId<PlacementId>('p-3'), routineId: routine.id, workoutId: workout.id, date: toLocalDate('2026-10-26') },
+      { id: toId<PlacementId>('p-4'), routineId: other.routine.id, workoutId: other.workout.id, date: monday },
+    ]);
+    await performSession(workout, parseLocalDate(monday).getTime() + 3_600_000, [6, 6, 6], 100);
+
+    const week = await listWeekVolume(routine.id, monday, sunday);
+
+    expect(week.planned.map((entry) => [entry.category, entry.sets])).toEqual([
+      ['quadriceps', 4],
+      ['quadriceps', 4],
+    ]);
+    expect(week.performed.map((entry) => [entry.category, entry.sets])).toEqual([['quadriceps', 3]]);
   });
 });

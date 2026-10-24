@@ -21,6 +21,7 @@ import {
   listSessionsBetween,
   listSessionsByRoutine,
   listUserExercises,
+  listWeekVolume,
   listWorkoutsByRoutine,
 } from '@/db';
 import type { LocalDate } from '@/domain/dates';
@@ -126,6 +127,10 @@ export function usePlacementsBetween(from: LocalDate, to: LocalDate) {
 
 export function useSessionsBetween(from: LocalDate, to: LocalDate) {
   return useLiveQuery(() => listSessionsBetween(from, to), [from, to]);
+}
+
+export function useWeekVolume(routineId: RoutineId | null, from: LocalDate, to: LocalDate) {
+  return useLiveQuery(() => listWeekVolume(routineId, from, to), [routineId, from, to]);
 }
 
 export function useSessionsByRoutine(routineId: RoutineId | null) {

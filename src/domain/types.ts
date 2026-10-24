@@ -32,6 +32,8 @@ export interface Exercise {
   readonly equipment: string | null;
   /** The measurement is authoritative and is snapshotted when the exercise starts. */
   readonly measurement: Measurement;
+  /** Names a user Exercise had before a rename, still matched by name so a YAML using one keeps its history. */
+  readonly previousNames?: readonly string[];
 }
 
 export type RoutineStatus = 'active' | 'archived';

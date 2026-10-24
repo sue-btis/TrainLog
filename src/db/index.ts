@@ -53,6 +53,11 @@ export {
   ExerciseNameRequiredError,
   ExerciseNotCorrectableError,
   correctExerciseMeasurement,
+  deleteUserExercise,
+  renameUserExercise,
+  ExerciseInUseError,
+  ExerciseNameTakenError,
+  ExerciseNotEditableError,
   createUserExercise,
   getExercise,
   getExerciseName,
@@ -115,5 +120,6 @@ export {
   listExerciseHistory,
   listPerformedExercises,
   listPerformedExercisesByRecency,
+  listWeekVolume,
   type PerformedExercise,
 } from '@/db/repositories/history';

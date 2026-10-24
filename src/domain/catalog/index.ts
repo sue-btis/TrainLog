@@ -14,6 +14,11 @@ export const CATALOG: readonly CatalogExercise[] = CATALOG_ROWS.map(
   }),
 );
 
+/** The muscle categories the catalog uses, in the order it first lists them. */
+export const CATEGORIES: readonly string[] = [
+  ...new Set(CATALOG.map((entry) => entry.category).filter((category) => category !== null)),
+];
+
 export function normalizeExerciseName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }
@@ -35,8 +40,13 @@ export function findExerciseByName(
   const fromCatalog = byNormalizedName.get(normalized);
   if (fromCatalog) return fromCatalog;
 
-  return userExercises.find(
-    (candidate) => normalizeExerciseName(candidate.name) === normalized,
+  // A current name wins over a former one, so an alias can never shadow the
+  // exercise that answers to that name today.
+  return (
+    userExercises.find((candidate) => normalizeExerciseName(candidate.name) === normalized) ??
+    userExercises.find((candidate) =>
+      (candidate.previousNames ?? []).some((former) => normalizeExerciseName(former) === normalized),
+    )
   );
 }
 

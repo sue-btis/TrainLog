@@ -1,5 +1,5 @@
 import { db } from '@/db/database';
-import { findExerciseByName, getCatalogExercise } from '@/domain/catalog';
+import { findExerciseByName, getCatalogExercise, normalizeExerciseName } from '@/domain/catalog';
 import { newId, type ExerciseId } from '@/domain/ids';
 import type { Measurement } from '@/domain/measurement';
 import type { Exercise } from '@/domain/types';
@@ -124,5 +124,69 @@ export async function correctExerciseMeasurement(
 
     await db.exercises.update(id, { measurement });
     return { ...exercise, measurement };
+  });
+}
+
+/** Only a stored user Exercise can be renamed or deleted; catalog entries ship with the app. */
+export class ExerciseNotEditableError extends Error {
+  constructor() {
+    super('Only an exercise you created can be renamed or deleted.');
+    this.name = 'ExerciseNotEditableError';
+  }
+}
+
+/** Two exercises answering to one name would make by-name import matching ambiguous. */
+export class ExerciseNameTakenError extends Error {
+  constructor(holder: string) {
+    super(`"${holder}" already answers to that name. Pick a different one.`);
+    this.name = 'ExerciseNameTakenError';
+  }
+}
+
+/** Deleting a referenced Exercise would orphan logged history or an accepted Routine. */
+export class ExerciseInUseError extends Error {
+  constructor() {
+    super(
+      'This exercise has logged sessions or is part of a routine, so it cannot be deleted. Renaming it is safe.',
+    );
+    this.name = 'ExerciseInUseError';
+  }
+}
+
+/** Renames a user Exercise and keeps its former name matchable, so a YAML written before still finds it. */
+export async function renameUserExercise(id: ExerciseId, name: string): Promise<Exercise> {
+  const next = name.trim();
+  if (next === '') throw new ExerciseNameRequiredError();
+
+  return db.transaction('rw', db.exercises, async () => {
+    const exercise = await db.exercises.get(id);
+    if (exercise === undefined) throw new ExerciseNotEditableError();
+
+    const others = (await db.exercises.toArray()).filter((other) => other.id !== id);
+    const holder = findExerciseByName(next, others);
+    if (holder !== undefined) throw new ExerciseNameTakenError(holder.name);
+
+    const nextKey = normalizeExerciseName(next);
+    const formerNames = new Map<string, string>();
+    for (const former of [...(exercise.previousNames ?? []), exercise.name]) {
+      const key = normalizeExerciseName(former);
+      if (key !== nextKey && !formerNames.has(key)) formerNames.set(key, former);
+    }
+    const renamed: Exercise = { ...exercise, name: next, previousNames: [...formerNames.values()] };
+    await db.exercises.put(renamed);
+    return renamed;
+  });
+}
+
+/** Deletes a user Exercise that no Session and no Planned Exercise references. */
+export async function deleteUserExercise(id: ExerciseId): Promise<void> {
+  await db.transaction('rw', db.exercises, db.exerciseSessions, db.plannedExercises, async () => {
+    if ((await db.exercises.get(id)) === undefined) throw new ExerciseNotEditableError();
+
+    const sessions = await db.exerciseSessions.where('exerciseId').equals(id).count();
+    const planned = await db.plannedExercises.filter((row) => row.exerciseId === id).count();
+    if (sessions > 0 || planned > 0) throw new ExerciseInUseError();
+
+    await db.exercises.delete(id);
   });
 }

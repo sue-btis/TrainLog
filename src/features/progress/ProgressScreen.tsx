@@ -12,20 +12,58 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { normalizeExerciseName } from '@/domain/catalog';
-import { exerciseSeries, summarizeExercise, type ExercisePoint } from '@/domain/history';
-import type { ExerciseId } from '@/domain/ids';
+import { addDays, formatLocalDate, mondayOfWeek } from '@/domain/dates';
 import {
+  exerciseSeries,
+  routineBlocks,
+  summarizeExercise,
+  type ExercisePoint,
+  type RoutineBlock,
+} from '@/domain/history';
+import { weeklyVolume, type VolumeRow } from '@/domain/volume';
+import type { ExerciseId } from '@/domain/ids';
+import type { Measurement } from '@/domain/measurement';
+import {
+  useActiveRoutine,
   useExerciseHistory,
   useExerciseNames,
   usePerformedExercisesByRecency,
+  useRoutines,
+  useWeekVolume,
 } from '@/features/data/queries';
 import { ExerciseChart, metricsFor, round, type Metric } from '@/features/progress/ExerciseChart';
-import { shortDate } from '@/features/ui/format';
+import { shortDate, snapshotLine } from '@/features/ui/format';
 import { SetPill } from '@/features/ui/SetPill';
 import { Reading } from '@/features/ui/Reading';
-import { ICON_STROKE, LABEL, WELL } from '@/features/ui/styles';
+import { ICON_STROKE, LABEL, ROW, ROW_LIST, RULED, WELL } from '@/features/ui/styles';
+
+type View = 'exercises' | 'week';
 
 export function ProgressScreen() {
+  const [view, setView] = useState<View>('exercises');
+
+  return (
+    <Tabs onValueChange={(value) => setView(value as View)} value={view}>
+      {/* Two views, so a full-width segmented bar rather than a scrolling rail. */}
+      <TabsList aria-label="Progress view" className="mx-0 grid grid-cols-2 px-0">
+        <TabsTrigger className="justify-center" value="exercises">
+          Exercises
+        </TabsTrigger>
+        <TabsTrigger className="justify-center" value="week">
+          This week
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="exercises">
+        <ExercisesView />
+      </TabsContent>
+      <TabsContent value="week">
+        <WeekVolume />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function ExercisesView() {
   const performed = usePerformedExercisesByRecency();
   const names = useExerciseNames(performed?.map((entry) => entry.exerciseId) ?? []);
   const [query, setQuery] = useState('');
@@ -127,6 +165,7 @@ function ExerciseProgress({
   readonly onMetric: (metric: Metric) => void;
 }) {
   const history = useExerciseHistory(exerciseId);
+  const routines = useRoutines();
 
   if (history === undefined) {
     return <Reading>history</Reading>;
@@ -150,6 +189,7 @@ function ExerciseProgress({
   }
 
   const summary = summarizeExercise(history);
+  const blocks = routineBlocks(history);
 
   const best = points.reduce<{ point: ExercisePoint; estimate: number } | null>(
     (found, point) =>
@@ -198,6 +238,139 @@ function ExerciseProgress({
           <ExerciseChart key={`${exerciseId}:${shown}`} metric={shown} name={name} points={points} />
         </TabsContent>
       </Tabs>
+
+      {blocks.length > 1 && (
+        <div className={RULED}>
+          <span className={LABEL}>by routine</span>
+          <ul className={ROW_LIST}>
+            {blocks.map((block) => (
+              <RoutineRow
+                block={block}
+                key={block.routineId}
+                measurement={summary.measurement}
+                name={routines?.find((routine) => routine.id === block.routineId)?.name ?? 'Routine'}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
+  );
+}
+
+function WeekVolume() {
+  const active = useActiveRoutine();
+  const monday = mondayOfWeek(formatLocalDate(new Date()));
+  const week = useWeekVolume(active?.id ?? null, monday, addDays(monday, 6));
+
+  if (active === undefined || week === undefined) return <Reading>this week</Reading>;
+
+  const volume = weeklyVolume(week.planned, week.performed);
+  const rows = volume.muscles.map((muscle) => ({
+    key: muscle.category,
+    label: muscle.category.replace('-', ' '),
+    ...muscle,
+  }));
+  if (rows.length === 0 && volume.uncategorized.length === 0) {
+    return (
+      <section className={WELL}>
+        <TrendingUp aria-hidden="true" className="text-ink-3" size={24} strokeWidth={ICON_STROKE} />
+        <p className="type-title">Nothing this week yet</p>
+        <p className="type-body-sm text-ink-2">
+          Place a Workout on the calendar or log a set, and its sets per muscle show here.
+        </p>
+      </section>
+    );
+  }
+
+  // One scale for every bar, so a short bar means fewer sets than a long one.
+  const most = Math.max(1, ...[...rows, ...volume.uncategorized].flatMap((row) => [row.planned, row.performed]));
+
+  return (
+    <section aria-label="Sets this week" className={WELL}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={LABEL}>sets this week</span>
+        <span className="type-measure-sm">
+          <span className="text-actual-ink">logged</span>
+          <span className="text-ink-3"> / </span>
+          <span className="text-planned-ink">planned</span>
+        </span>
+      </div>
+      <ul className={ROW_LIST}>
+        {rows.map((row) => (
+          <VolumeBar key={row.key} label={row.label} most={most} row={row} />
+        ))}
+      </ul>
+      {volume.uncategorized.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className={LABEL}>other · no known muscle</span>
+          <ul className={ROW_LIST}>
+            {volume.uncategorized.map((row) => (
+              <VolumeBar key={row.exerciseId} label={row.name} most={most} row={row} />
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VolumeBar({
+  label,
+  row,
+  most,
+}: {
+  readonly label: string;
+  readonly row: VolumeRow;
+  readonly most: number;
+}) {
+  return (
+    <li className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-3 py-2 first:pt-0 last:pb-0">
+      <span className="truncate type-body-sm text-ink first-letter:uppercase">{label}</span>
+      <div aria-hidden="true" className="relative h-2 overflow-hidden rounded-line bg-card">
+        <span
+          className="absolute inset-0 origin-left bg-planned-wash"
+          style={{ transform: `scaleX(${row.planned / most})` }}
+        />
+        <span
+          className="absolute inset-0 origin-left bg-actual"
+          style={{ transform: `scaleX(${row.performed / most})` }}
+        />
+      </div>
+      <span className="type-measure tabular-nums">
+        <span className="text-actual-ink">{row.performed}</span>
+        <span className="text-ink-3">/</span>
+        <span className="text-planned-ink">{row.planned}</span>
+      </span>
+    </li>
+  );
+}
+
+function RoutineRow({
+  block,
+  name,
+  measurement,
+}: {
+  readonly block: RoutineBlock;
+  readonly name: string;
+  readonly measurement: Measurement;
+}) {
+  return (
+    <li className={ROW}>
+      <span className="type-title">{name}</span>
+      <span className="type-measure text-ink-3">
+        {shortDate(block.firstDate)}
+        {block.lastDate !== block.firstDate && ` – ${shortDate(block.lastDate)}`} · {block.sessions}{' '}
+        {block.sessions === 1 ? 'session' : 'sessions'}
+      </span>
+      {block.plans.map((plan) => (
+        <span className="type-measure text-planned-ink" key={plan.id}>
+          {snapshotLine(plan)}
+        </span>
+      ))}
+      <div>
+        <SetPill label="best" measurement={measurement} set={block.bestSet} />
+      </div>
+    </li>
   );
 }
