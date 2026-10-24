@@ -115,5 +115,6 @@ export {
   listExerciseHistory,
   listPerformedExercises,
   listPerformedExercisesByRecency,
+  listWeekVolume,
   type PerformedExercise,
 } from '@/db/repositories/history';

@@ -2522,7 +2522,7 @@ sin schema, sin migración. Cada una es un cambio pequeño e independiente.
 | # | Ítem | Estado | Nota |
 | --- | --- | --- | --- |
 | 7 | exercise management | 🟡 | **Crear** está hecho: la pantalla de §11.12 acuña Exercises, y el asistente los ofrece junto al catálogo. Faltan **renombrar** y **borrar**, que son los que arrastran §26 de verdad — un emparejamiento por nombre mal resuelto parte un historial en dos. Ver `docs/changes/2026-08-24-routine-authoring/`. |
-| 8 | muscle volume | ⬜ | **Depende del 7.** Agrupa por `category`, y hoy un archivo de rutina escribe ahí lo que quiera — el schema no lo valida. Medir sobre vocabulario sucio da cifras falsas. |
+| 8 | muscle volume | 🟡 | **Semana actual hecha:** Progress muestra series por músculo de la semana, planeadas (Placements de la rutina activa) junto a las registradas. Las categorías que el catálogo no conoce se cuentan aparte, por ejercicio, en vez de inflar un músculo; el schema sigue sin validar `category`. Faltan semanas anteriores y series fraccionales. Ver `docs/changes/2026-10-23-muscle-volume/`. |
 
 ## C — Modelo de ejecución
 
