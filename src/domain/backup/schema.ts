@@ -145,6 +145,7 @@ const exercise = z.object({
   category: z.string().nullable(),
   equipment: z.string().nullable(),
   measurement: measurement.default('weight_reps'),
+  previousNames: z.array(z.string()).optional(),
 });
 
 const session = z.object({

@@ -256,6 +256,21 @@ describe('findExerciseByName', () => {
     expect(findExerciseByName('Cable Moon Walk', [mine])).toBeUndefined();
   });
 
+  it('finds a renamed user Exercise by a former name', () => {
+    const renamed: Exercise = { ...mine, name: 'Zercher GM', previousNames: ['Zercher Good Morning'] };
+    expect(findExerciseByName('zercher good morning', [renamed])?.id).toBe(mine.id);
+  });
+
+  it("prefers an exercise's current name over another one's former name", () => {
+    const former: Exercise = { ...mine, name: 'Pogo Hops', previousNames: ['Pogo Jumps'] };
+    const current: Exercise = {
+      ...mine,
+      id: toId<ExerciseId>('66666666-7777-8888-9999-000000000000'),
+      name: 'Pogo Jumps',
+    };
+    expect(findExerciseByName('pogo jumps', [former, current])?.id).toBe(current.id);
+  });
+
   it('resolves the way resolveFileExercise resolves, so the two cannot drift', () => {
     // The property that matters: whatever the create screen binds a name to is
     // the Exercise an import of that same name would bind to.

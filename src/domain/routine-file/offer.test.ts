@@ -136,6 +136,13 @@ describe('resolveTypedName', () => {
       exercise: stored,
     });
   });
+
+  it('reuses a renamed Exercise when its former name is typed', () => {
+    const renamed: Exercise = { ...aUserExercise('Pogo Hops'), previousNames: ['Pogo Jumps'] };
+    const withUser = offeredExercises(anEmptyDraft(), [renamed]);
+
+    expect(resolveTypedName('pogo jumps', withUser)).toEqual({ kind: 'user', exercise: renamed });
+  });
 });
 
 describe('draftExercise', () => {

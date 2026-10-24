@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ChevronLeft, Plus, Search } from 'lucide-react';
+import { ChevronLeft, LoaderCircle, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { correctExerciseMeasurement, createUserExercise, type CreatedExercise } from '@/db';
+import {
+  correctExerciseMeasurement,
+  createUserExercise,
+  deleteUserExercise,
+  renameUserExercise,
+  type CreatedExercise,
+} from '@/db';
 import {
   CATALOG,
   CATALOG_CATEGORIES,
@@ -212,6 +218,7 @@ export function ExerciseCatalogScreen() {
                       </span>
                     </Link>
                     {mine.has(exercise.id) && <CorrectMeasurement exercise={exercise} />}
+                    {mine.has(exercise.id) && <ManageExercise exercise={exercise} />}
                   </div>
                 ))}
               </div>
@@ -385,6 +392,87 @@ function CorrectMeasurement({ exercise }: { readonly exercise: Exercise }) {
         value={exercise.measurement}
       />
       {failure !== null && <p className={cn('type-body-sm', 'text-missed')}>{failure}</p>}
+    </>
+  );
+}
+
+function ManageExercise({ exercise }: { readonly exercise: Exercise }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const { busy, failure, run } = useAsyncAction();
+  const formerNames = exercise.previousNames ?? [];
+
+  function commit() {
+    if (draft === null) return;
+    const next = draft;
+    setDraft(null);
+    if (next.trim() !== exercise.name) void run(() => renameUserExercise(exercise.id, next));
+  }
+
+  return (
+    <>
+      <label className="flex flex-col gap-1.5">
+        <span className={LABEL}>name</span>
+        <Input
+          disabled={busy}
+          onBlur={commit}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+          }}
+          value={draft ?? exercise.name}
+        />
+      </label>
+      {formerNames.length > 0 && (
+        <span className={LABEL}>also matches {formerNames.join(', ')} on import</span>
+      )}
+
+      <div className="flex items-center justify-end gap-2">
+        {confirming && (
+          <Button
+            className="arrive"
+            disabled={busy}
+            onClick={() => setConfirming(false)}
+            size="compact"
+            type="button"
+            variant="quiet"
+          >
+            Keep it
+          </Button>
+        )}
+        <Button
+          aria-label={confirming ? `Confirm deleting ${exercise.name}` : `Delete ${exercise.name}`}
+          className={confirming ? 'shadow-none' : 'text-missed-ink'}
+          disabled={busy}
+          onClick={() => {
+            if (!confirming) {
+              setConfirming(true);
+              return;
+            }
+            setConfirming(false);
+            void run(() => deleteUserExercise(exercise.id));
+          }}
+          size="compact"
+          type="button"
+          variant={confirming ? 'danger' : 'secondary'}
+        >
+          {busy ? (
+            <LoaderCircle aria-hidden="true" className="animate-spin" size={18} strokeWidth={ICON_STROKE} />
+          ) : (
+            <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+          )}
+          {confirming ? 'Delete it' : 'Delete'}
+        </Button>
+      </div>
+      {confirming && (
+        <p className={cn(LABEL, 'arrive')}>only an exercise with no sessions and in no routine can go</p>
+      )}
+
+      {failure !== null && (
+        <p className="arrive type-body-sm text-missed-ink" role="alert">
+          {failure}
+        </p>
+      )}
     </>
   );
 }
