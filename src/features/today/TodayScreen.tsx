@@ -25,6 +25,7 @@ import {
 } from '@/features/data/queries';
 import { ImportRoutineButton, TryExampleButton } from '@/features/import/ImportRoutineButton';
 import { Reading } from '@/features/ui/Reading';
+import { StorageWarning } from '@/features/today/StorageWarning';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
   longDate,
@@ -92,6 +93,8 @@ export function TodayScreen() {
           </div>
         </div>
       )}
+
+      <StorageWarning />
 
       <div className="flex flex-col gap-1">
         <p className="type-lede text-ink-2">{longDate(today)}</p>
