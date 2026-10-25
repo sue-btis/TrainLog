@@ -6,6 +6,7 @@ import {
   Gauge,
   HardDrive,
   LoaderCircle,
+  Lock,
   RotateCcw,
   Scale,
   Share,
@@ -41,13 +42,22 @@ import {
 import { Switch } from '@/components/ui/switch';
 import type { ResolvedSettings } from '@/domain/types';
 import { useSettings } from '@/features/data/queries';
-import { formatPath, parseBackup, toCsv } from '@/domain/backup';
+import {
+  UnreadableEncryptedBackupError,
+  WrongPasswordError,
+  decryptBackupText,
+  formatPath,
+  isEncryptedBackup,
+  parseBackup,
+  toCsv,
+} from '@/domain/backup';
 import type { BackupDocument, StructuralError } from '@/domain/backup';
 import { daysSince, formatLocalDate } from '@/domain/dates';
 import { longDate, plural } from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
+import { EncryptBackupForm, UnlockBackupForm } from '@/features/settings/EncryptedBackup';
 import { BACKUP_SAVED, saveBackup } from '@/features/settings/saveBackup';
 import { restoreWithSafetyBackup } from '@/features/settings/safeRestore';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
@@ -82,17 +92,40 @@ export function SettingsScreen() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [encrypting, setEncrypting] = useState(false);
+  const [locked, setLocked] = useState<{ readonly fileName: string; readonly text: string } | null>(
+    null,
+  );
+  const [unlockProblem, setUnlockProblem] = useState<string | null>(null);
 
   function reset() {
     setPending(null);
     setRefusal(null);
     setDone(null);
+    setLocked(null);
+    setUnlockProblem(null);
   }
 
-  async function exportJson() {
+  async function exportJson(password?: string) {
     reset();
-    const outcome = await saveBackup();
+    setEncrypting(false);
+    const outcome = await saveBackup(password);
     if (outcome !== 'cancelled') setDone(BACKUP_SAVED[outcome]);
+  }
+
+  async function unlock(password: string) {
+    if (locked === null) return;
+    setUnlockProblem(null);
+    try {
+      const plain = await decryptBackupText(locked.text, password);
+      await inspect(locked.fileName, plain);
+      setLocked(null);
+    } catch (error) {
+      if (!(error instanceof WrongPasswordError || error instanceof UnreadableEncryptedBackupError)) {
+        throw error;
+      }
+      setUnlockProblem(error.message);
+    }
   }
 
   async function exportCsv() {
@@ -109,13 +142,22 @@ export function SettingsScreen() {
   /** Validates a chosen file. Writes nothing — that waits for the confirmation. */
   async function choose(file: File) {
     reset();
-    const result = parseBackup(await file.text());
+    const text = await file.text();
+    if (isEncryptedBackup(text)) {
+      setLocked({ fileName: file.name, text });
+      return;
+    }
+    await inspect(file.name, text);
+  }
+
+  async function inspect(fileName: string, text: string) {
+    const result = parseBackup(text);
     if (!result.ok) {
-      setRefusal({ fileName: file.name, errors: result.errors });
+      setRefusal({ fileName, errors: result.errors });
       return;
     }
     setPending({
-      fileName: file.name,
+      fileName,
       document: result.document,
       summary: await restoreSummary(result.document),
     });
@@ -156,6 +198,35 @@ export function SettingsScreen() {
         </Button>
 
         <div className={RULED}>
+          <Head icon={Lock}>encrypted backup</Head>
+          <p className="type-body-sm text-ink-2">
+            The same file, locked with a password, for keeping in a cloud folder or an inbox
+            that should not be able to read it.
+          </p>
+          {encrypting ? (
+            <EncryptBackupForm
+              busy={busy}
+              onCancel={() => setEncrypting(false)}
+              onSave={(password) => void run(() => exportJson(password))}
+            />
+          ) : (
+            <Button
+              disabled={busy}
+              onClick={() => {
+                reset();
+                setEncrypting(true);
+              }}
+              size="block"
+              type="button"
+              variant="secondary"
+            >
+              <Lock aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
+              Save encrypted backup
+            </Button>
+          )}
+        </div>
+
+        <div className={RULED}>
           <Head icon={RotateCcw}>restore</Head>
           <p className="type-body-sm text-ink-2">
             Replaces everything on this phone with the contents of a backup file. Your
@@ -187,6 +258,16 @@ export function SettingsScreen() {
             <Working busy={busy} icon={FileUp} />
             {busy ? 'Reading the file…' : 'Choose a backup file'}
           </Button>
+
+          {locked !== null && (
+            <UnlockBackupForm
+              busy={busy}
+              fileName={locked.fileName}
+              onCancel={reset}
+              onUnlock={(password) => void run(() => unlock(password))}
+              problem={unlockProblem}
+            />
+          )}
 
           {pending !== null && (
             <RestoreConfirmation
