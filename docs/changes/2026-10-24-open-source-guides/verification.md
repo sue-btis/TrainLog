@@ -3,7 +3,7 @@
 Verdict: Pass
 Acceptance: Accepted — Josue, 2026-10-24, «Acepto F-1 (mergeo storage-warning primero), haz el commit y sube la rama.»
 Verified by: Self-verification (quick + lean, allowed by default)
-Open limitations: L-1
+Open limitations: None
 
 Size: quick
 Reliability: lean
@@ -29,8 +29,8 @@ Reliability: lean
 | ID | Type | Finding | Evidence | Status |
 |---|---|---|---|---|
 | F-1 | decision | Release-order dependency: README "What it does" names the Today storage warning, which lives on `feat/storage-warning/Josue`, not yet in `development`. Merging this branch first makes the README claim it for a short while. | `git merge-base --is-ancestor origin/feat/storage-warning/Josue origin/development` → not merged | Accepted |
-| F-2 | pre-existing | In-app field reference drift: `FIELD_NOTES` (`src/domain/routine-file/example.ts`) marks `progression` as optional (the parser requires it) and `reps` as required (v2 allows `target` instead). Shown in the import wizard. | `schema.ts:32-46` vs `example.ts` `FIELD_NOTES` | Recorded — follow-up change |
-| F-3 | pre-existing | Version wording: `FIELD_NOTES` and README say a version 1 file "means" weight × reps; the importer treats 1 and 2 identically and the outcome comes from v1 files declaring no `measurement`. | `schema.ts:55`; no other use of `version` in `src/domain/routine-file/` | Recorded — follow-up change |
+| F-2 | pre-existing | In-app field reference drift: `FIELD_NOTES` (`src/domain/routine-file/example.ts`) marks `progression` as optional (the parser requires it) and `reps` as required (v2 allows `target` instead). Shown in the import wizard. | `schema.ts:32-46` vs `example.ts` `FIELD_NOTES` | Fixed in `docs/changes/2026-10-24-field-notes/` |
+| F-3 | pre-existing | Version wording: `FIELD_NOTES` and README say a version 1 file "means" weight × reps; the importer treats 1 and 2 identically and the outcome comes from v1 files declaring no `measurement`. | `schema.ts:55`; no other use of `version` in `src/domain/routine-file/` | README fixed on this branch; wizard text fixed in `docs/changes/2026-10-24-field-notes/` |
 
 ## Requirement Compliance
 | Requirement / AC | Implementation Evidence | Independent Check | Result |
@@ -72,7 +72,7 @@ Actual: traceable, after the version correction recorded under Deviations.
 ## Accepted Limitations
 | ID | Finding | Accepted by | Date | Follow-up |
 |---|---|---|---|---|
-| L-1 | F-1 | Josue | 2026-10-24 | merge `feat/storage-warning/Josue` into `development` before this branch |
+| L-1 | F-1 | Josue | 2026-10-24 | done — `feat/storage-warning/Josue` merged into `development` (PR #21) |
 
 ## Canonical Design Synchronization
 | Artifact | Expected | Observed | Status |
