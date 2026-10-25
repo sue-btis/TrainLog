@@ -2,13 +2,13 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import {
   Bell,
   Database,
-  Download,
   FileUp,
   Gauge,
   HardDrive,
   LoaderCircle,
   RotateCcw,
   Scale,
+  Share,
   Smartphone,
   Sun,
   Table,
@@ -20,14 +20,12 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
-  exportBackup,
   listSetsForCsv,
   restoreSummary,
   setBodyweightKg,
   setDefaultRir,
   setDefaultUnit,
   setKeepScreenAwake,
-  setLastBackupAt,
   setTimerSound,
   setTimerVibration,
 } from '@/db';
@@ -50,6 +48,7 @@ import { longDate, plural } from '@/features/ui/format';
 import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, alert } from '@/features/ui/styles';
 import { download } from '@/features/settings/download';
+import { BACKUP_SAVED, saveBackup } from '@/features/settings/saveBackup';
 import { restoreWithSafetyBackup } from '@/features/settings/safeRestore';
 import { useAsyncAction } from '@/features/ui/useAsyncAction';
 import {
@@ -92,11 +91,8 @@ export function SettingsScreen() {
 
   async function exportJson() {
     reset();
-    const at = Date.now();
-    const document = await exportBackup(at);
-    download(stamp('trainlog-backup', 'json'), JSON.stringify(document), 'application/json');
-    await setLastBackupAt(at);
-    setDone('Backup saved. Keep it somewhere that is not this phone.');
+    const outcome = await saveBackup();
+    if (outcome !== 'cancelled') setDone(BACKUP_SAVED[outcome]);
   }
 
   async function exportCsv() {
@@ -155,8 +151,8 @@ export function SettingsScreen() {
           type="button"
           variant="primary"
         >
-          <Working busy={busy} icon={Download} />
-          {busy ? 'Exporting…' : 'Export backup'}
+          <Working busy={busy} icon={Share} />
+          {busy ? 'Saving…' : 'Save backup'}
         </Button>
 
         <div className={RULED}>

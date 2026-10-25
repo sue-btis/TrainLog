@@ -14,3 +14,5 @@ export {
   type ParseBackupResult,
   type StructuralError,
 } from '@/domain/backup/schema';
+
+export { BACKUP_REMINDER_DAYS, backupIsDue } from '@/domain/backup/due';
