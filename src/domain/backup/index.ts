@@ -14,3 +14,14 @@ export {
   type ParseBackupResult,
   type StructuralError,
 } from '@/domain/backup/schema';
+
+export { BACKUP_REMINDER_DAYS, backupIsDue } from '@/domain/backup/due';
+
+export {
+  MIN_PASSWORD_LENGTH,
+  UnreadableEncryptedBackupError,
+  WrongPasswordError,
+  decryptBackupText,
+  encryptBackupText,
+  isEncryptedBackup,
+} from '@/domain/backup/encryption';

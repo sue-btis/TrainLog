@@ -68,25 +68,31 @@ routine:
             type: "manual"
 ```
 
-Import it, review it, confirm the days, train. Version `1` files still load —
-they mean weight × reps throughout. Version `2` adds `measurement`, so an
+Import it, review it, confirm the days, train. Version `1` files still load,
+read by the same rules. Version `2` is the one that added `measurement`, so an
 exercise can be measured in reps, time, distance, added or assisted bodyweight,
 or a pair of those, and states its target on whichever axis it is scored on.
 
 You do not have to write the file by hand: routines can also be created and
-edited inside the app.
+edited inside the app. Every field, the nine measurement types and every
+validation rule are described in [docs/FORMAT.md](./docs/FORMAT.md).
 
 ## What it does
 
 Routine import with a review step · routine authoring and editing in-app ·
 calendar you control, with placements you can move to any day · workout execution
 with weight, reps, RIR, duration and distance · rest timer that survives a locked
-phone · previous performance shown when you need it · nine measurement types ·
+phone · stopwatch for timed sets, so holds and intervals (HIIT as a Workout) need
+no other app · previous performance shown when you need it · nine measurement types ·
 bodyweight as a setting, recorded onto the sessions that need it · exercise
 catalog shipped in the build · per-exercise history and session detail ·
-estimated 1RM and personal records · progress dashboard · double progression ·
-session effort · full backup, restore and CSV export · installable, and fully
-usable offline.
+estimated 1RM and personal records · progress dashboard, with an exercise compared
+across the routines it was trained in and this week's sets per muscle, planned
+against logged · double progression · session effort · your own exercises
+created, renamed (the old name keeps matching on import) and deleted when unused
+· full backup through the phone's share sheet, optionally password-encrypted,
+with a reminder after training, plus restore and CSV export · a warning on Today
+when the browser may clear your data · installable, and fully usable offline.
 
 Live demo: <https://trainlog.josuee152.workers.dev/>. It deploys automatically from `master` through
 Cloudflare's Git integration; no workflow in this repo does it.
@@ -97,8 +103,9 @@ Cloudflare's Git integration; no workflow in this repo does it.
   no separate list of past sessions.
 - There is no way to delete a single session or to clear all data from inside the
   app. Restoring a backup replaces everything.
-- Exercises cannot be created, renamed or deleted from the catalog screen yet
-  (exercise management is still pending in the PRD).
+- Catalog exercises cannot be renamed or deleted; only exercises you created can.
+- Two devices cannot be kept in sync: a backup restored on another device
+  replaces what is there.
 
 Deliberately out of scope: accounts, cloud sync, social features, nutrition,
 wearables, and AI coaching.
@@ -122,7 +129,9 @@ pnpm dev
 
 | Document | What it holds |
 | --- | --- |
-| [docs/PRD.md](./docs/PRD.md) | The full product specification |
+| [docs/FORMAT.md](./docs/FORMAT.md) | The routine file format, field by field |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Setup, checks, rules and how to open a pull request |
+| [docs/PRD.md](./docs/PRD.md) | The full product specification (in Spanish) |
 | [PRODUCT.md](./PRODUCT.md) | Product purpose, users, and the committed stack |
 | [DESIGN.md](./DESIGN.md) | The visual system |
 | [CONTEXT.md](./CONTEXT.md) | Glossary — the words this project uses, and the ones it avoids |

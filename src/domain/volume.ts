@@ -1,4 +1,4 @@
-import { CATEGORIES } from '@/domain/catalog';
+import { CATALOG_CATEGORIES } from '@/domain/catalog';
 import type { ExerciseId } from '@/domain/ids';
 
 /** Sets of one exercise, planned or logged, with the category its Exercise declares. */
@@ -33,7 +33,7 @@ export function weeklyVolume(
   planned: readonly VolumeEntry[],
   performed: readonly VolumeEntry[],
 ): WeeklyVolume {
-  const known = new Set(CATEGORIES);
+  const known = new Set(CATALOG_CATEGORIES);
   const muscles = new Map<string, { planned: number; performed: number }>();
   const other = new Map<ExerciseId, { name: string; planned: number; performed: number }>();
 
@@ -53,7 +53,7 @@ export function weeklyVolume(
   for (const entry of performed) add(entry, 'performed');
 
   return {
-    muscles: CATEGORIES.filter((category) => muscles.has(category)).map((category) => ({
+    muscles: CATALOG_CATEGORIES.filter((category) => muscles.has(category)).map((category) => ({
       category,
       ...muscles.get(category)!,
     })),
