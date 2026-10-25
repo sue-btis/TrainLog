@@ -113,11 +113,13 @@ Two tiers, and they behave differently (§11.1):
 
 - **Structural** — Zod schema. Malformed YAML, unknown `version`, missing
   required fields. Rejects the import.
-- **Semantic** — hand-written checks, **eight** of them: `min_reps > max_reps`,
-  RIR out of range, negative rest, non-positive sets, an unrecognized
-  progression, two Workouts sharing a `suggested_day`, a Routine declaring no
-  Workouts, and a blank Routine name. Loads into wizard step 1 flagged, and
-  blocks `Accept` until fixed.
+- **Semantic** — hand-written checks, **twelve** of them: `min_reps > max_reps`,
+  a backwards target range, both or neither of `reps` / `target`, a range on the
+  wrong axis for the exercise it resolves to, RIR out of range, negative rest,
+  non-positive sets, an unrecognized progression, two Workouts sharing a
+  `suggested_day`, a Routine declaring no Workouts, and a blank Routine name.
+  The codes are listed in [docs/FORMAT.md](./docs/FORMAT.md). Loads into wizard
+  step 1 flagged, and blocks `Accept` until fixed.
 
 **The semantic tier runs on a Routine Draft.** It is the wizard's validator, and
 what it validates is a `RoutineFile` being shaped before Accept. A Workout added
