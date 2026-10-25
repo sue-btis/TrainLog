@@ -68,8 +68,8 @@ routine:
             type: "manual"
 ```
 
-Import it, review it, confirm the days, train. Version `1` files still load —
-they mean weight × reps throughout. Version `2` adds `measurement`, so an
+Import it, review it, confirm the days, train. Version `1` files still load,
+read by the same rules. Version `2` is the one that added `measurement`, so an
 exercise can be measured in reps, time, distance, added or assisted bodyweight,
 or a pair of those, and states its target on whichever axis it is scored on.
 
