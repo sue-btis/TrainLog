@@ -11,7 +11,9 @@ export function BottomNav() {
       <div aria-hidden="true" className="bloom pointer-events-none absolute inset-x-0 bottom-0 h-32" />
 
       <div className="glass relative border-t border-rule">
-        <div className="mx-auto flex w-full max-w-lg gap-2 px-4 py-2">
+        {/* Tighter below 360px, with the label's tracking dropped there too: at 320
+            the four tabs were 66px wide and CALENDAR broke mid-word. */}
+        <div className="mx-auto flex w-full max-w-lg gap-1 px-2 py-2 min-[360px]:gap-2 min-[360px]:px-4">
           {SECTIONS.map(({ to, label, Icon }) => (
             <NavLink
               className={({ isActive }) =>
@@ -35,7 +37,7 @@ export function BottomNav() {
 
               <span className="nav-press flex flex-col items-center gap-1">
                 <Icon aria-hidden="true" className="nav-icon" size={20} strokeWidth={ICON_STROKE} />
-                <span className="type-micro text-center [overflow-wrap:anywhere]">{label}</span>
+                <span className="type-micro text-center [overflow-wrap:anywhere] max-[359px]:tracking-normal">{label}</span>
               </span>
             </NavLink>
           ))}

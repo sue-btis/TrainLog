@@ -22,8 +22,8 @@ describe('weeklyVolume', () => {
     );
 
     expect(volume.muscles).toEqual([
-      { category: 'chest', planned: 3, performed: 2 },
       { category: 'biceps', planned: 0, performed: 3 },
+      { category: 'chest', planned: 3, performed: 2 },
     ]);
   });
 
@@ -40,12 +40,12 @@ describe('weeklyVolume', () => {
     ]);
   });
 
-  it('orders muscles as the catalog does and omits the empty ones', () => {
+  it('orders muscles alphabetically, as the catalog lists its categories, and omits the empty ones', () => {
     const volume = weeklyVolume(
       [entry('hammer-curl', 'biceps', 3), entry('front-squat', 'quadriceps', 4)],
       [],
     );
 
-    expect(volume.muscles.map((row) => row.category)).toEqual(['quadriceps', 'biceps']);
+    expect(volume.muscles.map((row) => row.category)).toEqual(['biceps', 'quadriceps']);
   });
 });
