@@ -23,6 +23,7 @@ import {
   snapshotLine,
 } from '@/features/ui/format';
 import { ExerciseArt } from '@/features/exercises/ExerciseArt';
+import { BackupReminder } from '@/features/settings/BackupReminder';
 import { Reading } from '@/features/ui/Reading';
 import { ICON_STROKE, LABEL, RULED, WELL, chip } from '@/features/ui/styles';
 import { cn } from '@/lib/utils';
@@ -72,6 +73,8 @@ export function SessionDetailScreen() {
           summary={summarizeSession(detail, histories ?? new Map())}
         />
       )}
+
+      {justFinished && <BackupReminder />}
 
       <header className="flex flex-col gap-2">
         <h2 className="type-display">{workouts?.get(session.workoutId)?.name ?? '…'}</h2>
