@@ -7,6 +7,8 @@ import {
   deleteExercise,
   editExercise,
   moveExercise,
+  renameExercise,
+  replaceExercise,
   setRoutineName,
   setWeeks,
   setWorkoutName,
@@ -78,6 +80,50 @@ describe('deleteExercise', () => {
   it('returns the file unchanged for an exercise that is not there', () => {
     const file = threeExercises();
     expect(deleteExercise(file, { workout: 0, exercise: 9 })).toBe(file);
+  });
+});
+
+describe('renameExercise', () => {
+  it('changes only the name and keeps the programming', () => {
+    const programmed = anExercise({ sets: 5, rir: { min: 1, max: 2 }, notes: ['pause'] });
+    const file = aFile([aWorkout({ exercises: [programmed] })]);
+
+    const renamed = renameExercise(file, { workout: 0, exercise: 0 }, '  Pause Squat ');
+
+    expect(renamed.routine.workouts[0]?.exercises[0]).toEqual({
+      ...programmed,
+      name: 'Pause Squat',
+    });
+  });
+
+  it('drops the exercise_id so the new name decides what it binds to', () => {
+    const file = aFile([aWorkout({ exercises: [anExercise({ exercise_id: 'front-squat' })] })]);
+
+    const renamed = renameExercise(file, { workout: 0, exercise: 0 }, 'Pause Squat');
+
+    expect(renamed.routine.workouts[0]?.exercises[0]).not.toHaveProperty('exercise_id');
+  });
+
+  it('is a no-op for a ref past the end', () => {
+    const file = threeExercises();
+    expect(renameExercise(file, { workout: 0, exercise: 9 }, 'Dip')).toBe(file);
+  });
+});
+
+describe('replaceExercise', () => {
+  it('swaps the whole entry, leaving none of the old fields behind', () => {
+    const file = aFile([aWorkout({ exercises: [anExercise({ rir: { min: 1, max: 2 } })] })]);
+    const replacement = anExercise({ name: 'Dip', exercise_id: 'dip' });
+    delete replacement.reps;
+
+    const replaced = replaceExercise(file, { workout: 0, exercise: 0 }, replacement);
+
+    expect(replaced.routine.workouts[0]?.exercises[0]).toEqual(replacement);
+  });
+
+  it('keeps the position among its neighbours', () => {
+    const replaced = replaceExercise(threeExercises(), { workout: 0, exercise: 1 }, named('Dip'));
+    expect(namesOf(replaced)).toEqual(['Front Squat', 'Dip', 'Row']);
   });
 });
 

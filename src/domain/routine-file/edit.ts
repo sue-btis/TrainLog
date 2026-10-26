@@ -32,6 +32,32 @@ export function editExercise(
   );
 }
 
+/** Swaps the whole entry, so none of the old programming carries over. */
+export function replaceExercise(
+  file: RoutineFile,
+  ref: ExerciseRef,
+  exercise: RoutineFileExercise,
+): RoutineFile {
+  return replaceExercises(file, ref.workout, (exercises) =>
+    exercises[ref.exercise] === undefined
+      ? exercises
+      : exercises.map((current, index) => (index === ref.exercise ? exercise : current)),
+  );
+}
+
+/**
+ * Changes only the name. `exercise_id` is dropped with the old name: it binds
+ * before the name does, so keeping it would import the old exercise anyway.
+ */
+export function renameExercise(file: RoutineFile, ref: ExerciseRef, name: string): RoutineFile {
+  const current = file.routine.workouts[ref.workout]?.exercises[ref.exercise];
+  if (current === undefined) return file;
+
+  const renamed: RoutineFileExercise = { ...current, name: name.trim() };
+  delete renamed.exercise_id;
+  return replaceExercise(file, ref, renamed);
+}
+
 export function deleteExercise(file: RoutineFile, ref: ExerciseRef): RoutineFile {
   return replaceExercises(file, ref.workout, (exercises) =>
     exercises[ref.exercise] === undefined
