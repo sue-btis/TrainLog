@@ -14,6 +14,8 @@ import {
   draftExercise,
   editExercise,
   offeredExercises,
+  renameExercise,
+  replaceExercise,
   routineFileToDomain,
   parseRoutineFile,
   setRoutineName,
@@ -260,6 +262,13 @@ export function ImportWizard() {
       setOpenRef(null);
       dispatch({ type: 'edited', file: deleteExercise(file, ref) });
     },
+    rename: (ref: ExerciseRef, name: string) =>
+      file && dispatch({ type: 'edited', file: renameExercise(file, ref, name) }),
+    replace: (ref: ExerciseRef, offer: Offer) => {
+      if (!file) return;
+      setOpenRef(ref);
+      dispatch({ type: 'edited', file: replaceExercise(file, ref, draftExercise(offer)) });
+    },
     toggleDay: (workout: number, day: Weekday) =>
       dispatch({ type: 'toggleDay', workout, day }),
     weeksBy: (delta: number) => dispatch({ type: 'weeksBy', delta }),
@@ -320,6 +329,8 @@ export function ImportWizard() {
             onAddWorkout={edit.addWorkout}
             onDelete={edit.remove}
             onEdit={edit.exercise}
+            onRename={edit.rename}
+            onReplace={edit.replace}
             onRoutineName={edit.routineName}
             onToggle={setOpenRef}
             onWorkoutName={edit.workoutName}

@@ -18,25 +18,6 @@ interface AddExerciseProps {
 
 export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExerciseProps) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-
-  const needle = normalizeExerciseName(query);
-
-  const matching = useMemo(
-    () =>
-      needle === ''
-        ? offers
-        : offers.filter((offer) => normalizeExerciseName(offerName(offer)).includes(needle)),
-    [offers, needle],
-  );
-
-  const typed = resolveTypedName(query, offers);
-
-  function commit(offer: Offer) {
-    onAdd(offer);
-    setQuery('');
-    setOpen(false);
-  }
 
   if (!open) {
     return (
@@ -54,11 +35,51 @@ export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExe
   }
 
   return (
+    <ExerciseSearch
+      action="Add"
+      id={`add-exercise-${workoutIndex}`}
+      label={`add to ${workoutName}`}
+      offers={offers}
+      onCancel={() => setOpen(false)}
+      onPick={(offer) => {
+        onAdd(offer);
+        setOpen(false);
+      }}
+    />
+  );
+}
+
+interface ExerciseSearchProps {
+  readonly offers: readonly Offer[];
+  readonly id: string;
+  readonly label: string;
+  /** The verb on the button that turns typed text into a new exercise. */
+  readonly action: string;
+  readonly onPick: (offer: Offer) => void;
+  readonly onCancel: () => void;
+}
+
+export function ExerciseSearch({ offers, id, label, action, onPick, onCancel }: ExerciseSearchProps) {
+  const [query, setQuery] = useState('');
+
+  const needle = normalizeExerciseName(query);
+
+  const matching = useMemo(
+    () =>
+      needle === ''
+        ? offers
+        : offers.filter((offer) => normalizeExerciseName(offerName(offer)).includes(needle)),
+    [offers, needle],
+  );
+
+  const typed = resolveTypedName(query, offers);
+
+  return (
     <div className={cn(WELL, 'arrive')}>
       <TextField
         autoFocus
-        id={`add-exercise-${workoutIndex}`}
-        label={`add to ${workoutName}`}
+        id={id}
+        label={label}
         onCommit={setQuery}
         placeholder="Search, or type a new exercise"
         value={query}
@@ -66,7 +87,7 @@ export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExe
 
       {needle !== '' && typed.kind !== 'new' && (
         <p className="type-body-sm text-planned-ink">
-          {offerName(typed)} already exists — adding it will use that exercise, not make a
+          {offerName(typed)} already exists — picking it will use that exercise, not make a
           second one.
         </p>
       )}
@@ -75,7 +96,7 @@ export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExe
           the Routine screen's own add-form. This list used to run to ninety-six
           rows with nothing saying so. */}
       <ExerciseOptions
-        onPick={commit}
+        onPick={onPick}
         options={matching.map((offer) => ({
           key: `${offer.kind}-${offerName(offer)}`,
           name: offerName(offer),
@@ -85,9 +106,9 @@ export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExe
       />
 
       {typed.kind === 'new' && typed.name !== '' && (
-        <Button onClick={() => commit(typed)} size="block" type="button" variant="primary">
+        <Button onClick={() => onPick(typed)} size="block" type="button" variant="primary">
           <Plus aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
-          Add “{typed.name}” as a new exercise
+          {action} “{typed.name}” as a new exercise
         </Button>
       )}
 
@@ -98,14 +119,7 @@ export function AddExercise({ offers, workoutIndex, workoutName, onAdd }: AddExe
         </p>
       )}
 
-      <Button
-        onClick={() => {
-          setQuery('');
-          setOpen(false);
-        }}
-        type="button"
-        variant="ghost"
-      >
+      <Button onClick={onCancel} type="button" variant="ghost">
         Cancel
       </Button>
     </div>

@@ -21,6 +21,8 @@ export {
   deleteExercise,
   editExercise,
   moveExercise,
+  renameExercise,
+  replaceExercise,
   setRoutineName,
   setWeeks,
   setWorkoutName,
