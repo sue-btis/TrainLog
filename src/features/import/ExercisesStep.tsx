@@ -1,5 +1,14 @@
 import { useState } from 'react';
-import { ArrowRight, EllipsisVertical, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  EllipsisVertical,
+  Pencil,
+  Plus,
+  TextCursorInput,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import type { ExerciseRef, Offer, RoutineFile, RoutineFileExercise } from '@/domain/routine-file';
 import {
   declaredMeasurement,
@@ -14,7 +23,7 @@ import {
 import type { Exercise } from '@/domain/types';
 import { MEASUREMENT_OPTIONS, measurementLabel } from '@/features/ui/format';
 import type { Unit } from '@/domain/types';
-import { AddExercise } from '@/features/import/AddExercise';
+import { AddExercise, ExerciseSearch } from '@/features/import/AddExercise';
 import {
   NotesField,
   NumberField,
@@ -63,6 +72,8 @@ interface ExercisesStepProps {
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
   readonly knownExercises: readonly Exercise[];
   readonly onDelete: (ref: ExerciseRef) => void;
+  readonly onRename: (ref: ExerciseRef, name: string) => void;
+  readonly onReplace: (ref: ExerciseRef, offer: Offer) => void;
   readonly onRoutineName: (name: string) => void;
   readonly onWorkoutName: (workout: number, name: string) => void;
   readonly onAddWorkout: (name: string) => void;
@@ -82,6 +93,8 @@ export function ExercisesStep({
   onEdit,
   knownExercises,
   onDelete,
+  onRename,
+  onReplace,
   onRoutineName,
   onWorkoutName,
   onAddWorkout,
@@ -171,8 +184,11 @@ export function ExercisesStep({
                     issues={issues}
                     key={`${exercise.name}-${index}`}
                     knownExercises={knownExercises}
+                    offers={offers}
                     onDelete={onDelete}
                     onEdit={onEdit}
+                    onRename={onRename}
+                    onReplace={onReplace}
                     onToggle={onToggle}
                     open={openRef?.workout === activeWorkout && openRef.exercise === index}
                     position={index + 1}
@@ -294,6 +310,9 @@ interface ExerciseRowProps {
   readonly onEdit: (ref: ExerciseRef, patch: Partial<RoutineFileExercise>) => void;
   readonly knownExercises: readonly Exercise[];
   readonly onDelete: (ref: ExerciseRef) => void;
+  readonly offers: readonly Offer[];
+  readonly onRename: (ref: ExerciseRef, name: string) => void;
+  readonly onReplace: (ref: ExerciseRef, offer: Offer) => void;
 }
 
 function ExerciseRow({
@@ -307,8 +326,12 @@ function ExerciseRow({
   onEdit,
   knownExercises,
   onDelete,
+  offers,
+  onRename,
+  onReplace,
 }: ExerciseRowProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [changingName, setChangingName] = useState<'rename' | 'replace' | null>(null);
   const base = exercisePath(exerciseRef.workout, exerciseRef.exercise);
   const { reps, target } = exercise;
   // The Exercise this entry will bind to, or `undefined` where the import
@@ -363,10 +386,27 @@ function ExerciseRow({
               <EllipsisVertical aria-hidden="true" size={20} strokeWidth={ICON_STROKE} />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent
+            align="end"
+            // The forms mount while the menu still traps focus, so `autoFocus`
+            // cannot take; their field is focused here instead of the trigger.
+            onCloseAutoFocus={(event) => {
+              if (changingName === null) return;
+              event.preventDefault();
+              document.getElementById(`${fieldId(base)}-${changingName}`)?.focus();
+            }}
+          >
             <DropdownMenuItem onSelect={() => onToggle(expanded ? null : exerciseRef)}>
               <Pencil aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
               {expanded ? 'Close editor' : 'Edit'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setChangingName('rename')}>
+              <TextCursorInput aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setChangingName('replace')}>
+              <ArrowLeftRight aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
+              Replace
             </DropdownMenuItem>
             <DropdownMenuItem destructive onSelect={() => setConfirmingDelete(true)}>
               <Trash2 aria-hidden="true" size={18} strokeWidth={ICON_STROKE} />
@@ -375,6 +415,37 @@ function ExerciseRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {changingName === 'rename' && (
+        <RenameForm
+          current={exercise.name}
+          id={`${fieldId(base)}-rename`}
+          onCancel={() => setChangingName(null)}
+          onRename={(name) => {
+            setChangingName(null);
+            onRename(exerciseRef, name);
+          }}
+        />
+      )}
+
+      {changingName === 'replace' && (
+        <div className={RULED}>
+          <p className="type-body-sm text-ink-2">
+            The new exercise starts from default programming.
+          </p>
+          <ExerciseSearch
+            action="Use"
+            id={`${fieldId(base)}-replace`}
+            label={`replace ${exercise.name}`}
+            offers={offers}
+            onCancel={() => setChangingName(null)}
+            onPick={(offer) => {
+              setChangingName(null);
+              onReplace(exerciseRef, offer);
+            }}
+          />
+        </div>
+      )}
 
       {confirmingDelete && (
         <div className={cn(RULED, 'arrive flex-row flex-wrap items-center gap-2')}>
@@ -517,6 +588,41 @@ function ExerciseRow({
       )}
       </article>
     </Card>
+  );
+}
+
+interface RenameFormProps {
+  readonly id: string;
+  readonly current: string;
+  readonly onRename: (name: string) => void;
+  readonly onCancel: () => void;
+}
+
+// Held locally until submitted: the row is keyed by its name, so committing
+// each keystroke would remount it and drop focus mid-word.
+function RenameForm({ id, current, onRename, onCancel }: RenameFormProps) {
+  const [name, setName] = useState(current);
+  const blank = name.trim() === '';
+
+  return (
+    <form
+      className={cn(RULED, 'arrive')}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!blank) onRename(name);
+      }}
+    >
+      <TextField id={id} label="exercise name" onCommit={setName} value={name} />
+      <p className="type-body-sm text-ink-2">Only the name changes; the programming stays.</p>
+      <div className="flex items-center gap-2">
+        <Button disabled={blank} type="submit">
+          Rename
+        </Button>
+        <Button onClick={onCancel} type="button" variant="ghost">
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 
