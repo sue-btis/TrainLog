@@ -19,5 +19,5 @@ Thumbs.db
 .stryker-tmp/
 reports/
 
-# impeccable live-mode session (pid, port, token)
-.impeccable/live/
+# Impeccable design artifacts
+.impeccable/
