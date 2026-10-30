@@ -54,44 +54,13 @@ handles, it is how the model works.
 A competitor cannot truthfully copy this while also storing progression state, dating its
 templates, or requiring an account.
 
-## Operating Context
+## Product Specification
 
-- The lifter authors or edits a YAML routine file outside the app.
-- Import runs through a two-step wizard: review exercises, then confirm suggested days and
-  weeks. Structural errors reject the import; semantic errors load flagged and block
-  `Accept` until fixed.
-- Accepting generates Placements onto a calendar the user then controls directly.
-- Training happens from **Today** → start Workout → snapshot targets → log sets
-  (weight/reps/RIR) → rest timer → finish.
-- The rest timer must survive a locked phone. Every set persists as it is logged, so an
-  interrupted session resumes from IndexedDB.
-- Data leaves only by explicit backup, restore, or CSV export.
-
-## Capabilities and Constraints
-
-Confirmed and specified in [docs/PRD.md](./docs/PRD.md); the glossary in
+The product is specified in [docs/product/prd.md](./docs/product/prd.md): scope, journeys,
+requirements, business rules and principles. The design package is indexed by
+[docs/spec/manifest.yaml](./docs/spec/manifest.yaml), and decisions live in
+[docs/design/architecture/adr/](./docs/design/architecture/adr/). The glossary in
 [CONTEXT.md](./CONTEXT.md) is binding on identifiers as well as prose.
-
-- **MVP scope:** routine import with review step, routine management, calendar the user
-  controls, Today, workout execution, rest timer with wake lock, set logging, previous
-  performance, double progression, per-exercise history, progress dashboard, shipped
-  exercise catalog, backup/restore, CSV export, installable and fully offline.
-- **Deliberately out of scope:** accounts, cloud sync, social features, nutrition,
-  wearables, AI coaching.
-- **Offline is the normal case.** No runtime network requests, no backend, no telemetry.
-  The exercise catalog ships inside the build.
-- **An accepted Routine takes additions only.** Correcting happens in the wizard, before
-  Accept; each import creates a new Routine. An active Routine may gain a Workout, and a
-  Workout may gain a Planned Exercise — nothing stored is renamed, reordered, retargeted
-  or removed. Deleting a Routine referenced by Sessions is refused — archive instead.
-- **Weight carries its unit.** Store entered `weight` + `unit` plus derived `weightKg`;
-  every comparison, chart and progression step reads `weightKg`. Unit is fixed per
-  Exercise.
-- **Identity is a generated ID** (UUID/ULID). An exercise name is a mutable label.
-- **Missed is derived, never stored** — a past Placement with no Session.
-- Only `completed` Sessions feed progression. Unplanned exercises get no suggestion.
-
-Load-bearing decisions are recorded in [docs/adr/](./docs/adr/).
 
 ## Brand Commitments
 
@@ -110,35 +79,12 @@ Load-bearing decisions are recorded in [docs/adr/](./docs/adr/).
   one at a time. Soft depth from a single drop in the board's own hue, frosted glass containers, fully rounded
   cells, and a five-hue semantic set where colour names a state: blue Planned, green Actual, violet
   Progression, red Missed, amber Live. Depth has two positions only: raised is pressable, flat is
-  settled. Recorded in [DESIGN.md](./DESIGN.md); first built surface is
-  `design/preview.html`. **Supersedes Cloud Quarry** (chamfered cut-edges, blue-only), which the
+  settled. Recorded in [DESIGN.md](./DESIGN.md). **Supersedes Cloud Quarry** (chamfered cut-edges, blue-only), which the
   user replaced on 2026-08-18 as incompatible with the rounded, multi-colour brief.
 - **The glossary outranks the world.** CONTEXT.md governs all user-facing language; the
   dose card supplies material and structure only. The UI says Session, Set, Exercise, RIR.
-- Code, identifiers and comments in English. PRD prose stays Spanish.
+- Code, identifiers, comments and product docs in English.
 
-## Evidence on Hand
-
-- Full product specification: [docs/PRD.md](./docs/PRD.md) (48 sections, referenced as
-  `§n`).
-- Binding glossary: [CONTEXT.md](./CONTEXT.md).
-- Two architectural decision records: [docs/adr/](./docs/adr/).
-- Repository rules and invariants: [AGENTS.MD](./AGENTS.MD).
-- A real example routine file in the README and PRD §12.
-
-**No application code exists yet.** There are no screenshots, no users, no testimonials,
-no metrics, no press, and no deployment. Future work must not fabricate any of these.
-
-## Product Principles
-
-1. **Offline is normal, not an exception.**
-2. **Logging a set must be faster than writing it down by hand.**
-3. **Previous performance is visible whenever it is useful.**
-4. **Planned and actual are separate entities — the past is never rewritten.**
-5. **The routine file describes programming; the app executes it.**
-6. **Progression is deterministic, derived, and explainable to the lifter.**
-7. **The data is the user's and stays portable; no infrastructure is required.**
-8. **During a set, nothing that does not serve the current set may compete for attention.**
 
 ## Accessibility & Inclusion
 

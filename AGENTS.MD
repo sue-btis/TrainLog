@@ -4,8 +4,8 @@ Offline-first training PWA. A YAML file declares the programme; the app executes
 it, records what happened, and derives progression from that record.
 
 - [CONTEXT.md](./CONTEXT.md) — the glossary. Binding on identifiers, not just prose.
-- [docs/PRD.md](./docs/PRD.md) — product spec. Sections are referenced as `§11.3`.
-- [docs/adr/](./docs/adr/) — why the two load-bearing decisions were made.
+- [docs/product/prd.md](./docs/product/prd.md) — product spec (FR/NFR/BR IDs). The design package is indexed by [docs/spec/manifest.yaml](./docs/spec/manifest.yaml). `§n` references below and in code point at the superseded [docs/PRD.md](./docs/PRD.md) until they are migrated.
+- [docs/design/architecture/adr/](./docs/design/architecture/adr/) — why the load-bearing decisions were made.
 
 ## Vocabulary is binding
 
@@ -59,7 +59,7 @@ telemetry.
 **Planned and actual are separate.** When an exercise starts, its planned
 targets are copied into the `ExerciseSession` (§14.7). History renders from that
 snapshot — reading targets back out of a template would let a later edit rewrite
-the past. See [ADR 0002](./docs/adr/0002-snapshot-planned-targets-on-session-start.md).
+the past. See [ADR-003](./docs/design/architecture/adr/ADR-003-snapshot-planned-targets-on-session-start.md).
 
 **Progression is derived.** A pure function over history, recomputed on demand,
 with nothing stored. It reads by `exerciseId`, never `plannedExerciseId`, so
@@ -73,7 +73,7 @@ exercise being opened, one step at a time (§29). Unplanned exercises get no sug
 **Placements and Sessions are independent.** A `Placement` is intent and can be
 moved or deleted; a `Session` is what happened. Neither references the other. A
 missed day is derived at query time — a past `Placement` with no `Session` of its
-Workout on its date or earlier in its Monday-week — and is never written down. See [ADR 0001](./docs/adr/0001-dateless-workouts-with-user-owned-placements.md).
+Workout on its date or earlier in its Monday-week — and is never written down. See [ADR-002](./docs/design/architecture/adr/ADR-002-dateless-workouts-with-user-owned-placements.md).
 
 **Weight carries its unit.** Store the entered `weight` and `unit` plus a derived
 `weightKg`. Every comparison, chart and progression step reads `weightKg`. The

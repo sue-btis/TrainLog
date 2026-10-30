@@ -307,7 +307,7 @@ routine:
 - [`docs/examples/routine.yaml`](./examples/routine.yaml) and
   [`docs/examples/hibrido-v2.yaml`](./examples/hibrido-v2.yaml) — commented
   examples (comments in Spanish).
-- [`docs/bloque-a-acumulacion.yaml`](./bloque-a-acumulacion.yaml),
-  [`bloque-b-intensificacion.yaml`](./bloque-b-intensificacion.yaml) and
-  [`bloque-c-estetica-hibrida.yaml`](./bloque-c-estetica-hibrida.yaml) — real
+- [`docs/examples/bloque-a-acumulacion.yaml`](./examples/bloque-a-acumulacion.yaml),
+  [`bloque-b-intensificacion.yaml`](./examples/bloque-b-intensificacion.yaml) and
+  [`bloque-c-estetica-hibrida.yaml`](./examples/bloque-c-estetica-hibrida.yaml) — real
   training blocks, including HIIT written as a Workout.

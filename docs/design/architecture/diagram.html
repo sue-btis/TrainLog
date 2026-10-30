@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrainLog architecture</title>
+
+<style>
+  :root {
+    --page-bg: #E9EDF3;
+    --dg-bg: #FFFFFF;
+    --dg-surface: #FFFFFF;
+    --dg-ink: #16202E;
+    --dg-ink2: #4C5A6E;
+    --dg-rule: #C3D0E0;
+    --navy: #14284B;
+    --az-blue: #0F6CBD;
+    --az-blue-d: #0A4D8C;
+    --az-blue-l: #4FA1E3;
+    --az-purple: #8661C5;
+    --az-purple-d: #5C2E91;
+    --az-purple-l: #B49BE0;
+    --az-teal: #0F7B6C;
+    --az-orange: #DE6B1F;
+    --az-grey: #66748A;
+    --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-disp: "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #0B0F16; --dg-bg: #141A24; --dg-surface: #1B2330;
+      --dg-ink: #E7EDF6; --dg-ink2: #9DAABC; --dg-rule: #303C4D; --navy: #0E1D36;
+      --az-blue: #4FA1E3; --az-blue-d: #7CBCF0; --az-blue-l: #2E7CC0;
+      --az-purple: #A98CE0; --az-purple-d: #C4AEEB; --az-purple-l: #7355A8;
+      --az-teal: #35B39D; --az-orange: #EE8C3E; --az-grey: #93A2B5;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --page-bg: #0B0F16; --dg-bg: #141A24; --dg-surface: #1B2330;
+    --dg-ink: #E7EDF6; --dg-ink2: #9DAABC; --dg-rule: #303C4D; --navy: #0E1D36;
+    --az-blue: #4FA1E3; --az-blue-d: #7CBCF0; --az-blue-l: #2E7CC0;
+    --az-purple: #A98CE0; --az-purple-d: #C4AEEB; --az-purple-l: #7355A8;
+    --az-teal: #35B39D; --az-orange: #EE8C3E; --az-grey: #93A2B5;
+  }
+
+  body {
+    background: var(--page-bg); color: var(--dg-ink);
+    font-family: var(--font-sans); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1640px; margin: 0 auto; padding: 40px 24px 72px;
+          display: flex; flex-direction: column; gap: 22px; }
+  .head { display: flex; flex-direction: column; gap: 6px; }
+  .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+             font-weight: 650; color: var(--az-blue); }
+  h1 { font-family: var(--font-disp); font-size: 27px; font-weight: 640;
+       letter-spacing: -.015em; margin: 0; }
+  .sub { font-size: 14.5px; color: var(--dg-ink2); margin: 0; max-width: 78ch; }
+
+  .board { background: var(--dg-bg); border: 1px solid var(--dg-rule);
+           border-radius: 12px; padding: 12px; overflow-x: auto; }
+  .board svg { display: block; width: 100%; min-width: 1280px; height: auto; }
+  /* Holds the shared icons and markers; display:none would break the references in some browsers. */
+  svg.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .view { display: flex; flex-direction: column; gap: 10px; }
+  .view h2 { font-family: var(--font-disp); font-size: 19px; font-weight: 640; margin: 8px 0 0; }
+
+  /* ---------- diagram text ---------- */
+  .z-title { font-family: var(--font-disp); font-size: 15.5px; font-weight: 650; }
+  .z-sub   { font-family: var(--font-sans); font-size: 12.5px; fill: var(--dg-ink2); }
+  .n-name  { font-family: var(--font-disp); font-size: 12.5px; font-weight: 650; fill: var(--dg-ink); }
+  .n-id    { font-family: var(--font-sans); font-size: 11.5px; fill: var(--dg-ink); }
+  .n-sub   { font-family: var(--font-sans); font-size: 11px;   fill: var(--dg-ink2); }
+  .n-note  { font-family: var(--font-sans); font-size: 10.5px; font-style: italic; fill: var(--dg-ink2); }
+  .e-lab   { font-family: var(--font-sans); font-size: 10.5px; font-style: italic; }
+  .lg-lab  { font-family: var(--font-sans); font-size: 12px; font-style: italic; fill: var(--dg-ink2); }
+  .rg-lab  { font-family: var(--font-disp); font-size: 15px; font-weight: 650; fill: var(--az-blue-d); }
+  .hd-lab  { font-family: var(--font-disp); font-size: 17px; font-weight: 600; fill: #FFFFFF; }
+
+  .halo { paint-order: stroke; stroke: var(--dg-bg); stroke-width: 4px; stroke-linejoin: round; }
+
+  .card      { fill: var(--dg-surface); stroke: var(--az-blue);   stroke-width: 1.2; }
+  .card-p    { fill: var(--dg-surface); stroke: var(--az-purple); stroke-width: 1.2; }
+  .card-g    { fill: var(--dg-surface); stroke: var(--dg-rule);   stroke-width: 1.2; }
+  /* dashed = outside this deployment */
+  .card-dash { fill: var(--dg-surface); stroke: var(--az-purple); stroke-width: 1.4; stroke-dasharray: 6 4; }
+
+  .zone   { fill: none; stroke: var(--az-blue);   stroke-width: 1.2; }
+  .zone-t { fill: none; stroke: var(--az-teal);   stroke-width: 1.2; }
+  /* dashed = outside this deployment */
+  .zone-p { fill: none; stroke: var(--az-purple); stroke-width: 1.3; stroke-dasharray: 7 4; }
+
+  .ed-pub  { stroke: var(--az-blue);   stroke-width: 2;   fill: none; }
+  .ed-ci   { stroke: var(--az-blue);   stroke-width: 1.8; fill: none; stroke-dasharray: 7 5; }
+  .ed-loc  { stroke: var(--dg-ink2);   stroke-width: 1.8; fill: none; stroke-dasharray: 2 4; stroke-linecap: round; }
+
+  .foot { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 12.5px; color: var(--dg-ink2); }
+  .foot b { color: var(--dg-ink); font-weight: 620; }
+
+  @media (max-width: 700px) { .wrap { padding: 28px 14px 48px; } h1 { font-size: 22px; } }
+</style>
+
+<div class="wrap">
+
+  <div class="head">
+    <div class="eyebrow">Architecture · TrainLog</div>
+    <h1>TrainLog architecture</h1>
+    <p class="sub">Everything runs on the lifter's phone. The only network traffic is the service worker fetching the app's own files from the static host (ADR-001).</p>
+  </div>
+
+  <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <marker id="ar-blue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--az-blue)"/></marker>
+      <marker id="ar-ink" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--dg-ink2)"/></marker>
+
+      <g id="ic-users">
+        <circle cx="13" cy="11" r="6.5" fill="var(--az-purple)"/>
+        <path d="M2,32 a11,11 0 0 1 22,0 z" fill="var(--az-purple)"/>
+        <circle cx="28" cy="13" r="5.5" fill="var(--az-purple-l)"/>
+        <path d="M19,32 a9,9 0 0 1 18,0 z" fill="var(--az-purple-l)"/>
+      </g>
+      <g id="ic-swa">
+        <rect x="2" y="5" width="36" height="30" rx="4" fill="var(--az-blue)"/>
+        <rect x="2" y="5" width="36" height="8" rx="4" fill="var(--az-blue-d)"/>
+        <circle cx="8" cy="9" r="1.7" fill="#fff"/><circle cx="14" cy="9" r="1.7" fill="#fff"/>
+        <path d="M14,19 L9,25 L14,31 M26,19 L31,25 L26,31 M22,18 L18,32" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <g id="ic-gw">
+        <rect x="14" y="2"  width="13" height="10" rx="2" fill="var(--az-blue)"/>
+        <rect x="2"  y="26" width="13" height="10" rx="2" fill="var(--az-blue)"/>
+        <rect x="26" y="26" width="13" height="10" rx="2" fill="var(--az-blue)"/>
+        <path d="M20.5,12 L20.5,20 M8.5,26 L8.5,20 L32.5,20 L32.5,26" fill="none" stroke="var(--az-blue)" stroke-width="2.2"/>
+      </g>
+      <g id="ic-sql">
+        <ellipse cx="20" cy="9" rx="15" ry="5.5" fill="var(--az-blue-l)"/>
+        <path d="M5,9 L5,31 a15,5.5 0 0 0 30,0 L35,9 a15,5.5 0 0 1 -30,0 z" fill="var(--az-blue)"/>
+        <ellipse cx="20" cy="9" rx="15" ry="5.5" fill="var(--az-blue-l)"/>
+        <path d="M5,20 a15,5.5 0 0 0 30,0" fill="none" stroke="#fff" stroke-width="1.4" opacity=".55"/>
+      </g>
+      <g id="ic-blob">
+        <path d="M3,9 a3,3 0 0 1 3,-3 h9 l3,4 h13 a3,3 0 0 1 3,3 v18 a3,3 0 0 1 -3,3 H6 a3,3 0 0 1 -3,-3 z" fill="var(--az-purple-l)"/>
+        <circle cx="20" cy="21" r="6.5" fill="#fff" opacity=".92"/>
+        <path d="M20,17.5 L20,25 M16.8,21.5 L20,24.8 L23.2,21.5" fill="none" stroke="var(--az-purple-d)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <g id="ic-acr">
+        <path d="M9,24 a7,7 0 0 1 1.5,-13.8 a9,9 0 0 1 17,1.5 a6.5,6.5 0 0 1 -1.5,12.3 z" fill="var(--az-blue-l)"/>
+        <rect x="7"  y="22" width="10" height="8" rx="1.4" fill="var(--az-blue-d)"/>
+        <rect x="19" y="22" width="10" height="8" rx="1.4" fill="var(--az-blue)"/>
+        <rect x="13" y="31" width="10" height="7" rx="1.4" fill="var(--az-blue-d)"/>
+      </g>
+      <g id="ic-devops">
+        <rect x="3" y="4" width="34" height="32" rx="5" fill="var(--az-purple)"/>
+        <path d="M12,26 L12,13 L20,9 L20,30 Z" fill="#fff" opacity=".92"/>
+        <path d="M22,13 L30,17 L30,25 L22,27 Z" fill="#fff" opacity=".65"/>
+      </g>
+    </defs>
+  </svg>
+
+  <section class="view">
+    <h2>Context</h2>
+    <p class="sub">The system as one box: the lifter uses it, it reads and saves files on the phone, and the Git repository deploys it.</p>
+    <div class="board">
+      <svg data-view="context" viewBox="0 0 1560 600" role="img"
+           aria-label="The lifter uses TrainLog on their phone. TrainLog opens and saves files through the phone's file picker and share sheet. The GitHub repository deploys TrainLog through Cloudflare's Git integration.">
+        <rect x="8" y="8" width="1544" height="584" rx="13" fill="var(--dg-bg)" stroke="var(--dg-rule)" stroke-width="1.3"/>
+
+        <rect class="card" x="100" y="190" width="300" height="110" rx="7"/>
+        <use href="#ic-users" x="118" y="225"/>
+        <text class="n-name" x="172" y="238">Lifter</text>
+        <text class="n-sub"  x="172" y="256">trains from structured programming</text>
+
+        <rect class="card" x="630" y="160" width="300" height="170" rx="7" stroke-width="2"/>
+        <text class="z-title" x="780" y="230" text-anchor="middle" fill="var(--az-blue)">TrainLog</text>
+        <text class="n-sub"   x="780" y="254" text-anchor="middle">installable web app, all data on the phone</text>
+        <text class="n-note"  x="780" y="274" text-anchor="middle">app, service worker, local store, static host</text>
+
+        <rect class="card-dash" x="1160" y="190" width="300" height="110" rx="7"/>
+        <use href="#ic-blob" x="1178" y="225"/>
+        <text class="n-name" x="1232" y="238">Device files and share sheet</text>
+        <text class="n-sub"  x="1232" y="256">routine files, backups, CSV</text>
+
+        <rect class="card-dash" x="630" y="400" width="300" height="90" rx="7"/>
+        <use href="#ic-devops" x="648" y="425"/>
+        <text class="n-name" x="702" y="438">Git repository</text>
+        <text class="n-sub"  x="702" y="456">GitHub, branch master</text>
+
+        <line class="ed-loc" x1="400" y1="245" x2="622" y2="245" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="511" y="237" text-anchor="middle" fill="var(--dg-ink2)">uses, installed</text>
+        <line class="ed-loc" x1="930" y1="245" x2="1152" y2="245" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="1041" y="237" text-anchor="middle" fill="var(--dg-ink2)">opens and saves files</text>
+        <line class="ed-ci" x1="780" y1="400" x2="780" y2="338" marker-end="url(#ar-blue)"/>
+        <text class="e-lab halo" x="792" y="373" fill="var(--az-blue)">deploys</text>
+
+        <line x1="32" y1="532" x2="1528" y2="532" stroke="var(--dg-rule)" stroke-width="1"/>
+        <line class="ed-loc" x1="52" y1="562" x2="98" y2="562" marker-end="url(#ar-ink)"/>
+        <text class="lg-lab" x="108" y="566">on the phone</text>
+        <line class="ed-ci" x1="262" y1="562" x2="308" y2="562" marker-end="url(#ar-blue)"/>
+        <text class="lg-lab" x="318" y="566">deployment</text>
+      </svg>
+    </div>
+  </section>
+
+  <section class="view">
+    <h2>Containers and deployment</h2>
+    <p class="sub">Every person, container and relation of architecture.md, placed in the zone where it runs.</p>
+    <div class="board">
+      <svg data-view="containers" viewBox="0 0 1560 700" role="img"
+           aria-label="On the lifter's phone, the lifter uses the single-page app. The app reads and writes the local IndexedDB store, registers the service worker, and opens and saves files through the device. The service worker fetches the app's files over HTTPS from the static host on Cloudflare. The GitHub repository deploys to the static host through Cloudflare's Git integration.">
+        <rect x="8" y="8" width="1544" height="684" rx="13" fill="var(--dg-bg)" stroke="var(--dg-rule)" stroke-width="1.3"/>
+        <path d="M8,21 A13,13 0 0 1 21,8 H1539 A13,13 0 0 1 1552,21 V66 H8 Z" fill="var(--navy)"/>
+        <text class="hd-lab" x="32" y="44">TrainLog · no backend, no account</text>
+
+        <rect class="zone" x="60" y="100" width="848" height="460" rx="8"/>
+        <text class="z-title halo" x="484" y="133" text-anchor="middle" fill="var(--az-blue)">1 · Lifter's phone (browser)</text>
+
+        <rect class="card" data-node="lifter" x="84" y="180" width="150" height="116" rx="7"/>
+        <use href="#ic-users" x="139" y="196"/>
+        <text class="n-name" x="159" y="260" text-anchor="middle">Lifter</text>
+        <text class="n-sub"  x="159" y="278" text-anchor="middle">at the gym</text>
+
+        <rect class="card" data-node="spa" x="290" y="180" width="320" height="116" rx="7"/>
+        <use href="#ic-swa" x="308" y="200"/>
+        <text class="n-name" x="362" y="207">Single-page app</text>
+        <text class="n-id"   x="362" y="225">spa</text>
+        <text class="n-sub"  x="362" y="243">React, TypeScript, Vite</text>
+        <text class="n-note" x="362" y="263">all screens and domain rules</text>
+
+        <rect class="card" data-node="service-worker" x="650" y="180" width="234" height="116" rx="7"/>
+        <use href="#ic-gw" x="668" y="200"/>
+        <text class="n-name" x="722" y="207">Service worker</text>
+        <text class="n-id"   x="722" y="225">service-worker</text>
+        <text class="n-sub"  x="722" y="243">Workbox</text>
+        <text class="n-note" x="722" y="263">precache, offline, updates</text>
+
+        <rect class="card" data-node="local-store" x="290" y="420" width="320" height="110" rx="7"/>
+        <use href="#ic-sql" x="308" y="440"/>
+        <text class="n-name" x="362" y="447">Local store</text>
+        <text class="n-id"   x="362" y="465">local-store</text>
+        <text class="n-sub"  x="362" y="483">IndexedDB through Dexie, 9 stores</text>
+        <text class="n-note" x="362" y="503">all training data and Settings</text>
+
+        <rect class="card-dash" data-node="device-files" x="650" y="420" width="234" height="110" rx="7"/>
+        <use href="#ic-blob" x="668" y="440"/>
+        <text class="n-name" x="722" y="447">Device files</text>
+        <text class="n-id"   x="722" y="465">device-files</text>
+        <text class="n-sub"  x="722" y="483">file picker, share sheet</text>
+
+        <line class="ed-loc" data-edge="lifter>spa" x1="234" y1="238" x2="282" y2="238" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="258" y="228" text-anchor="middle" fill="var(--dg-ink2)">uses</text>
+
+        <line class="ed-loc" data-edge="spa>service-worker" x1="610" y1="238" x2="642" y2="238" marker-end="url(#ar-ink)"/>
+
+        <polyline class="ed-loc" data-edge="spa>local-store" points="400,296 400,412" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="412" y="350" fill="var(--dg-ink2)">reads and writes</text>
+        <text class="e-lab halo" x="412" y="364" fill="var(--dg-ink2)">each set at once</text>
+
+        <polyline class="ed-loc" data-edge="spa>device-files" points="560,296 560,370 767,370 767,412" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="664" y="362" text-anchor="middle" fill="var(--dg-ink2)">open and save files</text>
+
+        <rect class="zone" x="938" y="100" width="570" height="220" rx="8"/>
+        <text class="z-title halo" x="1223" y="133" text-anchor="middle" fill="var(--az-blue)">2 · Public internet (Cloudflare)</text>
+
+        <rect class="card" data-node="static-host" x="1010" y="180" width="360" height="116" rx="7"/>
+        <use href="#ic-acr" x="1028" y="200"/>
+        <text class="n-name" x="1082" y="207">Static host</text>
+        <text class="n-id"   x="1082" y="225">static-host</text>
+        <text class="n-sub"  x="1082" y="243">Workers static assets, SPA fallback</text>
+        <text class="n-note" x="1082" y="263">receives no user data</text>
+
+        <line class="ed-pub" data-edge="service-worker>static-host" x1="884" y1="238" x2="1002" y2="238" marker-end="url(#ar-blue)"/>
+        <text class="e-lab halo" x="944" y="228" text-anchor="middle" fill="var(--az-blue)">HTTPS</text>
+
+        <rect class="zone-p" x="938" y="340" width="570" height="220" rx="8"/>
+        <text class="z-title halo" x="1223" y="373" text-anchor="middle" fill="var(--az-purple)">3 · Third party</text>
+
+        <rect class="card-dash" data-node="git-repo" x="1010" y="420" width="360" height="110" rx="7"/>
+        <use href="#ic-devops" x="1028" y="440"/>
+        <text class="n-name" x="1082" y="447">Git repository</text>
+        <text class="n-id"   x="1082" y="465">git-repo</text>
+        <text class="n-sub"  x="1082" y="483">GitHub, branch master</text>
+
+        <polyline class="ed-ci" data-edge="git-repo>static-host" points="1330,420 1330,304" marker-end="url(#ar-blue)"/>
+        <text class="e-lab halo" x="1342" y="390" fill="var(--az-blue)">Cloudflare Git</text>
+        <text class="e-lab halo" x="1342" y="404" fill="var(--az-blue)">builds master</text>
+
+        <line x1="32" y1="600" x2="1528" y2="600" stroke="var(--dg-rule)" stroke-width="1"/>
+        <line class="ed-loc" x1="52" y1="640" x2="98" y2="640" marker-end="url(#ar-ink)"/>
+        <text class="lg-lab" x="108" y="644">same device</text>
+        <line class="ed-pub" x1="262" y1="640" x2="308" y2="640" marker-end="url(#ar-blue)"/>
+        <text class="lg-lab" x="318" y="644">public HTTPS</text>
+        <line class="ed-ci" x1="472" y1="640" x2="518" y2="640" marker-end="url(#ar-blue)"/>
+        <text class="lg-lab" x="528" y="644">deployment</text>
+      </svg>
+    </div>
+  </section>
+
+  <section class="view">
+    <h2>Components of the single-page app</h2>
+    <p class="sub">The layering rule AR-001: features depends on db and pwa, db depends on domain, and domain and pwa depend on nothing inside the app.</p>
+    <div class="board">
+      <svg data-view="components" viewBox="0 0 1560 560" role="img"
+           aria-label="Inside the single-page app, features imports db, domain and pwa. db imports domain. domain imports neither db nor features. pwa imports none of the other three.">
+        <rect x="8" y="8" width="1544" height="544" rx="13" fill="var(--dg-bg)" stroke="var(--dg-rule)" stroke-width="1.3"/>
+
+        <rect class="zone" x="60" y="40" width="1440" height="420" rx="8"/>
+        <text class="z-title halo" x="780" y="73" text-anchor="middle" fill="var(--az-blue)">Single-page app (spa)</text>
+
+        <rect class="card" x="100" y="200" width="280" height="110" rx="7"/>
+        <text class="n-name" x="124" y="230">features</text>
+        <text class="n-sub"  x="124" y="250">screens, hooks, user flows</text>
+        <text class="n-note" x="124" y="270">reads through live queries</text>
+
+        <rect class="card" x="640" y="110" width="280" height="110" rx="7"/>
+        <text class="n-name" x="664" y="140">db</text>
+        <text class="n-sub"  x="664" y="160">repositories, transactions</text>
+        <text class="n-note" x="664" y="180">the only code that should touch IndexedDB</text>
+
+        <rect class="card" x="1180" y="200" width="280" height="110" rx="7"/>
+        <text class="n-name" x="1204" y="230">domain</text>
+        <text class="n-sub"  x="1204" y="250">pure rules: parsing, scheduling,</text>
+        <text class="n-sub"  x="1204" y="266">progression, history, backup format</text>
+        <text class="n-note" x="1204" y="286">imports neither db nor features</text>
+
+        <rect class="card" x="640" y="330" width="280" height="110" rx="7"/>
+        <text class="n-name" x="664" y="360">pwa</text>
+        <text class="n-sub"  x="664" y="380">manifest, update prompt, durability</text>
+        <text class="n-note" x="664" y="400">imports none of the other three</text>
+
+        <polyline class="ed-loc" points="380,230 510,230 510,165 632,165" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="522" y="200" fill="var(--dg-ink2)">imports</text>
+
+        <polyline class="ed-loc" points="920,165 1050,165 1050,230 1172,230" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="1062" y="200" fill="var(--dg-ink2)">imports</text>
+
+        <line class="ed-loc" x1="380" y1="270" x2="1172" y2="270" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="780" y="262" text-anchor="middle" fill="var(--dg-ink2)">imports</text>
+
+        <polyline class="ed-loc" points="380,295 510,295 510,385 632,385" marker-end="url(#ar-ink)"/>
+        <text class="e-lab halo" x="522" y="345" fill="var(--dg-ink2)">imports</text>
+
+        <line x1="32" y1="490" x2="1528" y2="490" stroke="var(--dg-rule)" stroke-width="1"/>
+        <line class="ed-loc" x1="52" y1="520" x2="98" y2="520" marker-end="url(#ar-ink)"/>
+        <text class="lg-lab" x="108" y="524">import dependency, same process</text>
+      </svg>
+    </div>
+  </section>
+
+  <div class="foot">
+    <span><b>Dashed border</b> · outside this deployment (the phone's own files, the third-party Git host)</span>
+    <span><b>Solid border</b> · deployed by this system</span>
+    <span>No box is to create: everything shown exists.</span>
+  </div>
+
+</div>

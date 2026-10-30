@@ -396,9 +396,9 @@ describe('catalog measurement', () => {
 
 describe('the movements bloque-a-acumulacion.yaml programmes', () => {
   const parsed = parseRoutineFile(
-    readFileSync(new URL('../../../docs/bloque-a-acumulacion.yaml', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../../docs/examples/bloque-a-acumulacion.yaml', import.meta.url), 'utf8'),
   );
-  if (!parsed.ok) throw new Error('docs/bloque-a-acumulacion.yaml no longer parses');
+  if (!parsed.ok) throw new Error('docs/examples/bloque-a-acumulacion.yaml no longer parses');
   const programmed = parsed.file.routine.workouts.flatMap((workout) => workout.exercises);
 
   const resolve = (exercise: { readonly name: string; readonly exercise_id?: string }) =>

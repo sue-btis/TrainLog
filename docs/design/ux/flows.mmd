@@ -1,0 +1,48 @@
+flowchart TD
+  subgraph J001["J-001 Import a routine (FR-001 to FR-016)"]
+    A[Pick yaml file or start from scratch] --> B{Parses and structurally valid?}
+    B -- no --> X[Rejected: file could not be read]
+    B -- yes --> C[Step 1 Exercises: edit, remove, reorder, add, rename, replace]
+    C --> D{Semantic issues left?}
+    D -- yes --> C
+    D -- no --> E[Step 2 Suggested days, weeks, start date]
+    E --> F{Another Routine active?}
+    F -- yes --> G[Warn it will be archived; optionally remove its remaining Placements]
+    F -- no --> H
+    G --> H[Accept: one transaction stores Routine, Workouts, Planned Exercises, new Exercises, Placements]
+    H --> I[Routine active; Placements in calendar; request persistent storage]
+  end
+
+  subgraph J002["J-002 and J-003 Train and resume (FR-030 to FR-059)"]
+    T[Today: placed Workout, else next in rotation] --> O{Session in progress?}
+    O -- yes --> R[Resume session]
+    O -- no --> S[Start Workout: snapshot targets of every planned exercise]
+    S --> P[Open exercise: show previous and suggestion]
+    R --> P
+    P --> L[Log set, persisted immediately]
+    L --> RT[Rest countdown from set time]
+    RT --> L
+    P --> DV[Skip, reorder, add unplanned, edit or delete set]
+    DV --> P
+    L --> FN[Finish]
+    FN --> ST{Any exercise pending?}
+    ST -- yes --> PA[partial]
+    ST -- no --> CO[completed]
+    PA --> BR[Backup reminder if due; request persistent storage]
+    CO --> BR
+  end
+
+  subgraph J005["J-005 Backup and restore (FR-075 to FR-083)"]
+    EX[Export backup] --> PW{Password?}
+    PW -- yes --> EN[Encrypt envelope]
+    PW -- no --> SV
+    EN --> SV[Save via share sheet or download]
+    IM[Pick backup on new device] --> EC{Encrypted?}
+    EC -- yes --> AP[Ask password; wrong or tampered means nothing restored]
+    EC -- no --> VA
+    AP --> VA{Valid and version not newer?}
+    VA -- no --> RJ[Refused, nothing changed]
+    VA -- yes --> SM[Summary, warning if a Session is open]
+    SM --> SB[Save safety backup of current data]
+    SB --> RP[Replace 8 training stores in one transaction; Settings untouched]
+  end
