@@ -21,7 +21,7 @@ This file is review evidence and workflow state for the current baseline only. I
 | `pnpm lint` | Pass, exit 0. There are 0 errors and 2 earlier warnings (`react-hooks/exhaustive-deps`, `src/features/import/ImportWizard.tsx:114,118`). |
 | `pnpm test` | Pass: 46 files, 1023 tests, exit 0 |
 | `npx -y -p @dbml/cli dbml2sql docs/design/data/schema.dbml` | Pass, exit 0 |
-| Structurizr DSL validation | Not run: the Structurizr CLI is not installed. The file was only read by hand, so it remains unvalidated. |
+| `structurizr validate -workspace docs/design/architecture/architecture.dsl` (CLI v2025.11.09, run 2026-10-30 after the baseline) | Pass, exit 0. The four views (Context, Containers, Layers, Deployment) render. |
 | OpenAPI / AsyncAPI | Not applicable (manifest `not_applicable`) |
 
 ## Current Blocking Summary

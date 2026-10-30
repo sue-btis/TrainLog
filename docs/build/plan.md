@@ -463,7 +463,5 @@ Stop if:
 
 - Everything in PRD §14. Each item needs a §15 decision and a new baseline before
   it is planned.
-- Validating the Structurizr DSL. It needs the Structurizr CLI, and no milestone
-  depends on it.
 - Independent follow-up verification of review findings F-001 to F-006. Their
   status in the ledger is `READY_FOR_VERIFICATION`.
