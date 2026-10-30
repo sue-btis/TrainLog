@@ -1,0 +1,158 @@
+// IndexedDB database `trainlog`, schema version 3 (ADR-004).
+// IndexedDB stores are schemaless; columns below are the record shape from
+// src/domain/types.ts, and only `[pk]` and `[note: 'indexed']` are declared
+// to the store in src/db/schema.ts. References are enforced by repositories,
+// not by the engine. Catalog Exercises ship in the build and are not stored.
+
+Project trainlog {
+  database_type: 'IndexedDB'
+  Note: 'Retroactive baseline. Code authority: src/db/schema.ts, src/domain/types.ts.'
+}
+
+Enum routine_status {
+  active
+  archived
+}
+
+Enum session_status {
+  in_progress
+  completed
+  partial
+}
+
+Enum exercise_session_status {
+  pending
+  performed
+  skipped
+}
+
+Enum unit {
+  kg
+  lb
+}
+
+Enum distance_unit {
+  m
+  km
+  mi
+}
+
+Enum measurement {
+  weight_reps
+  bodyweight_reps
+  weighted_bodyweight
+  assisted_bodyweight
+  duration
+  duration_weight
+  distance_duration
+  weight_distance
+  distance
+}
+
+Table routines {
+  id varchar [pk]
+  name varchar [not null]
+  weeks int [not null]
+  status routine_status [not null, note: 'indexed']
+  createdAt timestamp [not null]
+}
+
+Table workouts {
+  id varchar [pk]
+  routineId varchar [not null, ref: > routines.id, note: 'indexed']
+  name varchar [not null]
+  suggestedDays json [not null, note: 'Weekday[]; read only when the Workout enters a Routine']
+  order int [not null]
+}
+
+Table plannedExercises {
+  id varchar [pk]
+  workoutId varchar [not null, ref: > workouts.id, note: 'indexed']
+  exerciseId varchar [not null, note: 'catalog slug or exercises.id']
+  sets int [not null]
+  minReps int
+  maxReps int
+  minTarget float
+  maxTarget float
+  minRir int
+  maxRir int
+  restSeconds int
+  unit unit [not null]
+  focus varchar
+  notes json [not null, note: 'string[]']
+  order int [not null]
+  progression json [not null, note: '{type: manual} | {type: double_progression, increment}']
+}
+
+Table placements {
+  id varchar [pk]
+  routineId varchar [not null, ref: > routines.id, note: 'indexed']
+  workoutId varchar [not null, ref: > workouts.id]
+  date date [not null, note: 'indexed; local date']
+}
+
+Table exercises {
+  id varchar [pk, note: 'user Exercises only']
+  name varchar [not null]
+  category varchar
+  equipment varchar
+  measurement measurement [not null]
+  previousNames json [note: 'string[]; still matched on import']
+}
+
+Table sessions {
+  id varchar [pk]
+  routineId varchar [not null, ref: > routines.id, note: 'indexed']
+  workoutId varchar [not null, ref: > workouts.id]
+  startedAt timestamp [not null, note: 'indexed']
+  completedAt timestamp
+  status session_status [not null, note: 'indexed; at most one in_progress']
+  bodyweightKg float
+}
+
+Table exerciseSessions {
+  id varchar [pk]
+  sessionId varchar [not null, ref: > sessions.id, note: 'indexed']
+  exerciseId varchar [not null, note: 'indexed; catalog slug or exercises.id']
+  order int [not null]
+  status exercise_session_status [not null]
+  measurement measurement [not null, note: 'snapshot of the Exercise']
+  plannedExerciseId varchar [ref: > plannedExercises.id, note: 'null when unplanned; provenance only (ADR-003)']
+  plannedUnit unit
+  plannedSets int
+  plannedMinReps int
+  plannedMaxReps int
+  plannedMinTarget float
+  plannedMaxTarget float
+  plannedMinRir int
+  plannedMaxRir int
+  plannedRestSeconds int
+  plannedProgression json
+}
+
+Table completedSets {
+  id varchar [pk]
+  exerciseSessionId varchar [not null, ref: > exerciseSessions.id, note: 'indexed']
+  setNumber int [not null]
+  weight float [not null]
+  unit unit [not null]
+  weightKg float [not null, note: 'derived; used for all comparison']
+  reps int
+  rir int [note: 'null = not recorded, not 0']
+  durationSeconds int
+  distance float
+  distanceUnit distance_unit
+  distanceM float [note: 'derived']
+  completedAt timestamp [not null]
+}
+
+Table settings {
+  id varchar [pk, note: "always 'settings'"]
+  defaultUnit unit [not null, default: 'kg']
+  defaultRir int
+  timerVibration boolean [default: true]
+  timerSound boolean [default: false]
+  keepScreenAwake boolean [default: true]
+  bodyweightKg float
+  lastBackupAt timestamp
+}

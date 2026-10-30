@@ -54,8 +54,8 @@ checked and what you could not.
 - Use the vocabulary in [CONTEXT.md](./CONTEXT.md), in identifiers as well as
   prose: `Workout`, `Session`, `Placement` — not "day", "workout session" or
   "scheduled workout".
-- Code, identifiers and comments are in English. The product spec
-  ([docs/PRD.md](./docs/PRD.md)) is in Spanish and stays that way.
+- Code, identifiers, comments and the product spec
+  ([docs/product/prd.md](./docs/product/prd.md)) are in English.
 - Comments explain why, not what.
 
 ## The routine file format

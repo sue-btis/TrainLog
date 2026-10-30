@@ -309,9 +309,9 @@ describe('validateRoutineFile — target axis mismatch (TST-129, REQ-139, AC-166
  */
 describe('the shipped files validate clean with the axis check on (TST-129, REQ-139)', () => {
   it.each([
-    'bloque-a-acumulacion.yaml',
-    'bloque-b-intensificacion.yaml',
-    'bloque-c-estetica-hibrida.yaml',
+    'examples/bloque-a-acumulacion.yaml',
+    'examples/bloque-b-intensificacion.yaml',
+    'examples/bloque-c-estetica-hibrida.yaml',
     'examples/hibrido-v2.yaml',
   ])('%s', (name) => {
     const text = readFileSync(

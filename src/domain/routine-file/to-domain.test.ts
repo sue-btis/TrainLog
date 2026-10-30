@@ -396,9 +396,9 @@ describe('the file format states how an exercise is measured (TST-120)', () => {
 
 
 const BLOCK_FILES = [
-  'bloque-a-acumulacion.yaml',
-  'bloque-b-intensificacion.yaml',
-  'bloque-c-estetica-hibrida.yaml',
+  'examples/bloque-a-acumulacion.yaml',
+  'examples/bloque-b-intensificacion.yaml',
+  'examples/bloque-c-estetica-hibrida.yaml',
 ];
 
 /**

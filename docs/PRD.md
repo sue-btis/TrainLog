@@ -1,3 +1,6 @@
+> **Superseded** by [docs/product/prd.md](./product/prd.md) (PD-004). Kept only so
+> existing `§n` references resolve until they are migrated.
+
 # PRD — Offline-First Training PWA
 
 ## 1. Product Overview

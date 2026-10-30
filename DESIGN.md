@@ -287,7 +287,7 @@ components:
 
 # Design System: TrainLog
 
-Extracted from `design/preview.html`, the first built surface of this world. Re-run
+Extracted from the first built surface of this world. Re-run
 `/impeccable document` once app code exists so the tokens track the implementation.
 
 ## Overview
@@ -546,7 +546,7 @@ highlight — a specular edge, not a gradient across the face.
 Everything above is the specification. Tailwind and shadcn are how it gets built, and neither is
 allowed to change it: **Tailwind renders the tokens, shadcn supplies behaviour, appearance comes
 from this file.** A screen that looks like default shadcn is a defect, not a shortcut.
-[PRD §8](./docs/PRD.md) fixes the stack; this section is the binding between that stack and the
+[ADR-001](./docs/design/architecture/adr/ADR-001-system-shape.md) and [ADR-004](./docs/design/architecture/adr/ADR-004-indexeddb-via-dexie-as-the-only-store.md) fix the stack; this section is the binding between that stack and the
 tokens above, written so it can be pasted into a repository and compiled.
 
 ### Where it lives

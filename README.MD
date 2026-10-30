@@ -131,11 +131,12 @@ pnpm dev
 | --- | --- |
 | [docs/FORMAT.md](./docs/FORMAT.md) | The routine file format, field by field |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Setup, checks, rules and how to open a pull request |
-| [docs/PRD.md](./docs/PRD.md) | The full product specification (in Spanish) |
-| [PRODUCT.md](./PRODUCT.md) | Product purpose, users, and the committed stack |
+| [docs/product/prd.md](./docs/product/prd.md) | The product specification |
+| [docs/spec/manifest.yaml](./docs/spec/manifest.yaml) | Index of the design package: domain, architecture, data, flows, quality attributes |
+| [PRODUCT.md](./PRODUCT.md) | Users, purpose, brand and the committed stack |
 | [DESIGN.md](./DESIGN.md) | The visual system |
 | [CONTEXT.md](./CONTEXT.md) | Glossary — the words this project uses, and the ones it avoids |
-| [docs/adr/](./docs/adr/) | Architectural decisions and why they were made |
+| [docs/design/architecture/adr/](./docs/design/architecture/adr/) | Architectural decisions and why they were made |
 | [docs/changes/](./docs/changes/) | One folder per change: spec, plan, execution, verification |
 | [AGENTS.MD](./AGENTS.MD) | Rules for working in this repository |
 

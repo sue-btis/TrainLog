@@ -398,8 +398,7 @@ details[open]::details-content {
 }
 
 /* ── Bottom navigation — the liquid tab ──────────────────────────────────
-   Our Liquid Motion System (docs/animations/luiquid-5-examples.html, §01)
-   applied to the control a lifter presses more than any other.
+   Our Liquid Motion System applied to the control a lifter presses more than any other.
 
    The thing that makes it read as liquid rather than as a pop is *what* the
    filter is deforming: the main blob is not a dot behind the icon, it is the
@@ -541,7 +540,7 @@ details[open]::details-content {
 }
 
 /* ── The top bar — the bar opens ─────────────────────────────────────────
-   Rep Snap (docs/animations/button-examples.html, §02) says: a circle, then
+   Rep Snap says: a circle, then
    the same object widens into a pill and its content is uncovered by the
    widening rather than faded in on top of it. The reference does it by
    animating `width` on a 46px button. A bar that is as wide as the screen
