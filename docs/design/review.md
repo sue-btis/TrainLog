@@ -119,3 +119,9 @@ This file is review evidence and workflow state for the current baseline only. I
 - After the edits, check-package.mjs passes and dbml2sql exits 0.
 - Each finding stays READY_FOR_VERIFICATION until an independent follow-up verification confirms it.
 - Verdict unchanged: Approved for build planning.
+
+### Architecture format change — 2026-10-30
+
+- The plugin update (software-design-skills 1.6.0) moved the architecture authority from a Structurizr DSL to tables in `docs/design/architecture/architecture.md`, drawn by `diagram.html`.
+- `architecture.dsl` was removed. The containers, relations and layering rule it held were carried over unchanged, and its F-004 correction (`features -> pwa`) is kept in both new files.
+- The Structurizr validation above applies to the removed DSL. The new pair is checked by `check-package.mjs`, which compares the containers view with the tables.

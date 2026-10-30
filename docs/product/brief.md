@@ -133,7 +133,7 @@ question here can be answered from the repository.
 |---|---:|---|
 | PRD | Yes | Product authority. It replaces `docs/PRD.md` (PD-A). |
 | Domain model | Yes | Invariants (additions only, derived Missed, unit per set, Snapshot) live today in AGENTS.MD and CONTEXT.md. CONTEXT.md stays the glossary. |
-| Structurizr DSL | Yes | One container (the SPA, its service worker and IndexedDB), the static host, and the layering rule `features → db → domain`. |
+| Architecture tables and diagram | Yes | One container (the SPA, its service worker and IndexedDB), the static host, and the layering rule `features → db → domain`. |
 | ADR | Yes | Keep 0001 and 0002. Add ADRs only for decisions that are already consequential, such as local-only storage with no backend, and backup encryption. |
 | DBML | Yes | Nine Dexie tables at schema v3, with their upgrades (`src/db/schema.ts:30-66`). |
 | OpenAPI | No | There is no HTTP API. |

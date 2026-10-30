@@ -10,7 +10,7 @@ read_first:
   - docs/product/prd.md
   - docs/design/domain.md
   - CONTEXT.md
-  - docs/design/architecture/architecture.dsl
+  - docs/design/architecture/architecture.md
   - AGENTS.MD
 
 authoritative_sources:
@@ -21,7 +21,8 @@ authoritative_sources:
     path: docs/design/domain.md
     owns: [ubiquitous_language, domain_invariants, domain_boundaries]
   architecture:
-    path: docs/design/architecture/architecture.dsl
+    path: docs/design/architecture/architecture.md
+    view: docs/design/architecture/diagram.html
     owns: [system_structure, containers, components, dependencies, deployment_views]
   architecture_decisions:
     path: docs/design/architecture/adr/

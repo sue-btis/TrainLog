@@ -66,7 +66,7 @@ Requirements:
 - CON-001, CON-002, CON-003, CON-004
 
 Canonical authorities:
-- `docs/design/architecture/architecture.dsl`
+- `docs/design/architecture/architecture.md`
 - `docs/design/architecture/adr/ADR-001-system-shape.md`
 - `docs/design/architecture/adr/ADR-003-snapshot-planned-targets-on-session-start.md`
 - `docs/design/architecture/adr/ADR-004-indexeddb-via-dexie-as-the-only-store.md`
@@ -142,7 +142,7 @@ Stop if:
 - fixes drift DR-009 — FR-003 defers to the twelve checks in FORMAT.md. Stop if
   `validate.ts` and FORMAT.md disagree;
 - fixes drift DR-005 — the deployment target is Workers static assets
-  (architecture.dsl). Stop if `wrangler.jsonc` says otherwise.
+  (architecture.md, `static-host`). Stop if `wrangler.jsonc` says otherwise.
 
 ## Milestone M02 — Deviations and progression during a Session
 

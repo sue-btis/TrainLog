@@ -61,7 +61,7 @@
 
 | Rule | Source | Check |
 |---|---|---|
-| AR-001 Dependencies point `features → db → domain` and `features → pwa`. `domain/` imports neither `db/` nor `features/`, and touches no storage or UI. `pwa/` imports neither `features/`, `db/` nor `domain/`. | Layers view, `architecture.dsl` | `no-restricted-imports` in `eslint.config.js` covers `domain/` and `db/`. The `pwa/` rule is checked by review only. |
+| AR-001 Dependencies point `features → db → domain` and `features → pwa`. `domain/` imports neither `db/` nor `features/`, and touches no storage or UI. `pwa/` imports neither `features/`, `db/` nor `domain/`. | `architecture.md` Notes; the components view of `diagram.html` | `no-restricted-imports` in `eslint.config.js` covers `domain/` and `db/`. The `pwa/` rule is checked by review only. |
 | AR-002 No runtime network calls (`fetch`, XHR, WebSocket, beacon) in `src/` | ADR-001, NFR-002 | A grep check, which could become a lint rule |
 | AR-003 Only `src/db/` touches IndexedDB | ADR-004 | Review. No lint rule stops `features/` from importing `dexie`; only `domain/` is restricted. |
 | AR-004 Measurement facts are stated only in `src/domain/measurement.ts` | Domain cross-boundary rules | Review |
